@@ -23,6 +23,9 @@ import CommunityScreen from "./screens/CommunityScreen";
 import NotificationScreen from "./screens/NotificationScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import OrderDetailScreen from './screens/OrderDetailScreen'; // Import màn hình Order Details
+import AllDishesScreen from './screens/AllDishesScreen';
+import SuggestedDishesScreen from "./screens/SuggestedDishesScreen";
+import DishDetailScreen from "./screens/DishDetailScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
@@ -227,6 +230,14 @@ export default function App() {
         <Stack.Screen name="Home" component={TabRoute} />
          <Stack.Screen name="Order" component={OrderScreen} /> 
         <Stack.Screen name="OrderDetails" component={OrderDetailScreen} /> 
+        <Stack.Screen name="SuggestedDishes" component={SuggestedDishesScreen} />
+        <Stack.Screen name="DishDetail" component={DishDetailScreen} />
+
+        <Stack.Screen 
+          name="AllDishes" 
+          component={AllDishesScreen} 
+          options={{ title: 'Tất cả món ăn' }} 
+        />
       </Stack.Navigator>
     </NavigationContainer>
     

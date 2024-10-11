@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native'; // Import useNavigation để điều hướng
 import COLORS from '../constants/color'; 
 import FONTS from '../constants/font';   
 
 const { width, height } = Dimensions.get('window');
 
 const HomeScreen = () => {
+  const navigation = useNavigation(); // Tạo instance của navigation
+
   const [userData, setUserData] = useState({
     name: 'Nguyễn Thị XXX',
     points: 333,
@@ -20,6 +23,15 @@ const HomeScreen = () => {
     { id: '3', name: 'Món ăn 3' },
     { id: '4', name: 'Món ăn 4' },
   ]);
+
+  
+  const handleViewAll = () => {
+    navigation.navigate('AllDishes'); // Điều hướng đến màn hình 
+  };
+
+  const handleDishPress = (dishId) => {
+    navigation.navigate('AllDishes', { dishId }); // Điều hướng tới màn hình chi tiết hoặc danh sách món ăn
+  };
 
   return (
     <View style={styles.container}>
@@ -38,9 +50,11 @@ const HomeScreen = () => {
 
       {/* Biểu tượng chức năng */}
       <View style={styles.featureIcons}>
-        <View style={styles.iconItem}>
-          <Icon name="restaurant-outline" size={32} color={COLORS.black} />
-          <Text style={styles.iconLabel}>Món Ăn</Text>
+        <View style={styles.iconItem}>    
+        <TouchableOpacity onPress={handleViewAll}>
+        <Icon name="restaurant-outline" size={32} color={COLORS.black} />
+        <Text style={styles.iconLabel}>Món Ăn</Text>
+        </TouchableOpacity>
         </View>
         <View style={styles.iconItem}>
           <Icon name="book-outline" size={32} color={COLORS.black} />
@@ -67,17 +81,22 @@ const HomeScreen = () => {
       {/* Phần danh sách món ăn và "Xem tất cả" */}
       <View style={styles.dishHeader}>
         <Text style={styles.sectionTitle}>Món ăn dành cho bạn</Text>
-        <TouchableOpacity>
-          <Text style={styles.viewAll}>Xem tất cả</Text>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('SuggestedDishes')}>
+  <Text style={styles.viewAll}>Xem tất cả</Text>
+</TouchableOpacity>
       </View>
       
       <FlatList
         data={dishes}
         renderItem={({ item }) => (
-          <View style={styles.dishItem}>
-            <Text>{item.name}</Text>
-          </View>
+         // HomeScreen.js or where the list of dishes is displayed
+
+<TouchableOpacity onPress={() => navigation.navigate('DishDetail', { dish: item })}>
+  <View style={styles.dishItem}>
+    <Text>{item.name}</Text>
+  </View>
+</TouchableOpacity>
+
         )}
         keyExtractor={(item) => item.id}
         numColumns={2}

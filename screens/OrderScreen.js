@@ -1,27 +1,31 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert } from 'react-native';
-import COLORS from '../constants/color'; // Import màu sắc
-import FONTS from '../constants/font';  // Import fonts
+import COLORS from '../constants/color';
+import FONTS from '../constants/font';
+import { useNavigation } from '@react-navigation/native'; 
 
 const OrderScreen = () => {
-  const [activeTab, setActiveTab] = useState('Chưa hoàn thành'); // Tab hiện tại
+  const navigation = useNavigation(); 
 
-  // Dữ liệu mẫu cho các đơn hàng chưa hoàn thành
+  const [activeTab, setActiveTab] = useState('Chưa hoàn thành');
+
   const pendingOrders = [
     { id: '1', name: 'Gà chay, bò tay', status: 'Chờ xác nhận', quantity: 3, total: '888.888vnd' },
     { id: '2', name: 'Gà chay, bò tay', status: 'Đã xác nhận', quantity: 3, total: '888.888vnd' },
     { id: '3', name: 'Gà chay, bò tay', status: 'Đang giao', quantity: 3, total: '888.888vnd' },
   ];
 
-  // Dữ liệu mẫu cho các đơn hàng đã hoàn thành
   const completedOrders = [
-    { id: '1', name: 'Tên món ăn', status: 'Đã nhận hàng', quantity: 3, total: '888.888vnd' },
+    { id: '1', name: 'Gà chay, bò tay', status: 'Đã nhận hàng', quantity: 3, total: '888.888vnd' },
     { id: '2', name: 'Tên món ăn', status: 'Đã hủy', quantity: 3, total: '888.888vnd' },
     { id: '3', name: 'Tên món ăn', status: 'Đã nhận hàng', quantity: 3, total: '888.888vnd' },
   ];
 
+  const handleOrderDetails = (orderId) => {
+    navigation.navigate('OrderDetails', { orderId }); 
+  };
+
   const handleCancelOrder = (id) => {
-    // Xử lý khi nhấn nút hủy đơn hàng
     Alert.alert('Hủy đơn hàng', `Bạn có chắc chắn muốn hủy đơn hàng ${id}?`, [
       { text: 'Không', style: 'cancel' },
       { text: 'Hủy', onPress: () => console.log(`Đơn hàng ${id} đã bị hủy`) },
@@ -29,38 +33,39 @@ const OrderScreen = () => {
   };
 
   const renderOrder = ({ item }) => (
-    <View style={styles.orderCard}>
-      <View style={styles.orderInfo}>
-        <Image
-          source={{ uri: 'https://via.placeholder.com/100' }} // Placeholder hình ảnh
-          style={styles.orderImage}
-        />
-        <View style={styles.orderDetails}>
-          <Text style={styles.orderName}>{item.name}</Text>
-          <Text style={styles.orderQuantity}>Số lượng: {item.quantity}</Text>
-          <Text style={styles.orderTotal}>Tổng số tiền: {item.total}</Text>
+    <TouchableOpacity onPress={() => handleOrderDetails(item.id)}>
+      <View style={styles.orderCard}>
+        <View style={styles.orderInfo}>
+          <Image
+            source={{ uri: 'https://via.placeholder.com/100' }} 
+            style={styles.orderImage}
+          />
+          <View style={styles.orderDetails}>
+            <Text style={styles.orderName}>{item.name}</Text>
+            <Text style={styles.orderQuantity}>Số lượng: {item.quantity}</Text>
+            <Text style={styles.orderTotal}>Tổng số tiền: {item.total}</Text>
+          </View>
         </View>
+
+        <View
+          style={[
+            styles.orderStatus,
+            getStatusStyle(item.status),
+           
+          ]}
+        >
+          <Text style={styles.orderStatusText}>{item.status}</Text>
+        </View>
+
+        {item.status === 'Chờ xác nhận' && (
+
+          <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancelOrder(item.id)}>
+            <Text style={styles.cancelButtonText}>Hủy đơn hàng</Text>
+          </TouchableOpacity>         
+        )}
       </View>
-  
-      {/* Kiểm tra trạng thái và bo góc cho tất cả */}
-      <View style={[
-        styles.orderStatus,
-        getStatusStyle(item.status), // Áp dụng style màu sắc dựa trên trạng thái
-        item.status === 'Đã hủy' && { borderRadius: 5 } // Bo góc cho trạng thái "Đã hủy"
-      ]}>
-        <Text style={styles.orderStatusText}>{item.status}</Text>
-      </View>
-  
-      {/* Hiển thị nút hủy nếu trạng thái là "Chờ xác nhận" */}
-      {item.status === 'Chờ xác nhận' && (
-        <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancelOrder(item.id)}>
-          <Text style={styles.cancelButtonText}>Hủy đơn hàng</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+    </TouchableOpacity>
   );
-  
-  
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -81,7 +86,6 @@ const OrderScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Tabs Chưa hoàn thành / Đã hoàn thành */}
       <View style={styles.tabsContainer}>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'Chưa hoàn thành' && styles.activeTab]}
@@ -97,9 +101,8 @@ const OrderScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Danh sách đơn hàng */}
       <FlatList
-        data={activeTab === 'Chưa hoàn thành' ? pendingOrders : completedOrders} // Thay đổi dữ liệu dựa vào tab đang chọn
+        data={activeTab === 'Chưa hoàn thành' ? pendingOrders : completedOrders}
         renderItem={renderOrder}
         keyExtractor={(item) => item.id}
       />
@@ -135,15 +138,21 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   orderCard: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.white,
     borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 5, // Tạo hiệu ứng mờ cho Android
+    marginBottom: 15,
+    padding:10,
   },
   orderInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between', // Căn hai phần (image và thông tin) cách xa nhau
+    justifyContent: 'space-between', 
   },
   orderImage: {
     width: 50,
@@ -170,34 +179,37 @@ const styles = StyleSheet.create({
     color: COLORS.black,
   },
   orderStatus: {
-    width: 100, // Đặt chiều rộng cố định
-    height: 30, // Đặt chiều cao cố định
+    width: 100,
+    height: 30,
     paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 5, // Bo góc cho tất cả các trạng thái, bao gồm "Đã hủy"
-    alignSelf: 'flex-end', // Căn sang bên phải
-    justifyContent: 'center', // Căn giữa theo chiều dọc
-    alignItems: 'center', // Căn giữa theo chiều ngang
-    marginTop: -25, // Điều chỉnh vị trí
-  },
-  orderStatusText: {
-    fontSize: 12,
-    color: COLORS.white,
-    fontFamily: FONTS.regular,
-  },
-  cancelButton: {
-    marginTop: 10,
-    backgroundColor: COLORS.red,
-    padding: 8,
+    paddingHorizontal: 5,
     borderRadius: 5,
     alignSelf: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
   },
+  orderStatusText: {
+    fontSize: 14,
+    color: COLORS.white,
+    fontFamily: FONTS.semiBold,
+  },
+  cancelButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.red,
+    paddingVertical: 5, // Giữ padding như các nút status khác
+    paddingHorizontal: 10, 
+    borderRadius: 5,
+    alignSelf: 'flex-end', // Căn nút sang trái giống các nút status khác
+     marginTop: -30 ,  // Điều chỉnh margin để tương đồng với các nút trạng thái khác
+  },
+  
   cancelButtonText: {
     color: COLORS.white,
     fontFamily: FONTS.semiBold,
     fontSize: 14,
   },
 });
-
 
 export default OrderScreen;

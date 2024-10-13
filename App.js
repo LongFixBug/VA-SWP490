@@ -26,6 +26,8 @@ import OrderDetailScreen from './screens/OrderDetailScreen'; // Import màn hìn
 import AllDishesScreen from './screens/AllDishesScreen';
 import SuggestedDishesScreen from "./screens/SuggestedDishesScreen";
 import DishDetailScreen from "./screens/DishDetailScreen";
+import NewPostScreen from "./screens/NewPostScreen";
+import PostDetailScreen from "./screens/PostDetailScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
@@ -232,6 +234,9 @@ export default function App() {
         <Stack.Screen name="OrderDetails" component={OrderDetailScreen} /> 
         <Stack.Screen name="SuggestedDishes" component={SuggestedDishesScreen} />
         <Stack.Screen name="DishDetail" component={DishDetailScreen} />
+        <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
+        <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
+
 
         <Stack.Screen 
           name="AllDishes" 

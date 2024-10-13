@@ -1,48 +1,38 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import COLORS from '../constants/color';
 import FONTS from '../constants/font';
 
 const CommunityScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('Cộng đồng');
+  const [communityPosts, setCommunityPosts] = useState([]);
+  const [expertPosts, setExpertPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample posts for the community
-  const communityPosts = [
-    {
-      id: '2',
-      username: 'cxzvc',
-      title: 'Title',
-      content: 'ajhvdfjahsvb dcjn asdadasdacasdasf acacacscdacac...',
-      images: [
-        { id: 'img1', uri: 'https://via.placeholder.com/100' },
-        { id: 'img2', uri: 'https://via.placeholder.com/100' },
-      ],
-    },
-    {
-      id: '3',
-      username: 'nbnbn',
-      title: 'Title',
-      content: 'ajhvdfjahsvb dcjn asdadasdacasdasf acacacscdacacbajbhcba....',
-      images: [],
-    },
-  ];
+  // Fetch articles from the API
+  const fetchArticles = async () => {
+    try {
+      const response = await fetch('https://va-api-2efefb5aee82.herokuapp.com/articles');
+      const data = await response.json();
 
-  // Sample posts for the expert tab
-  const expertPosts = [
-    {
-      id: '1',
-      username: 'chuyengia',
-      title: 'Expert Post Title',
-      content: 'ajhvdfjahsvb dcjn asdadasdacasdasf acacacscdacac...',
-      images: [
-        { id: 'img1', uri: 'https://via.placeholder.com/100' },
-        { id: 'img2', uri: 'https://via.placeholder.com/100' },
-      ],
-    },
-  ];
+      // Separate posts based on role
+      const communityData = data.data.filter(post => post.author_role === 'Customer');
+      const expertData = data.data.filter(post => post.author_role === 'Nutritionist');
 
-  // Render new post section (only for the "Cộng đồng" tab)
+      setCommunityPosts(communityData);
+      setExpertPosts(expertData);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching articles:', error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchArticles();
+  }, []);
+
   const renderNewPostSection = () => (
     <TouchableOpacity style={styles.newPostContainer} onPress={() => navigation.navigate('NewPostScreen')}>
       <View style={styles.newPostHeader}>
@@ -57,38 +47,35 @@ const CommunityScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  // Render a post (either community or expert posts)
   const renderPost = ({ item }) => (
-    <View style={styles.postContainer}>
+    <TouchableOpacity
+      style={styles.postContainer}
+      onPress={() => navigation.navigate('PostDetailScreen', { article: item })}
+    >
       <View style={styles.postHeader}>
         <Icon name="person-circle-outline" size={32} color={COLORS.black} />
-        <View>
-          <Text style={styles.username}>{item.username}</Text>
-          <Text style={styles.title}>{item.title}</Text>
-        </View>
-      </View>
-      <Text style={styles.content}>{item.content}</Text>
-
-      {item.images.length > 0 && (
-        <View style={styles.imageContainer}>
-          {item.images.map((image) => (
-            <Image key={image.id} source={{ uri: image.uri }} style={styles.postImage} />
-          ))}
-        </View>
-      )}
-
+      
+          <Text style={styles.username}>{item.author_id}</Text>
+      </View> 
+      {/* <Text style={styles.roleText}>{item.author_role === 'Customer' ? 'Customer' : 'Nutritionist'}</Text> */}
+      <Text style={styles.title}>{item.title}</Text>
+      <Text style={styles.content}>{item.content.substring(0, 50)}...</Text>
       <View style={styles.interactionBar}>
         <TouchableOpacity style={styles.iconContainer}>
           <Icon name="heart-outline" size={20} color={COLORS.grey} />
-          <Text style={styles.iconText}>12</Text>
+          <Text style={styles.iconText}>{item.likes}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.iconContainer}>
           <Icon name="chatbubble-outline" size={20} color={COLORS.grey} />
-          <Text style={styles.iconText}>5</Text>
+          <Text style={styles.iconText}>{item.comments}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
+
+  if (loading) {
+    return <ActivityIndicator size="large" color={COLORS.green} style={styles.loading} />;
+  }
 
   return (
     <View style={styles.container}>
@@ -115,7 +102,7 @@ const CommunityScreen = ({ navigation }) => {
       <FlatList
         data={activeTab === 'Cộng đồng' ? communityPosts : expertPosts}
         renderItem={renderPost}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.article_id.toString()}
         contentContainerStyle={styles.postList}
       />
     </View>
@@ -185,31 +172,36 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   username: {
-    marginLeft: 10,
+    marginTop: 5,
+    marginLeft: 5,
     fontSize: 16,
     fontFamily: FONTS.semiBold,
     color: COLORS.black,
   },
   title: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.grey,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.black,
+    marginLeft: 5,  // Adjust margin to align with the avatar
+    marginBottom: 5, // Add spacing between the title and content
+    marginRight:5,
   },
   content: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: COLORS.black,
+    color: COLORS.grey,
+    marginLeft: 5, // Keep the same margin as the title for alignment
     marginBottom: 10,
+    marginRight:5,
   },
-  imageContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  postImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-  },
+
+  // roleText: {
+  //   fontSize: 12,
+  //   color: COLORS.grey,
+  //   alignSelf: 'flex-end',
+  //   marginTop: -10,
+  //   marginRight: 10,
+  // },
   interactionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -223,6 +215,11 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontFamily: FONTS.regular,
     color: COLORS.grey,
+  },
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

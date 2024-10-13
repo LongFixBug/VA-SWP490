@@ -1,38 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import COLORS from '../constants/color';
 import FONTS from '../constants/font';
 
-// Dữ liệu mẫu cho đánh giá
-const reviews = [
-  { id: '1', username: 'cxzvc', comment: 'Lksdkfdsfjsd', rating: 5, time: '3 ngày trước' },
-  { id: '2', username: 'abcxyz', comment: 'Ngon tuyệt vời', rating: 4, time: '5 ngày trước' },
-];
-
 const DishDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { dish } = route.params;  // Lấy thông tin món ăn từ params
-
-  const renderReview = ({ item }) => (
-    <View style={styles.reviewCard}>
-      <View style={styles.reviewHeader}>
-        <Text style={styles.username}>{item.username}</Text>
-        <View style={styles.reviewRating}>
-          {Array(item.rating).fill().map((_, i) => (
-            <Icon key={i} name="star" size={14} color="gold" />
-          ))}
-        </View>
-      </View>
-      <Text style={styles.comment}>{item.comment}</Text>
-      <Text style={styles.time}>{item.time}</Text>
-    </View>
-  );
+  const { dish } = route.params;
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -43,18 +22,17 @@ const DishDetailScreen = () => {
       </View>
 
       {/* Món ăn */}
-      
       <View style={styles.dishInfo}>
-      <Image source={{ uri: dish.imageUrl }} style={styles.dishImage} />
+        <Image source={{ uri: dish.image_url }} style={styles.dishImage} />
         <View style={styles.priceAndFavorite}>
           <Text style={styles.price}>{dish.price} vnd</Text>
           <Icon name="heart-outline" size={24} color={COLORS.black} />
         </View>
         <Text style={styles.dishName}>{dish.name}</Text>
         <View style={styles.dishRating}>
-          <Text style={styles.rating}>{dish.rating}</Text>
-          {Array(5).fill().map((_, i) => (
-            <Icon key={i} name="star" size={16} color={i < dish.rating ? 'gold' : 'gray'} />
+          <Text style={styles.rating}>{dish.average_rating}</Text>
+          {Array.from({ length: Math.round(dish.average_rating) }, (_, i) => (
+            <Icon key={i} name="star" size={16} color="gold" />
           ))}
         </View>
 
@@ -73,12 +51,22 @@ const DishDetailScreen = () => {
 
       {/* Đánh giá */}
       <Text style={styles.sectionTitle}>Đánh giá</Text>
-      <FlatList
-        data={reviews}
-        renderItem={renderReview}
-        keyExtractor={(item) => item.id}
-        style={styles.reviewList}
-      />
+      <View style={styles.reviewList}>
+        {dish.feedbacks.map((feedback) => (
+          <View key={feedback.user_id} style={styles.reviewCard}>
+            <View style={styles.reviewHeader}>
+              <Text style={styles.username}>{feedback.username}</Text>
+              <View style={styles.reviewRating}>
+                {Array.from({ length: Math.round(feedback.rating) }, (_, i) => (
+                  <Icon key={i} name="star" size={14} color="gold" />
+                ))}
+              </View>
+            </View>
+            <Text style={styles.comment}>{feedback.feedback_content}</Text>
+            <Text style={styles.time}>{feedback.feedback_date}</Text>
+          </View>
+        ))}
+      </View>
 
       {/* Nút thêm vào giỏ hàng */}
       <View style={styles.actionButtons}>
@@ -89,7 +77,7 @@ const DishDetailScreen = () => {
           <Text style={styles.buttonText}>MUA NGAY</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -197,6 +185,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginRight: 10,
+    marginBottom: 40,
   },
   buyNowButton: {
     flex: 1,
@@ -204,6 +193,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
+    marginBottom: 20,
   },
   buttonText: {
     fontSize: 16,

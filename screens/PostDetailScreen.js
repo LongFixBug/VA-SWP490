@@ -36,13 +36,16 @@ const PostDetailScreen = () => {
 
   const renderHeader = () => (
     <View style={styles.postContent}>
+      
       <View style={styles.postHeader}>
         <Icon name="person-circle-outline" size={32} color={COLORS.black} />
-        <View>
-          <Text style={styles.username}>{article.author_id}</Text>
-          <Text style={styles.title}>{article.title}</Text>
-        </View>
+        <Text style={styles.username}>{article.author_role}</Text>
+        {/* <Text style={styles.username}>{article.author_role}</Text> */}
+        
       </View>
+      <View>
+          <Text style={styles.title}>{article.title}</Text>      
+        </View>
       <Text style={styles.content}>{article.content}</Text>
 
       {/* Likes and Comments */}
@@ -130,10 +133,14 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: FONTS.semiBold,
-    marginVertical: 5,
+    color: COLORS.black,
+    marginBottom: 5,
+    marginRight: 5,
+    textAlign: 'center',  // Căn giữa nội dung của text
   },
+  
   content: {
     fontSize: 14,
     fontFamily: FONTS.regular,

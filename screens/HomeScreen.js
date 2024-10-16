@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, TextInput, Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native'; 
-import COLORS from '../constants/color'; 
-import FONTS from '../constants/font';   
+import { useNavigation } from '@react-navigation/native';
+import COLORS from '../constants/color';
+import FONTS from '../constants/font';
 
 const { width, height } = Dimensions.get('window');
 
 const HomeScreen = () => {
   const navigation = useNavigation();
+
   const [userData, setUserData] = useState({
     name: 'Nguyễn Thị XXX',
     points: 333,
@@ -18,13 +19,14 @@ const HomeScreen = () => {
   const [dishes, setDishes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
 
-  // Gọi API lấy danh sách món ăn
+  // Fetch dishes from API
   const fetchDishes = async () => {
     try {
       const response = await fetch('https://va-api-2efefb5aee82.herokuapp.com/dishes');
       const jsonData = await response.json();
-      setDishes(jsonData.data); 
+      setDishes(jsonData.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching dishes:', error);
@@ -36,14 +38,32 @@ const HomeScreen = () => {
     fetchDishes();
   }, []);
 
-  // Lọc món ăn dựa trên từ khóa tìm kiếm
-  const filteredDishes = dishes.filter(dish => 
-    dish.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleViewAll = () => {
-    navigation.navigate('AllDishes'); 
+  // Handle search input
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    if (query.length > 0) {
+      const filtered = dishes.filter(dish => dish.name.toLowerCase().includes(query.toLowerCase()));
+      setSearchResults(filtered);
+    } else {
+      setSearchResults([]);
+    }
   };
+
+  const handleSearchSelect = (dish) => {
+    navigation.navigate('DishDetail', { dish });
+    setSearchResults([]); // Clear suggestions after selection
+  };
+
+  const handleSearchIconPress = () => {
+    // Loại bỏ các ký tự không phải chữ hoặc dấu câu (ngoại trừ khoảng trắng) và xóa khoảng trắng thừa
+    const cleanedQuery = searchQuery.replace(/[\d.,\/?'";:{}[\]+=_)(*&%$#@!~\\|]/g, '').replace(/\s+/g, " ").trim().toLowerCase();
+  
+    if (cleanedQuery.length > 0) {
+      navigation.navigate('SearchDishes', { searchQuery: cleanedQuery });
+    }
+  };
+  
+  
 
   const renderDishItem = ({ item }) => (
     <TouchableOpacity onPress={() => navigation.navigate('DishDetail', { dish: item })}>
@@ -55,7 +75,7 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Phần chào người dùng */}
+      {/* User Info */}
       <View style={styles.userInfo}>
         <Image source={{ uri: userData.avatar }} style={styles.avatar} />
         <View>
@@ -68,56 +88,147 @@ const HomeScreen = () => {
         </View>
       </View>
 
-      {/* Biểu tượng chức năng */}
+      {/* Feature Icons */}
       <View style={styles.featureIcons}>
-        <View style={styles.iconItem}>
-          <TouchableOpacity onPress={handleViewAll}>
-            <Icon name="restaurant-outline" size={32} color={COLORS.black} />
-            <Text style={styles.iconLabel}>Món Ăn</Text>
+  <TouchableOpacity
+    activeOpacity={0.8}
+    onPress={() => navigation.navigate('AllDishes')}
+    style={{
+      padding: 10,
+      backgroundColor: COLORS.white,
+      borderRadius: 10,
+      elevation: 10,
+      alignItems: "center",
+      width: "25%",
+    }}
+  >
+    <Icon name="restaurant-outline" size={30} color={COLORS.green} />
+    <Text style={{ fontFamily: FONTS.semiBold }}>Món Ăn</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    activeOpacity={0.8}
+    onPress={() => navigation.navigate('Menu')}
+    style={{
+      padding: 10,
+      backgroundColor: COLORS.white,
+      borderRadius: 10,
+      elevation: 10,
+      alignItems: "center",
+      width: "25%",
+    }}
+  >
+    <Icon name="book-outline" size={30} color={COLORS.green} />
+    <Text style={{ fontFamily: FONTS.semiBold }}>Menu</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    activeOpacity={0.8}
+    onPress={() => navigation.navigate("Favourite")}
+    style={{
+      padding: 10,
+      backgroundColor: COLORS.white,
+      borderRadius: 10,
+      elevation: 10,
+      alignItems: "center",
+      width: "25%",
+    }}
+  >
+    <Icon name="heart-outline" size={30} color={COLORS.green} />
+    <Text style={{ fontFamily: FONTS.semiBold }}>Yêu thích</Text>
+  </TouchableOpacity>
+</View>
+
+
+      {/* Search & Cart */}
+      <View style={styles.searchCartContainer}>
+        <View style={styles.searchContainer}>
+          <Icon name="search-outline" size={24} color={COLORS.grey} onPress={handleSearchIconPress} />
+          <TextInput 
+            style={styles.searchInput}
+            placeholder="Tìm món ăn..."
+            value={searchQuery}
+            onChangeText={handleSearch}
+          />
+        </View>
+        <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={()=>navigation.navigate("Cart")}
+          >
+            <View
+              style={{
+                height: 50,
+                width: 50,
+                marginRight: 20,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: COLORS.white,
+                borderRadius: 10,
+                elevation: 0,
+              }}
+            >
+              <Icon name={"cart-outline"} size={30} color={COLORS.green} />
+                <Text 
+                style={styles.bagdeCart}>
+                    77
+                </Text>
+            </View>
           </TouchableOpacity>
-        </View>
-        <View style={styles.iconItem}>
-          <Icon name="book-outline" size={32} color={COLORS.black} />
-          <Text style={styles.iconLabel}>Menu</Text>
-        </View>
-        <View style={styles.iconItem}>
-          <Icon name="heart-outline" size={32} color={COLORS.black} />
-          <Text style={styles.iconLabel}>Danh sách yêu thích</Text>
-        </View>
       </View>
 
-      {/* Thanh tìm kiếm và giỏ hàng */}
-      <View style={styles.searchContainer}>
-        <Icon name="search-outline" size={24} color={COLORS.grey} />
-        <TextInput 
-          style={styles.searchInput}
-          placeholder="Tìm món ăn..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <View style={styles.cartIconContainer}>
-          <Icon name="cart-outline" size={24} color={COLORS.black} />
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>2</Text>
-          </View>
+      {/* Search Suggestions */}
+      {searchResults.length > 0 && (
+        <View style={styles.searchSuggestions}>
+          {searchResults.map((result) => (
+            <TouchableOpacity key={result.id} onPress={() => handleSearchSelect(result)}>
+              <Text style={styles.suggestionText}>{result.name}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      </View>
+      )}
 
-      {/* Phần danh sách món ăn và "Xem tất cả" */}
+      {/* Dishes Section */}
       <View style={styles.dishHeader}>
         <Text style={styles.sectionTitle}>Món ăn dành cho bạn</Text>
-        <TouchableOpacity onPress={handleViewAll}>
+        <TouchableOpacity onPress={() => navigation.navigate('AllDishes')}>
           <Text style={styles.viewAll}>Xem tất cả</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={filteredDishes} // Lọc món ăn dựa trên từ khóa tìm kiếm
-        renderItem={renderDishItem}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={2}
-        contentContainerStyle={{ flexGrow: 1 }}
-      />
+  data={dishes}  
+  showsVerticalScrollIndicator={false}
+  keyExtractor={(item) => item.id.toString()}  
+  numColumns={2}  
+  renderItem={({ item }) => (
+    <TouchableOpacity onPress={() => navigation.navigate('DishDetail', { dish: item })}>
+    <View style={styles.gridItem}>
+    <Image
+          source={{ uri: item.image_url }}  // Sử dụng image URL từ API
+          style={{
+            width: "100%",
+            height: 100,
+            resizeMode: 'cover',
+          }}
+        />
+      <View style={{ padding: 5 }}>
+        <Text style={styles.textNameDish} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.textDishType}>{item.type || 'Món ăn'}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row' }}>
+          <Text style={styles.star}>⭐</Text>
+          <Text style={styles.rating}>{item.average_rating || 0}</Text>
+          </View>
+          <Text style={styles.textDishType}>{item.price ? `${item.price} đ` : '0 đ'}</Text>
+        </View>
+      </View>
+    </View>
+  </TouchableOpacity>
+  )}
+  contentContainerStyle={{ flexGrow: 1 }}
+/>
+
+      
     </View>
   );
 };
@@ -178,9 +289,16 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: COLORS.black,
   },
+  searchCartContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
     backgroundColor: COLORS.white,
     paddingHorizontal: 15,
     borderRadius: 10,
@@ -194,24 +312,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
   },
-  cartIconContainer: {
-    position: 'relative',
-  },
-  cartBadge: {
+ 
+
+  searchSuggestions: {
     position: 'absolute',
-    top: -5,
-    right: -10,
-    backgroundColor: 'red',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    top: 240,
+    right: 50,
+    width: '90%',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    zIndex: 1,
+    alignSelf: 'center',
+    borderRadius: 5,
   },
-  cartBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: FONTS.semiBold,
+  suggestionText: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
   },
   dishHeader: {
     flexDirection: 'row',
@@ -233,8 +351,57 @@ const styles = StyleSheet.create({
     padding: 10,
     margin: 10,
     borderRadius: 10,
-    width: (width / 2) - 30, 
+    width: (width / 2) - 30,
   },
+  bagdeCart: {
+    fontFamily: FONTS.bold, 
+    color: COLORS.white,
+    fontSize:12,
+    width:23,
+    height: 23,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: COLORS.red,
+    borderRadius: 150,
+    position: 'absolute',
+    top: 0,
+    right: 0
+},
+gridItem: {
+  flex: 1,
+  margin: 25,
+  backgroundColor: COLORS.white,
+  elevation: 1,
+  // aspectRatio: 1,
+  borderRadius: 8,
+  overflow: 'hidden',
+},
+dummyItem: {
+  flex: 1,
+  margin: 10,
+  backgroundColor: 'transparent', 
+},
+textNameDish: {
+  color: COLORS.black,
+  fontSize: 14,
+  fontFamily: FONTS.semiBold,
+  marginBottom: 3,
+},
+textDishType: {
+  color: COLORS.grey,
+  fontSize: 12,
+  fontFamily: FONTS.semiBold,
+  marginBottom: 3,
+},
+star: {
+  fontSize: 14,
+  color: 'gold',
+},
+rating: {
+  fontSize: 14,
+  color: COLORS.black,
+  marginLeft: 5,
+},
 });
 
 export default HomeScreen;

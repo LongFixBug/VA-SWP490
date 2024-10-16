@@ -10,8 +10,9 @@ const COLORS = {
     blue: '#00B2FF',
     pink: '#FF69B4',
     // orange: '#F9961F'
-    orange: '#E57770' //#EC7A34 #EC7A34
-
-
+    orange: '#E57770', //#EC7A34 #EC7A34,
+    yellow: 'yellow',
+    star: '#FDCC0D',
+    greySolid: '#444444'
 }
 export default COLORS;

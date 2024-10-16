@@ -18,7 +18,29 @@ const DishDetailScreen = () => {
           <Icon name="arrow-back-outline" size={24} color={COLORS.black} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Dishes detail</Text>
-        <Icon name="cart-outline" size={24} color={COLORS.black} />
+        <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={()=>navigation.navigate("Cart")}
+          >
+            <View
+              style={{
+                height: 50,
+                width: 50,
+                marginRight: 20,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: COLORS.white,
+                borderRadius: 10,
+                elevation: 0,
+              }}
+            >
+              <Icon name={"cart-outline"} size={30} color={COLORS.green} />
+                <Text 
+                style={styles.bagdeCart}>
+                    77
+                </Text>
+            </View>
+          </TouchableOpacity>
       </View>
 
       {/* Món ăn */}
@@ -200,6 +222,20 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
   },
+  bagdeCart: {
+    fontFamily: FONTS.bold, 
+    color: COLORS.white,
+    fontSize:12,
+    width:23,
+    height: 23,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: COLORS.red,
+    borderRadius: 150,
+    position: 'absolute',
+    top: 0,
+    right: 0
+},
 });
 
 export default DishDetailScreen;

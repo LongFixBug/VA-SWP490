@@ -55,7 +55,7 @@ const CommunityScreen = ({ navigation }) => {
       <View style={styles.postHeader}>
         <Icon name="person-circle-outline" size={32} color={COLORS.black} />
       
-          <Text style={styles.username}>{item.author_id}</Text>
+          <Text style={styles.username}>{item.author_role}</Text>
       </View> 
       {/* <Text style={styles.roleText}>{item.author_role === 'Customer' ? 'Customer' : 'Nutritionist'}</Text> */}
       <Text style={styles.title}>{item.title}</Text>
@@ -182,9 +182,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.semiBold,
     color: COLORS.black,
-    marginLeft: 5,  // Adjust margin to align with the avatar
-    marginBottom: 5, // Add spacing between the title and content
-    marginRight:5,
+    marginBottom: 5,
+    marginRight: 5,
+    textAlign: 'center',  // Căn giữa nội dung của text
   },
   content: {
     fontSize: 14,

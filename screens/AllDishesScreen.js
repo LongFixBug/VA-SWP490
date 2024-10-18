@@ -1,25 +1,36 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, TextInput } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import COLORS from '../constants/color';
-import FONTS from '../constants/font';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
 
 const AllDishesScreen = () => {
   const navigation = useNavigation();
   const [foodItems, setFoodItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Gọi API lấy danh sách món ăn từ json-server
+  // Gọi API lấy danh sách món ăn
   const fetchDishes = async () => {
     try {
-      const response = await fetch('https://va-api-2efefb5aee82.herokuapp.com/dishes');
-      const jsonData = await response.json(); // Dùng trực tiếp response.json()
-      setFoodItems(jsonData.data); // Giả định 'data' chứa mảng món ăn
+      const response = await fetch(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/nutritionists/alldish"
+      );
+      const jsonData = await response.json();
+      console.log("Fetched data: ", jsonData); // Log the fetched data
+      setFoodItems(jsonData);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching dishes:', error);
+      console.error("Error fetching dishes:", error);
       setLoading(false);
-    } 
+    }
   };
 
   useEffect(() => {
@@ -27,20 +38,17 @@ const AllDishesScreen = () => {
   }, []);
 
   const renderFoodItem = ({ item }) => (
-    <TouchableOpacity onPress={() => navigation.navigate('DishDetail', { dish: item })}>
+    <TouchableOpacity
+      onPress={() => navigation.navigate("DishDetail", { dish: item })}
+    >
       <View style={styles.foodCard}>
         <Image
-          source={{ uri: item.image_url }}  // Sử dụng image URL từ API
+          source={{ uri: item.imageUrl }} // Sử dụng đúng imageUrl từ API
           style={styles.foodImage}
         />
         <View style={styles.foodInfo}>
           <Text style={styles.foodName}>{item.name}</Text>
           <Text style={styles.foodPrice}>{item.price} VND</Text>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.star}>⭐</Text>
-            <Text style={styles.rating}>{item.average_rating || 0}</Text>
-            <Text style={styles.comments}>({item.feedbacks.length} đánh giá)</Text>
-          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -63,7 +71,7 @@ const AllDishesScreen = () => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Xem tất cả</Text>
       </View>
-  
+
       {/* Search & Filter */}
       <View style={styles.searchContainer}>
         <TextInput style={styles.searchInput} placeholder="Tìm kiếm món ăn" />
@@ -71,12 +79,12 @@ const AllDishesScreen = () => {
           <Text style={styles.filterText}>Filter</Text>
         </TouchableOpacity>
       </View>
-  
+
       {/* List of Food Items */}
       <FlatList
         data={foodItems}
         renderItem={renderFoodItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.dishId.toString()} // Correct keyExtractor
         showsVerticalScrollIndicator={true}
         style={{ flex: 1 }}
       />
@@ -91,8 +99,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   backButton: {
@@ -104,8 +112,8 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   searchInput: {
@@ -125,12 +133,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   foodCard: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: COLORS.white,
     borderRadius: 10,
     padding: 10,
     marginBottom: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -143,7 +151,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   foodInfo: {
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   foodName: {
     fontSize: 16,
@@ -154,32 +162,11 @@ const styles = StyleSheet.create({
     color: COLORS.grey,
     marginBottom: 5,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  star: {
-    fontSize: 14,
-    color: 'gold',
-  },
-  rating: {
-    fontSize: 14,
-    color: COLORS.black,
-    marginLeft: 5,
-  },
-  comments: {
-    fontSize: 14,
-    color: COLORS.grey,
-    marginLeft: 5,
-  },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
 export default AllDishesScreen;
-
-
-

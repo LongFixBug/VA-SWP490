@@ -9,7 +9,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
-
+import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -22,8 +22,8 @@ import OrderScreen from "./screens/OrderScreen";
 import CommunityScreen from "./screens/CommunityScreen";
 import NotificationScreen from "./screens/NotificationScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import OrderDetailScreen from './screens/OrderDetailScreen'; // Import màn hình Order Details
-import AllDishesScreen from './screens/AllDishesScreen';
+import OrderDetailScreen from "./screens/OrderDetailScreen";
+import AllDishesScreen from "./screens/AllDishesScreen";
 import SuggestedDishesScreen from "./screens/SuggestedDishesScreen";
 import DishDetailScreen from "./screens/DishDetailScreen";
 import NewPostScreen from "./screens/NewPostScreen";
@@ -34,6 +34,43 @@ import FavouriteScreen from "./screens/FavouriteScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
+
+const toastConfig = {
+  success: (props) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: COLORS.green, marginTop: 30, height: 70 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 15,
+        fontFamily: FONTS.semiBold,
+      }}
+      text2Style={{
+        fontSize: 14,
+        fontFamily: FONTS.medium,
+      }}
+    />
+  ),
+  error: (props) => (
+    <ErrorToast
+      {...props}
+      text1Style={{
+        fontSize: 17,
+        fontFamily: FONTS.medium,
+      }}
+      text2Style={{
+        fontSize: 15,
+        fontFamily: FONTS.medium,
+      }}
+    />
+  ),
+  tomatoToast: ({ text1, props }) => (
+    <View style={{ height: 60, width: "100%", backgroundColor: "tomato" }}>
+      <Text>{text1}</Text>
+      <Text>{props.uuid}</Text>
+    </View>
+  ),
+};
 
 const TabRoute = ({ userId }) => {
   return (
@@ -47,8 +84,8 @@ const TabRoute = ({ userId }) => {
         tabBarStyle: {
           backgroundColor: COLORS.white,
           height: 60,
-          borderTopLeftRadius: 20, 
-          borderTopRightRadius: 20, 
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
         },
       })}
     >
@@ -214,46 +251,46 @@ const TabRoute = ({ userId }) => {
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    'OpenSans-Bold': require('./assets/fonts/OpenSans-Bold.ttf'),
-    'OpenSans-SemiBold': require('./assets/fonts/OpenSans-SemiBold.ttf'),
-    'Montserrat-Bold': require('./assets/fonts/Montserrat-Bold.ttf'),
+    "OpenSans-Bold": require("./assets/fonts/OpenSans-Bold.ttf"),
+    "OpenSans-SemiBold": require("./assets/fonts/OpenSans-SemiBold.ttf"),
+    "Montserrat-Bold": require("./assets/fonts/Montserrat-Bold.ttf"),
+
+    "Montserrat-Medium": require("./assets/fonts/Montserrat-Medium.ttf"),
+    "Montserrat-SemiBold": require("./assets/fonts/Montserrat-SemiBold.ttf"),
   });
 
   if (!fontsLoaded) {
     return null;
   }
   return (
-  <GestureHandlerRootView style={{ flex: 1 }}>
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{ headerShown: false }}
-        initialRouteName="Login"
-      >
-        <Stack.Screen name="Splash" component={SplashScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="Home" component={TabRoute} />
-         <Stack.Screen name="Order" component={OrderScreen} /> 
-        <Stack.Screen name="OrderDetails" component={OrderDetailScreen} /> 
-        <Stack.Screen name="SuggestedDishes" component={SuggestedDishesScreen} />
-        <Stack.Screen name="DishDetail" component={DishDetailScreen} />
-        <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
-        <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
-        <Stack.Screen name="SearchDishes" component={SearchDishesScreen} />
-        <Stack.Screen name="Cart" component={CartScreen} />
-        <Stack.Screen name="Favourite" component={FavouriteScreen} />
-
-
-        <Stack.Screen 
-          name="AllDishes" 
-          component={AllDishesScreen} 
-          options={{ title: 'Tất cả món ăn' }} 
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
-    
-  </GestureHandlerRootView>
-    )
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Stack.Navigator
+          screenOptions={{ headerShown: false }}
+          initialRouteName="Login"
+        >
+          <Stack.Screen name="Splash" component={SplashScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="Home" component={TabRoute} />
+          <Stack.Screen name="Order" component={OrderScreen} />
+          <Stack.Screen name="OrderDetails" component={OrderDetailScreen} />
+          <Stack.Screen
+            name="SuggestedDishes"
+            component={SuggestedDishesScreen}
+          />
+          <Stack.Screen name="DishDetail" component={DishDetailScreen} />
+          <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
+          <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
+          <Stack.Screen name="SearchDishes" component={SearchDishesScreen} />
+          <Stack.Screen name="Cart" component={CartScreen} />
+          <Stack.Screen name="Favourite" component={FavouriteScreen} />
+          <Stack.Screen name="AllDishes" component={AllDishesScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+      <Toast config={toastConfig} />
+    </GestureHandlerRootView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -264,6 +301,3 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
-
-
-

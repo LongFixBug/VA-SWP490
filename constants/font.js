@@ -1,6 +1,6 @@
 const FONTS = {
-    bold: "OpenSans-Bold",
-    medium: "OpenSans-Medium",
-    semiBold: "OpenSans-SemiBold"
+    bold: "Montserrat-Bold",
+    medium: "Montserrat-Medium",
+    semiBold: "Montserrat-SemiBold"
 }
 export default FONTS;

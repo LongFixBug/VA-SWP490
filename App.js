@@ -17,6 +17,8 @@ const Tab = createBottomTabNavigator();
 import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
+import InputProfileScreen from "./screens/InputProfileScreen";
+
 import HomeScreen from "./screens/HomeScreen";
 import OrderScreen from "./screens/OrderScreen";
 import CommunityScreen from "./screens/CommunityScreen";
@@ -31,6 +33,9 @@ import PostDetailScreen from "./screens/PostDetailScreen";
 import SearchDishesScreen from "./screens/SearchDishes";
 import CartScreen from "./screens/CartScreen";
 import FavouriteScreen from "./screens/FavouriteScreen";
+import CheckoutScreen from "./screens/CheckoutScreen";
+import PaymentScreen from "./screens/PaymentScreen";
+import MenuScreen from "./screens/MenuScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
@@ -272,6 +277,7 @@ export default function App() {
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+
           <Stack.Screen name="Home" component={TabRoute} />
           <Stack.Screen name="Order" component={OrderScreen} />
           <Stack.Screen name="OrderDetails" component={OrderDetailScreen} />
@@ -279,6 +285,7 @@ export default function App() {
             name="SuggestedDishes"
             component={SuggestedDishesScreen}
           />
+          <Stack.Screen name="InputProfile" component={InputProfileScreen} />
           <Stack.Screen name="DishDetail" component={DishDetailScreen} />
           <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
           <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
@@ -286,6 +293,9 @@ export default function App() {
           <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="Favourite" component={FavouriteScreen} />
           <Stack.Screen name="AllDishes" component={AllDishesScreen} />
+          <Stack.Screen name="Checkout" component={CheckoutScreen} />
+          <Stack.Screen name="Payment" component={PaymentScreen} />
+          <Stack.Screen name="Menu" component={MenuScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />

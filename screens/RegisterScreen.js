@@ -5,6 +5,7 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
+  ScrollView,
   Alert,
   SafeAreaView,
   Modal,
@@ -12,43 +13,48 @@ import {
 import React from "react";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
+import Icon from "react-native-vector-icons/Ionicons";
 import { ButtonFlex } from "../components/Button";
-import firebase from "@react-native-firebase/app";
 import auth from "@react-native-firebase/auth";
+import { OTPVerification } from "@msg91comm/react-native-sendotp";
 
 const RegisterScreen = ({ navigation }) => {
   const [phone, setPhone] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [noti, setNoti] = React.useState();
   const [isModalVisible, setModalVisible] = React.useState(false);
-  const [confirm, setConfirm] = React.useState(null);
-  const [code, setCode] = React.useState(""); // Để lưu mã OTP
 
-  // Hàm gửi OTP qua Firebase
-  async function signInWithPhoneNumber(phoneNumber) {
-    try {
-      const confirmation = await auth().signInWithPhoneNumber(phoneNumber);
-      setConfirm(confirmation); // Lưu đối tượng xác nhận OTP
-      console.log("Đã gửi OTP");
-      setModalVisible(true); // Mở modal để nhập mã OTP
-    } catch (error) {
-      console.log("Lỗi khi gửi OTP:", error);
-      setNoti("Có lỗi khi gửi OTP. Vui lòng thử lại.");
-    }
-  }
+  // const [confirm, setConfirm] = React.useState(null);
+  // const [code, setCode] = React.useState('');
 
-  // Xác nhận mã OTP
-  async function confirmCode() {
-    try {
-      await confirm.confirm(code); // Xác thực mã OTP
-      console.log("Xác nhận thành công");
-      setModalVisible(false);
-      navigation.navigate("InputProfile"); // Chuyển đến trang hồ sơ sau khi xác nhận thành công
-    } catch (error) {
-      console.log("Invalid code.");
-      Alert.alert("Thông báo", "Mã OTP không đúng.");
-    }
-  }
+  // function onAuthStateChanged(user) {
+  //   if (user) {
+  //     // Some Android devices can automatically process the verification code (OTP) message, and the user would NOT need to enter the code.
+  //     // Actually, if he/she tries to enter it, he/she will get an error message because the code was already used in the background.
+  //     // In this function, make sure you hide the component(s) for entering the code and/or navigate away from this screen.
+  //     // It is also recommended to display a message to the user informing him/her that he/she has successfully logged in.
+  //     console.log("User: ", user)
+  //   }
+  // }
+
+  // React.useEffect(() => {
+  //   const subscriber = auth().onAuthStateChanged(onAuthStateChanged);
+  //   return subscriber;
+  // }, []);
+
+  // async function signInWithPhoneNumber(phoneNumber) {
+  //   const confirmation = await auth().signInWithPhoneNumber(phoneNumber);
+  //   setConfirm(confirmation);
+  //   console.log("Đã gửi OTP")
+  // }
+
+  // async function confirmCode(code) {
+  //   try {
+  //     await confirm.confirm(code);
+  //   } catch (error) {
+  //     console.log('Invalid code.');
+  //   }
+  // }
 
   return (
     <SafeAreaView style={styles.formContainer}>
@@ -101,7 +107,7 @@ const RegisterScreen = ({ navigation }) => {
           />
         </View>
       </View>
-      {/* <View style={styles.inputContainer}>
+      <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Email (tùy chọn)</Text>
         <View style={styles.inputRow}>
           <TextInput
@@ -111,12 +117,13 @@ const RegisterScreen = ({ navigation }) => {
             onChangeText={(txtEmail) => setEmail(txtEmail)}
           />
         </View>
-      </View> */}
+      </View>
       {noti && (
         <Text
           style={{
             fontFamily: FONTS.medium,
             color: COLORS.red,
+            fontFamily: FONTS.semiBold,
             alignSelf: "center",
             marginBottom: 15,
           }}
@@ -135,11 +142,12 @@ const RegisterScreen = ({ navigation }) => {
         stylesText={{ fontSize: 14 }}
         onPress={() =>
           !phone
-            ? setNoti("Vui lòng nhập số điện thoại!")
+            ? setNoti("Vui lòng nhập số điện thoại! ")
             : phone.length === 9
-            ? signInWithPhoneNumber("+84" + phone)
+            ? setModalVisible(true)
             : setNoti("Không đúng định dạng!")
         }
+        //  onPress={() => navigation.navigate("InputProfile")}
       />
       <View style={styles.registerContainer}>
         <Text style={{ fontFamily: FONTS.medium }}>Quay lại đăng nhập? </Text>
@@ -153,28 +161,30 @@ const RegisterScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Modal để nhập mã OTP */}
       <Modal visible={isModalVisible}>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Nhập mã OTP"
-            keyboardType="numeric"
-            onChangeText={(txtCode) => setCode(txtCode)}
-            value={code}
-          />
-          <ButtonFlex
-            title={"Xác nhận mã OTP"}
-            stylesButton={{
-              paddingVertical: 15,
-              elevation: 3,
-              backgroundColor: COLORS.green,
-              borderRadius: 10,
-            }}
-            stylesText={{ fontSize: 14 }}
-            onPress={confirmCode} // Xác thực mã OTP
-          />
-        </View>
+        <OTPVerification
+          onVisible={isModalVisible}
+          identifier={"+84" + phone}
+          onCompletion={(data) => {
+            console.log(data); // Get your response of success/failure.
+            if (data) {
+              const newData = JSON.parse(data);
+              if (newData.type === "success") {
+                setModalVisible(false);
+                navigation.navigate("InputProfile", { phone: phone });
+              } else if (newData.type === "error") {
+                Alert.alert("Thông báo", "OTP không đúng.");
+              } else if (newData.closeByUser) {
+                navigation.goBack();
+              }
+            } else {
+              Alert.alert("Thông báo", "Có lỗi xảy ra!");
+            }
+          }}
+          widgetId={"336c6e617452343132343333"} // Get widgetId from MSG91 OTP Widget Configuration
+          authToken={"411800TuqEAgy4b5WN657a0b32P1"}
+          // Get authToken from MSG91 OTP Tokens
+        />
       </Modal>
     </SafeAreaView>
   );
@@ -218,5 +228,29 @@ const styles = StyleSheet.create({
     marginTop: 15,
     alignItems: "center",
     justifyContent: "center",
+  },
+  orText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    color: COLORS.grey,
+    alignSelf: "center",
+    marginVertical: 25,
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    padding: 10,
+    width: "100%",
+    backgroundColor: COLORS.greyPastel,
+    elevation: 3,
+    borderRadius: 10,
+  },
+  googleLogo: {
+    height: 30,
+    width: 30,
+    borderRadius: 50,
+    marginRight: 10,
   },
 });

@@ -59,12 +59,115 @@ const AnimatedText = ({ text }) => {
 const HomeScreen = () => {
   const navigation = useNavigation();
 
-  const [userData, setUserData] = useState({
-    name: "Nguyễn Thị XXX",
-    points: 333,
-    rank: "hạng đồng",
-    avatar: "https://via.placeholder.com/100",
-  });
+  <View style={{ flex: 1, backgroundColor: COLORS.white }}>
+    <View
+      style={{
+        width: "100%",
+        height: windowHeight * 0.38, // Chỉ cần một lần thiết lập chiều cao
+      }}
+    >
+      <ImageBackground
+        source={{
+          uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
+        }}
+        style={{
+          width: "100%",
+          height: "100%",
+          resizeMode: "cover",
+        }}
+      >
+        <View
+          style={{
+            padding: 20,
+            marginTop: 15,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          {/* Text chào mừng và tên người dùng */}
+          <View style={{ width: "50%" }}>
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                color: COLORS.white,
+                fontSize: 23,
+              }}
+            >
+              Xin chào!
+            </Text>
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                color: COLORS.white,
+                fontSize: 18,
+              }}
+            >
+              Trịnh Ngọc Bảo
+            </Text>
+          </View>
+
+          {/* Điểm và ảnh đại diện */}
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                alignItems: "flex-end",
+                marginRight: 8,
+                padding: 5,
+                borderRadius: 5,
+                elevation: 0,
+              }}
+            >
+              {/* Điểm và hạng */}
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  color: COLORS.white,
+                  fontSize: 13,
+                  alignSelf: "center",
+                  borderBottomWidth: 1,
+                  borderBottomColor: COLORS.white,
+                  paddingBottom: 3,
+                }}
+              >
+                <Icon name="star" size={16} color={COLORS.white} /> 1200 điểm
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  color: COLORS.yellow,
+                  fontSize: 12,
+                }}
+              >
+                Vàng
+              </Text>
+            </View>
+
+            {/* Ảnh đại diện */}
+            <Pressable
+              onPress={() => {
+                navigation.navigate("Profile");
+              }}
+            >
+              <Image
+                source={{
+                  uri: "https://scontent.fsgn5-8.fna.fbcdn.net/v/t39.30808-6/431764296_1830389587405425_4880708078341224054_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=qA3LWrpmzogQ7kNvgEzhRoU&_nc_ht=scontent.fsgn5-8.fna&_nc_gid=ASqEgpp1SKFhGjcqccEFoHF&oh=00_AYAyEDIFKFaEGTj3qB9eu3YKQa8PGIIa7SfXLcpwuzN9JA&oe=67102E9D",
+                }}
+                style={{
+                  height: 55,
+                  width: 55,
+                  borderRadius: 50,
+                  borderWidth: 1,
+                  borderColor: COLORS.white,
+                }}
+              />
+            </Pressable>
+          </View>
+        </View>
+      </ImageBackground>
+    </View>
+  </View>;
+
   const [dishes, setDishes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");

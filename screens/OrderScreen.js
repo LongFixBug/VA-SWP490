@@ -1,240 +1,222 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert } from 'react-native';
-import COLORS from '../constants/color';
-import FONTS from '../constants/font';
-import { useNavigation } from '@react-navigation/native'; 
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  StatusBar,
+  ScrollView,
+  Image,
+} from "react-native";
+import React from "react";
+import Icon from "react-native-vector-icons/Ionicons";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
 
-const OrderScreen = () => {
-  const navigation = useNavigation(); 
-  const [activeTab, setActiveTab] = useState('pending'); // Mặc định là "Chưa hoàn thành"
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+const dataTabViewOrder = [
+  {
+    id: 0,
+    name: "Tất cả",
+  },
+  {
+    id: 1,
+    name: "Chờ xác nhận",
+  },
+  {
+    id: 2,
+    name: "Đang xử lí",
+  },
+  {
+    id: 3,
+    name: "Đang giao hàng",
+  },
+  {
+    id: 4,
+    name: "Đã giao",
+  },
+  {
+    id: 5,
+    name: "Đã hủy",
+  },
+];
 
-  // Gọi API lấy danh sách đơn hàng
-  const fetchOrders = async () => {
-    try {
-      const response = await fetch('https://va-api-2efefb5aee82.herokuapp.com/orders');
-      const data = await response.json();
-      setOrders(data.data); // Lưu trữ danh sách đơn hàng vào state
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setLoading(false);
-    }
+const favouriteList = [
+  {
+    id: "1",
+    name: "Đậu hũ, sườn non, canh măng, đậu ve ",
+    time: "23",
+    image:
+      "https://cellphones.com.vn/sforum/wp-content/uploads/2023/09/mon-chay-ngon-de-lam-1.jpg",
+    status: "pending",
+  },
+  {
+    id: "2",
+    name: "Sườn non",
+    time: "70",
+    image:
+      "https://file.hstatic.net/1000341804/file/canh-chay-ngu-sac_dafc5d8509b64f6c82afc1477065ed66_grande.jpeg",
+    status: "cancelled",
+  },
+  {
+    id: "3",
+    name: "Canh măng",
+    time: "60",
+    image:
+      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/canh-bong-h%E1%BA%B9-n%E1%BA%A5u-n%E1%BA%A5m.jpg.jpg",
+    status: "completed",
+  },
+];
+
+const OrderScreen = ({ navigation }) => {
+  const [currentTabViewOrder, setCurrentTabViewOrder] = React.useState(0);
+
+  const orderStatus = {
+    pending: { color: COLORS.orange, text: "Chờ xác nhận" },
+    in_progress: { color: COLORS.blue, text: "Đang xử lí" },
+    delivered: { color: COLORS.green, text: "Đang giao hàng" },
+    completed: { color: COLORS.green, text: "Đã giao" },
+    cancelled: { color: COLORS.red, text: "Đã hủy" },
   };
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const handleOrderDetails = (order) => {
-    navigation.navigate('OrderDetails', { order });
-  };
-
-  const handleCancelOrder = (id) => {
-    Alert.alert('Hủy đơn hàng', `Bạn có chắc chắn muốn hủy đơn hàng ${id}?`, [
-      { text: 'Không', style: 'cancel' },
-      { text: 'Hủy', onPress: () => console.log(`Đơn hàng ${id} đã bị hủy`) },
-    ]);
-  };
-
-  // Lọc đơn hàng theo trạng thái
-  const filteredOrders = orders.filter(order => {
-    if (activeTab === 'pending') {
-      return order.status === 'pending' || order.status === 'in_progress' || order.status === 'delivering';
-    } else {
-      return order.status === 'delivered' || order.status === 'cancelled';
-    }
-  });
-
-  const renderOrder = ({ item }) => (
-    <TouchableOpacity onPress={() => handleOrderDetails(item)}>
-      <View style={styles.orderCard}>
-        <View style={styles.orderInfo}>
-          <Image
-            source={{ uri: 'https://via.placeholder.com/100' }} 
-            style={styles.orderImage}
-          />
-          <View style={styles.orderDetails}>
-            <Text style={styles.orderName}>{item.order_items.map(dish => dish.name).join(', ')}</Text>
-            <Text style={styles.orderQuantity}>Số lượng: {item.order_items.length}</Text>
-            <Text style={styles.orderTotal}>Tổng số tiền: {item.total_price} VND</Text>
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.orderStatus,
-            getStatusStyle(item.status),
-          ]}
-        >
-          <Text style={styles.orderStatusText}>{item.status}</Text>
-        </View>
-
-        {item.status === 'pending' && (
-          <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancelOrder(item.order_id)}>
-            <Text style={styles.cancelButtonText}>Hủy đơn hàng</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case 'pending':
-        return { backgroundColor: COLORS.yellow };
-      case 'in_progress':
-        return { backgroundColor: COLORS.orange };
-      case 'delivering':
-        return { backgroundColor: COLORS.blue };
-      case 'delivered':
-        return { backgroundColor: COLORS.green };
-      case 'cancelled':
-        return { backgroundColor: COLORS.red };
-      default:
-        return { backgroundColor: COLORS.grey };
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>Đang tải dữ liệu...</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'pending' && styles.activeTab]}
-          onPress={() => setActiveTab('pending')}
+    <>
+      <View
+        style={{
+          marginTop: StatusBar.currentHeight,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: 20,
+          backgroundColor: COLORS.white,
+        }}
+      >
+        <Text
+          style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
         >
-          <Text style={styles.tabText}>Chưa hoàn thành</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'completed' && styles.activeTab]}
-          onPress={() => setActiveTab('completed')}
-        >
-          <Text style={styles.tabText}>Đã hoàn thành</Text>
-        </TouchableOpacity>
+          Đơn hàng
+        </Text>
+        <Icon name="menu" size={28} color={COLORS.green} />
       </View>
-
-      <FlatList
-        data={filteredOrders}
-        renderItem={renderOrder}
-        keyExtractor={(item) => item.order_id.toString()}
-      />
-    </View>
+      <View style={{ height: "auto" }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{}}
+        >
+          {dataTabViewOrder.map((tabView, index) => (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              key={index}
+              onPress={() => setCurrentTabViewOrder(tabView.id)}
+              style={{
+                paddingVertical: 20,
+                paddingHorizontal: 20,
+                borderBottomWidth: 3,
+                borderBottomColor:
+                  currentTabViewOrder === tabView.id
+                    ? COLORS.green
+                    : COLORS.greyPastel,
+                backgroundColor: COLORS.white,
+                borderTopWidth: 1,
+                borderTopColor: COLORS.greyPastel,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  fontSize: 16,
+                  color:
+                    currentTabViewOrder === tabView.id
+                      ? COLORS.green
+                      : COLORS.black,
+                }}
+              >
+                {tabView.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+      {currentTabViewOrder === 0 && (
+        <FlatList
+          showsVerticalScrollIndicator={false}
+          data={favouriteList}
+          renderItem={({ item, index }) => (
+            <TouchableOpacity
+              // onPress={() => {navigation.navigate("PostDetail", {post_id: item._id})}}
+              activeOpacity={0.8}
+              key={index}
+              style={{
+                backgroundColor: COLORS.white,
+                padding: 10,
+                marginHorizontal: 5,
+                marginBottom: 5,
+                flexDirection: "row",
+                borderWidth: 2,
+                borderColor: COLORS.greyPastel,
+                borderRadius: 10,
+              }}
+            >
+              <Image
+                source={{ uri: item.image }}
+                style={{ height: "auto", width: 100, borderRadius: 5 }}
+              />
+              <View
+                style={{
+                  flex: 1,
+                  padding: 0,
+                  paddingLeft: 15,
+                  paddingTop: 5,
+                }}
+              >
+                <Text
+                  style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}
+                  numberOfLines={1}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    fontSize: 12,
+                    color: COLORS.grey,
+                    marginTop: 5,
+                  }}
+                >
+                  Số lượng: 3
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    alignSelf: "flex-start",
+                    fontSize: 13,
+                    color: COLORS.green,
+                    marginTop: 5,
+                  }}
+                >
+                  Tổng tiền: 159.000đ
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    alignSelf: "flex-end",
+                    fontSize: 13,
+                    marginTop: 10,
+                    color: orderStatus[item.status].color,
+                  }}
+                >
+                  {orderStatus[item.status].text}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item._id}
+          style={{ backgroundColor: COLORS.white, paddingTop: 5 }}
+        />
+      )}
+    </>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    padding: 10,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  tabButton: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: COLORS.grey,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 5,
-  },
-  activeTab: {
-    backgroundColor: COLORS.green,
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.white,
-  },
-  orderCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5, 
-    marginBottom: 15,
-    padding: 10,
-  },
-  orderInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  orderImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
-  },
-  orderDetails: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  orderName: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.black,
-  },
-  orderQuantity: {
-    fontSize: 14,
-    color: COLORS.grey,
-  },
-  orderTotal: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.black,
-  },
-  orderStatus: {
-    width: 100,
-    height: 30,
-    paddingVertical: 5,
-    paddingHorizontal: 5,
-    borderRadius: 5,
-    alignSelf: 'flex-end',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  orderStatusText: {
-    fontSize: 14,
-    color: COLORS.white,
-    fontFamily: FONTS.semiBold,
-  },
-  cancelButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.red,
-    paddingVertical: 5,
-    paddingHorizontal: 10, 
-    borderRadius: 5,
-    alignSelf: 'flex-end',
-    marginTop: -30,
-  },
-  cancelButtonText: {
-    color: COLORS.white,
-    fontFamily: FONTS.semiBold,
-    fontSize: 14,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
-
 export default OrderScreen;
+
+const styles = StyleSheet.create({});

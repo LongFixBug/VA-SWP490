@@ -8,7 +8,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login />} /> Đường dẫn đến trang Login
+        <Route path="/" element={<Login />} /> Đường dẫn đến trang Login
         <Route path="/admin" element={<AdminPage />} />{" "}
         {/* Đường dẫn đến trang Admin */}
         <Route path="/create-account" element={<CreateAccount />} />

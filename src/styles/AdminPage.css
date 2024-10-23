@@ -115,5 +115,10 @@
     background-color: #4CAF50; /* Màu nền đậm hơn */
     color: white;
   }
+  .content {
+    display: flex;
+    flex-direction: column;
+    min-height: 80vh; /* Điều chỉnh chiều cao tối thiểu để pagination nằm dưới */
+  }
   
   

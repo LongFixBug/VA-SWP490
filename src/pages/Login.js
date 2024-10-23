@@ -8,13 +8,19 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate(); // Hook để điều hướng
 
+  // Hàm để kiểm tra đăng nhập
   const handleLogin = (e) => {
     e.preventDefault();
-    // Kiểm tra nếu thông tin đăng nhập đúng
-    if (username === 'admin' && password === '12345') {
-      navigate('/admin'); // Điều hướng đến trang admin
+
+    // Tạm thời kiểm tra trực tiếp username và password mà không cần gọi API
+    if (username === "admin" && password === "admin123") {
+      // Nếu thông tin hợp lệ, điều hướng đến trang admin
+      navigate("/admin");
+    } else if (username === "staff" && password === "staff123") {
+      // Nếu thông tin hợp lệ cho staff, điều hướng đến trang Dishes Management
+      navigate("/dishes-management");
     } else {
-      setError('Tên đăng nhập hoặc mật khẩu không đúng!'); // Hiển thị thông báo lỗi
+      setError("Tên đăng nhập hoặc mật khẩu không đúng!");
     }
   };
 

@@ -1,0 +1,42 @@
+.sidebar {
+  width: 200px;
+  background-color: #E0F2E9;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100vh; /* Sử dụng 100vh để sidebar chiếm toàn bộ chiều cao của trang */
+  position: fixed; /* Giữ sidebar cố định khi kéo trang */
+  top: 0;
+  left: 0;
+}
+
+.content {
+  margin-left: 220px; /* Dịch phần content sang phải để không đè lên sidebar */
+  padding: 20px;
+}
+
+  
+  .sidebar-item {
+    padding: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+  }
+  
+  .sidebar-item.active {
+    background-color: #4CAF50;
+    color: white;
+  }
+  
+  .icon {
+    margin-right: 10px;
+  }
+  
+  .sidebar-item.logout {
+    margin-top: auto;
+    color: red;
+    padding-bottom: 50px;
+  }
+  

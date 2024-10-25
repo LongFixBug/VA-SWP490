@@ -1,0 +1,97 @@
+/* DishesManagement.css */
+
+.dishes-management-container {
+    display: flex;
+    height: 100vh;
+  }
+  
+  .sidebar {
+    width: 200px;
+    background-color: #E0F2E9;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .sidebar-item {
+    padding: 10px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+  .sidebar-item.active {
+    background-color: #4CAF50;
+    color: white;
+  }
+  
+  .sidebar-item.logout {
+    margin-top: auto;
+    color: red;
+  }
+  
+  .content {
+    flex-grow: 1;
+    padding: 20px;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .search-bar {
+    width: 300px;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+  }
+  
+  .search-button {
+    padding: 10px;
+    background-color: #ddd;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .add-dish-button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .dishes-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .dishes-table th,
+  .dishes-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+  }
+  
+  .dishes-table th {
+    background-color: #f1f1f1;
+  }
+  
+  .edit-button,
+  .delete-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .edit-button {
+    color: blue;
+  }
+  
+  .delete-button {
+    color: red;
+  }
+  

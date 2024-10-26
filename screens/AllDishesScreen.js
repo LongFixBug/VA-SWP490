@@ -11,6 +11,9 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
+import Icon from "react-native-vector-icons/Ionicons";
+import Header from "../components/Header";
+import { Dropdown } from "react-native-element-dropdown";
 
 const AllDishesScreen = () => {
   const navigation = useNavigation();
@@ -64,13 +67,15 @@ const AllDishesScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Xem tất cả</Text>
-      </View>
+      <Header
+        title={"Danh sách món ăn"}
+        leftIcon={"arrow-back-outline"}
+        // rightIcon={"menu"}
+        colorBackground={COLORS.white}
+        colorText={COLORS.black}
+        onPress={() => navigation.goBack()}
+        // onPressRight={() => setShowModalInformation(!showModalInformation)}
+      />
 
       {/* Search & Filter */}
       <View style={styles.searchContainer}>
@@ -96,7 +101,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
-    padding: 20,
   },
   header: {
     flexDirection: "row",

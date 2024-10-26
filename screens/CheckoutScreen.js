@@ -87,7 +87,7 @@ const CheckoutScreen = ({ navigation }) => {
           />
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}>
-              Trịnh Ngọc Bảo
+              Nguyễn Hải Long
             </Text>
             <Text style={{ fontFamily: FONTS.medium, marginTop: 3 }}>
               (+84) 838439296

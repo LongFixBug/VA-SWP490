@@ -6,6 +6,8 @@ import {
   Image,
   Easing,
   StyleSheet,
+  ImageBackground,
+  Pressable,
   FlatList,
   TouchableOpacity,
   TextInput,
@@ -58,116 +60,6 @@ const AnimatedText = ({ text }) => {
 
 const HomeScreen = () => {
   const navigation = useNavigation();
-
-  <View style={{ flex: 1, backgroundColor: COLORS.white }}>
-    <View
-      style={{
-        width: "100%",
-        height: windowHeight * 0.38, // Chỉ cần một lần thiết lập chiều cao
-      }}
-    >
-      <ImageBackground
-        source={{
-          uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
-        }}
-        style={{
-          width: "100%",
-          height: "100%",
-          resizeMode: "cover",
-        }}
-      >
-        <View
-          style={{
-            padding: 20,
-            marginTop: 15,
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          {/* Text chào mừng và tên người dùng */}
-          <View style={{ width: "50%" }}>
-            <Text
-              style={{
-                fontFamily: FONTS.bold,
-                color: COLORS.white,
-                fontSize: 23,
-              }}
-            >
-              Xin chào!
-            </Text>
-            <Text
-              style={{
-                fontFamily: FONTS.semiBold,
-                color: COLORS.white,
-                fontSize: 18,
-              }}
-            >
-              Trịnh Ngọc Bảo
-            </Text>
-          </View>
-
-          {/* Điểm và ảnh đại diện */}
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                alignItems: "flex-end",
-                marginRight: 8,
-                padding: 5,
-                borderRadius: 5,
-                elevation: 0,
-              }}
-            >
-              {/* Điểm và hạng */}
-              <Text
-                style={{
-                  fontFamily: FONTS.bold,
-                  color: COLORS.white,
-                  fontSize: 13,
-                  alignSelf: "center",
-                  borderBottomWidth: 1,
-                  borderBottomColor: COLORS.white,
-                  paddingBottom: 3,
-                }}
-              >
-                <Icon name="star" size={16} color={COLORS.white} /> 1200 điểm
-              </Text>
-              <Text
-                style={{
-                  fontFamily: FONTS.bold,
-                  color: COLORS.yellow,
-                  fontSize: 12,
-                }}
-              >
-                Vàng
-              </Text>
-            </View>
-
-            {/* Ảnh đại diện */}
-            <Pressable
-              onPress={() => {
-                navigation.navigate("Profile");
-              }}
-            >
-              <Image
-                source={{
-                  uri: "https://scontent.fsgn5-8.fna.fbcdn.net/v/t39.30808-6/431764296_1830389587405425_4880708078341224054_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=qA3LWrpmzogQ7kNvgEzhRoU&_nc_ht=scontent.fsgn5-8.fna&_nc_gid=ASqEgpp1SKFhGjcqccEFoHF&oh=00_AYAyEDIFKFaEGTj3qB9eu3YKQa8PGIIa7SfXLcpwuzN9JA&oe=67102E9D",
-                }}
-                style={{
-                  height: 55,
-                  width: 55,
-                  borderRadius: 50,
-                  borderWidth: 1,
-                  borderColor: COLORS.white,
-                }}
-              />
-            </Pressable>
-          </View>
-        </View>
-      </ImageBackground>
-    </View>
-  </View>;
-
   const [dishes, setDishes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -236,8 +128,109 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* User Info */}
-      <View style={styles.userInfo}>
+      <ImageBackground
+        source={{
+          // uri: "https://static.vecteezy.com/system/resources/previews/005/182/612/non_2x/green-abstract-geometric-shape-background-free-vector.jpg",
+          uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
+        }}
+        style={{
+          position: "absolute", // Đặt vị trí tuyệt đối
+          top: 0,
+          left: 0,
+          width: "200%",
+          height: "100%",
+          resizeMode: "cover",
+          zIndex: -1, // Cho nó chìm xuống dưới cùng
+        }}
+      ></ImageBackground>
+      <View
+        style={{
+          padding: 20,
+          marginTop: 15,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <View style={{ width: "50%" }}>
+          <Text
+            style={{
+              fontFamily: FONTS.bold,
+              color: COLORS.white,
+              fontSize: 23,
+            }}
+          >
+            Xin chào!
+          </Text>
+          <Text
+            style={{
+              fontFamily: FONTS.semiBold,
+              color: COLORS.white,
+              fontSize: 18,
+            }}
+          >
+            Nguyễn hải Long
+          </Text>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View
+            style={{
+              alignItems: "flex-end",
+              marginRight: 8,
+              padding: 5,
+              borderRadius: 5,
+              elevation: 0,
+              // borderWidth:1,
+              // borderColor: COLORS.white,
+              // padding: 5,
+              // borderRadius: 8
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                color: COLORS.white,
+                fontSize: 13,
+                alignSelf: "center",
+                borderBottomWidth: 1,
+                borderBottomColor: "white",
+                paddingBottom: 3,
+              }}
+            >
+              <Icon name="star" size={16} color={COLORS.white} /> 1200 điểm
+            </Text>
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                color: COLORS.yellow,
+                fontSize: 12,
+              }}
+            >
+              Vàng
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              navigation.navigate("Profile");
+            }}
+          >
+            <Image
+              source={{
+                uri: "https://picsum.photos/200/300",
+              }}
+              style={{
+                height: 55,
+                width: 55,
+                borderRadius: 50,
+                borderWidth: 1,
+                borderColor: COLORS.white,
+              }}
+            />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* <View style={styles.userInfo}>
         <Image source={{ uri: userData.avatar }} style={styles.avatar} />
         <View>
           <Text style={styles.greeting}>xin chào,</Text>
@@ -247,7 +240,7 @@ const HomeScreen = () => {
           <Text style={styles.pointNumber}>{userData.points} điểm</Text>
           <Text style={styles.pointLabel}>{userData.rank}</Text>
         </View>
-      </View>
+      </View> */}
 
       {/* Feature Icons */}
       <View style={styles.featureIcons}>
@@ -485,6 +478,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#E0E0E0",
+    marginRight: 20,
   },
   searchInput: {
     flex: 1,
@@ -496,7 +490,7 @@ const styles = StyleSheet.create({
 
   searchSuggestions: {
     position: "absolute",
-    top: 240,
+    top: 300,
     right: "20%",
     width: "85%",
     backgroundColor: COLORS.white,
@@ -554,7 +548,7 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderRadius: 8,
     overflow: "hidden",
-    width: width / 2 - 40, // Tính toán chiều rộng cho phù hợp với khoảng cách giữa các item
+    width: width / 2 - 25, // Cập nhật lại để vừa căn đều hai bên
   },
   dummyItem: {
     flex: 1,

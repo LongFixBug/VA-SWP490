@@ -1,127 +1,130 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import COLORS from '../constants/color'; 
-import FONTS from '../constants/font';
-
-const NotificationScreen = () => {
-  // Dữ liệu mẫu cho các thông báo
-  const notifications = [
-    {
-      id: '1',
-      section: 'Mới nhất',
-      data: [
-        { id: '1-1', title: 'thông báo chưa đọc', description: 'Supporting line text lorem ipsum dolor sit amet, consectetur.', read: false },
-        { id: '1-2', title: 'thông báo chưa đọc', description: 'Supporting line text lorem ipsum dolor sit amet, consectetur.', read: false },
-      ],
-    },
-    {
-      id: '2',
-      section: 'Hôm nay',
-      data: [
-        { id: '2-1', title: 'thông báo đã đọc', description: 'Supporting line text lorem ipsum dolor sit amet, consectetur.', read: true },
-        { id: '2-2', title: 'thông báo chưa đọc', description: 'Supporting line text lorem ipsum dolor sit amet, consectetur.', read: false },
-        { id: '2-3', title: 'thông báo chưa đọc', description: 'Supporting line text lorem ipsum dolor sit amet, consectetur.', read: false },
-      ],
-    },
-    {
-      id: '3',
-      section: 'Cũ hơn',
-      data: [
-        { id: '3-1', title: 'thông báo đã đọc', description: 'Supporting line text lorem ipsum dolor sit amet, consectetur.', read: true },
-      ],
-    },
-  ];
-
-  // Render từng thông báo
-  const renderNotification = ({ item }) => (
-    <View style={[styles.notificationItem, item.read ? styles.read : styles.unread]}>
-      <Text style={styles.notificationTitle}>{item.title}</Text>
-      <Text style={styles.notificationDescription}>{item.description}</Text>
-    </View>
-  );
-
-  // Render các phần thông báo
-  const renderSection = ({ item }) => (
-    <View>
-      <Text style={styles.sectionTitle}>{item.section}</Text>
-      <FlatList
-        data={item.data}
-        renderItem={renderNotification}
-        keyExtractor={(notification) => notification.id}
-      />
-    </View>
-  );
-
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  StatusBar,
+} from "react-native";
+import Icon from "react-native-vector-icons/Ionicons";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
+import Header from "../components/Header";
+const dataNoti = [
+  {
+    id: 1,
+    title: "Bạn có đơn hàng đang trên đường",
+    description:
+      "Đơn hàng sắp được giao đến bạn, vui lòng kiểm tra điện thoại thường xuyên",
+  },
+  {
+    id: 2,
+    title: "Giao hàng thành công",
+    description:
+      "Đơn hàng đã giao đến bạn, vui lòng kiểm tra và đánh giá sản phẩm",
+  },
+  {
+    id: 3,
+    title: "Xác nhận đã thanh toán",
+    description:
+      "Thanh toán cho đơn hàng 235F35AV323 thành công. Vui lòng kiểm tra thời gian nhận hàng trong chi tiết đơn hàng.",
+  },
+  {
+    id: 4,
+    title: "Bạn có đơn hàng đang trên đường",
+    description:
+      "Đơn hàng sắp được giao đến bạn, vui lòng kiểm tra điện thoại thường xuyên, Đơn hàng sắp được giao đến bạn, vui lòng kiểm tra điện thoại thường xuyên",
+  },
+];
+function NotificationScreen() {
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Thông Báo</Text>
-        <TouchableOpacity>
-          <Icon name="settings-outline" size={24} color={COLORS.black} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Danh sách thông báo */}
       <FlatList
-        data={notifications}
-        renderItem={renderSection}
+        ListHeaderComponent={
+          <View
+            style={{
+              marginTop: StatusBar.currentHeight,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: 20,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                fontSize: 25,
+                color: COLORS.green,
+              }}
+            >
+              Thông báo
+            </Text>
+            <Icon name="menu" size={28} color={COLORS.green} />
+          </View>
+        }
+        data={dataNoti}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={{
+              padding: 15,
+              borderBottomWidth: 1,
+              borderBottomColor: "#ddd",
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: COLORS.greyPastel,
+            }}
+          >
+            <View style={{ marginRight: 15 }}>
+              <Icon
+                name="notifications-outline"
+                size={28}
+                color={COLORS.grey}
+              />
+            </View>
+            <View>
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  fontSize: 15,
+                  color: COLORS.greySolid,
+                }}
+              >
+                {item.title}
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    width: "85%",
+                    marginTop: 5,
+                    color: COLORS.grey,
+                  }}
+                >
+                  {item.description}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
         keyExtractor={(item) => item.id}
       />
     </View>
   );
-};
+}
 
 export default NotificationScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: "center",
     backgroundColor: COLORS.white,
-    padding: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.black,
-  },
-  sectionTitle: {
-    marginTop: 20,
-    marginBottom: 10,
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.black,
-  },
-  notificationItem: {
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  unread: {
-    backgroundColor: '#F3E5F5',
-  },
-  read: {
-    backgroundColor: '#EDE7F6',
-  },
-  notificationTitle: {
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-    color: COLORS.black,
-  },
-  notificationDescription: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.grey,
-    marginTop: 5,
   },
 });
-

@@ -25,7 +25,7 @@ import CommunityScreen from "./screens/CommunityScreen";
 import NotificationScreen from "./screens/NotificationScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import OrderDetailScreen from "./screens/OrderDetailScreen";
-import AllDishesScreen from "./screens/AllDishesScreen";
+import AllDishScreen from "./screens/AllDishScreen";
 import SuggestedDishesScreen from "./screens/SuggestedDishesScreen";
 import DishDetailScreen from "./screens/DishDetailScreen";
 import NewPostScreen from "./screens/NewPostScreen";
@@ -36,6 +36,8 @@ import FavouriteScreen from "./screens/FavouriteScreen";
 import CheckoutScreen from "./screens/CheckoutScreen";
 import PaymentScreen from "./screens/PaymentScreen";
 import MenuScreen from "./screens/MenuScreen";
+import MembershipScreen from "./screens/MembershipScreen";
+import DetailMenuScreen from "./screens/DetailMenuScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
@@ -292,10 +294,13 @@ export default function App() {
           <Stack.Screen name="SearchDishes" component={SearchDishesScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="Favourite" component={FavouriteScreen} />
-          <Stack.Screen name="AllDishes" component={AllDishesScreen} />
+          <Stack.Screen name="AllDishes" component={AllDishScreen} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
           <Stack.Screen name="Payment" component={PaymentScreen} />
           <Stack.Screen name="Menu" component={MenuScreen} />
+          <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
+          <Stack.Screen name="Membership" component={MembershipScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />

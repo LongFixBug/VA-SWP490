@@ -148,6 +148,7 @@ const CheckoutScreen = ({ navigation }) => {
               activeOpacity={0.8}
               //   onPress={()=> navigation.navigate("")}
               style={styles.listItem}
+              key={index}
             >
               <Image
                 source={{

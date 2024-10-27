@@ -3,11 +3,7 @@ import {
   View,
   Image,
   Text,
-  StatusBar,
   TouchableOpacity,
-  Alert,
-  TextInput,
-  Button,
   ScrollView,
 } from "react-native";
 import React from "react";
@@ -44,13 +40,15 @@ const MenuScreen = ({ navigation }) => {
         {dataMenu.map((item, index) => (
           <TouchableOpacity
             activeOpacity={0.9}
+            key={index}
+            onPress={() => navigation.navigate("DetailMenu")}
             style={{
               padding: 10,
               borderWidth: 1,
               borderColor: COLORS.greyPastel,
-              borderRadius: 8,            
+              borderRadius: 8,
               backgroundColor: COLORS.white,
-              marginBottom: 10
+              marginBottom: 10,
             }}
           >
             <View

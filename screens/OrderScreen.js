@@ -209,7 +209,7 @@ const OrderScreen = ({ navigation }) => {
               </View>
             </TouchableOpacity>
           )}
-          keyExtractor={(item) => item._id}
+          keyExtractor={(item) => item.id}
           style={{ backgroundColor: COLORS.white, paddingTop: 5 }}
         />
       )}

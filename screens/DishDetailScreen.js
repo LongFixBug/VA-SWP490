@@ -1,121 +1,37 @@
-// import React from "react";
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   Image,
-//   TouchableOpacity,
-//   ScrollView,
-// } from "react-native";
-// import { useNavigation, useRoute } from "@react-navigation/native";
-// import Icon from "react-native-vector-icons/Ionicons";
-// import COLORS from "../constants/color";
-// import FONTS from "../constants/font";
-
-// const DishDetailScreen = () => {
-//   const navigation = useNavigation();
-//   const route = useRoute();
-//   const { dish } = route.params;
-
-//   return (
-//     <ScrollView style={styles.container}>
-//       {/* Header */}
-//       <View style={styles.header}>
-//         <TouchableOpacity onPress={() => navigation.goBack()}>
-//           <Icon name="arrow-back-outline" size={24} color={COLORS.black} />
-//         </TouchableOpacity>
-//         <Text style={styles.headerTitle}>Dishes detail</Text>
-//         <TouchableOpacity
-//           activeOpacity={0.8}
-//           onPress={() => navigation.navigate("Cart")}
-//         >
-//           <View
-//             style={{
-//               height: 50,
-//               width: 50,
-//               marginRight: 20,
-//               justifyContent: "center",
-//               alignItems: "center",
-//               backgroundColor: COLORS.white,
-//               borderRadius: 10,
-//               elevation: 0,
-//             }}
-//           >
-//             <Icon name={"cart-outline"} size={30} color={COLORS.green} />
-//             <Text style={styles.bagdeCart}>77</Text>
-//           </View>
-//         </TouchableOpacity>
-//       </View>
-
-//       {/* Món ăn */}
-//       <View style={styles.dishInfo}>
-//         <Image source={{ uri: dish.imageUrl }} style={styles.dishImage} />
-//         <View style={styles.priceAndFavorite}>
-//           <Text style={styles.price}>{dish.price} vnd</Text>
-//           <Icon name="heart-outline" size={24} color={COLORS.black} />
-//         </View>
-//         <Text style={styles.dishName}>{dish.name}</Text>
-//         {/* <View style={styles.dishRating}>
-//           <Text style={styles.rating}>{dish.average_rating}</Text>
-//           {Array.from({ length: Math.round(dish.average_rating) }, (_, i) => (
-//             <Icon key={i} name="star" size={16} color="gold" />
-//           ))}
-//         </View> */}
-
-//         {/* Mô tả món ăn */}
-//         <Text style={styles.sectionTitle}>Mô tả</Text>
-//         <Text style={styles.description}>{dish.description}</Text>
-
-//         {/* Nguyên liệu */}
-//         <Text style={styles.sectionTitle}>Nguyên liệu</Text>
-//         <Text style={styles.description}>{dish.ingredients}</Text>
-
-//         {/* Công thức */}
-//         <Text style={styles.sectionTitle}>Công thức</Text>
-//         <Text style={styles.description}>{dish.recipe}</Text>
-//       </View>
-
-//       {/* Đánh giá */}
-//       <Text style={styles.sectionTitle}>Đánh giá</Text>
-//       {/* <View style={styles.reviewList}>
-//         {dish.feedbacks.map((feedback) => (
-//           <View key={feedback.user_id} style={styles.reviewCard}>
-//             <View style={styles.reviewHeader}>
-//               <Text style={styles.username}>{feedback.username}</Text>
-//               <View style={styles.reviewRating}>
-//                 {Array.from({ length: Math.round(feedback.rating) }, (_, i) => (
-//                   <Icon key={i} name="star" size={14} color="gold" />
-//                 ))}
-//               </View>
-//             </View>
-//             <Text style={styles.comment}>{feedback.feedback_content}</Text>
-//             <Text style={styles.time}>{feedback.feedback_date}</Text>
-//           </View>
-//         ))}
-//       </View> */}
-
-import React from "react";
 import {
-  View,
-  Text,
   StyleSheet,
+  View,
   Image,
-  TouchableOpacity,
-  ScrollView,
+  Text,
   StatusBar,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+  Button,
+  ScrollView,
 } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import React from "react";
 import Icon from "react-native-vector-icons/Ionicons";
+import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Swiper from "react-native-swiper";
-import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
 import Toast from "react-native-toast-message";
 
-const DishDetailScreen = () => {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const { dish } = route.params; // Lấy dữ liệu từ route.params
+const dishDetail = [
+  "https://suckhoedoisong.qltns.mediacdn.vn/324455921873985536/2023/9/25/an-chay-1-1695615310939250177594.jpg",
+  "https://cdn.tgdd.vn/2021/08/CookProduct/Suonnonchaychiensaot-1200x676.jpg",
+  "https://cdn.tgdd.vn/Files/2021/08/03/1372828/suon-chay-lam-tu-gi-cac-mon-ngon-lam-tu-suon-chay-202201171310189048.jpg",
+  "https://i.ytimg.com/vi/I-GSYy_1oEA/maxresdefault.jpg",
+];
+
+const dataFeedbacks = Array.from({ length: 11 }, (_, index) => ({
+  id: index + 1,
+  name: `Item ${index + 1}`,
+}));
+
+const DetailDishScreen = ({ navigation }) => {
+  const [isLoading, setIsLoading] = React.useState(true);
   const [showMoreAttribute, setShowMoreAttribute] = React.useState(false);
 
   const showToastAddToCart = () => {
@@ -137,7 +53,6 @@ const DishDetailScreen = () => {
           marginBottom: 80,
         }}
       >
-        {/* Header */}
         <View style={styles.top}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -172,7 +87,10 @@ const DishDetailScreen = () => {
             </View>
           </TouchableOpacity>
           <View style={{ flexDirection: "row" }}>
-            <TouchableOpacity activeOpacity={0.8}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              //   onPress={isFavourite ? deleteFavourite : createFavourite}
+            >
               <View
                 style={{
                   height: 50,
@@ -210,8 +128,6 @@ const DishDetailScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Swiper cho hình ảnh món ăn */}
         <View style={{ height: 250 }}>
           <Swiper
             style={styles.wrapper}
@@ -219,15 +135,19 @@ const DishDetailScreen = () => {
             activeDotColor={COLORS.green}
             dotColor={COLORS.white}
             autoplay={false}
+            //   paginationStyle={{}}
           >
-            {/* Ảnh món ăn từ API */}
-            <View style={styles.slide}>
-              <Image
-                source={{ uri: dish.imageUrl }} // Sử dụng ảnh từ dữ liệu
-                style={styles.img}
-                resizeMode="cover"
-              />
-            </View>
+            {dishDetail.map((item, index) => (
+              <View style={styles.slide} key={index}>
+                <Image
+                  source={{
+                    uri: item,
+                  }}
+                  style={styles.img}
+                  resizeMode="cover"
+                />
+              </View>
+            ))}
           </Swiper>
           <View
             style={{
@@ -247,12 +167,10 @@ const DishDetailScreen = () => {
                 fontSize: 17,
               }}
             >
-              {dish.price}.000đ {/* Giá từ dữ liệu */}
+              125.000đ
             </Text>
           </View>
         </View>
-
-        {/* Thông tin chi tiết món ăn */}
         <View style={{ padding: 15 }}>
           <Text
             style={{
@@ -262,28 +180,46 @@ const DishDetailScreen = () => {
               marginBottom: 5,
             }}
           >
-            {dish.name} {/* Tên món ăn */}
+            Đậu hũ nhồi
           </Text>
-          <Text
-            style={{
-              fontFamily: FONTS.medium,
-              color: COLORS.grey,
-              fontSize: 15,
-              marginBottom: 5,
-            }}
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between" }}
           >
-            {dish.dishType} {/* Loại món ăn */}
-          </Text>
-
-          {/* Mô tả */}
+            <Text
+              style={{
+                fontFamily: FONTS.medium,
+                color: COLORS.grey,
+                fontSize: 15,
+                marginBottom: 5,
+              }}
+            >
+              Món khai vị
+            </Text>
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                color: COLORS.black,
+                fontSize: 13,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.greyPastel,
+                paddingBottom: 5,
+              }}
+            >
+              <Icon name="star" size={16} color={COLORS.star} />
+              <Icon name="star" size={16} color={COLORS.star} />
+              <Icon name="star" size={16} color={COLORS.star} />
+              <Icon name="star" size={16} color={COLORS.star} />
+              <Icon name="star" size={16} color={COLORS.star} />
+            </Text>
+          </View>
           <View style={styles.containerAttribute}>
             <Text style={styles.titleAttribute}>Mô tả</Text>
-            <Text style={styles.textAttribute}>{dish.description}</Text>
-          </View>
-
-          {/* Nguyên liệu */}
-          {showMoreAttribute === false && (
-            <>
+            <Text style={styles.textAttribute}>
+              Lorem Ipsum is simply dummy text of the printing and typesetting
+              industry.Lorem Ipsum has been the industry's standard dummy text
+              ever since the 1500s.
+            </Text>
+            {showMoreAttribute === false && (
               <TouchableOpacity
                 style={{ marginTop: 5 }}
                 activeOpacity={0.6}
@@ -295,39 +231,94 @@ const DishDetailScreen = () => {
                   Xem thêm
                 </Text>
               </TouchableOpacity>
-            </>
-          )}
-
+            )}
+          </View>
           {showMoreAttribute && (
             <>
               <View style={styles.containerAttribute}>
-                <Text style={styles.titleAttribute}>Nguyên liệu</Text>
-                <Text style={styles.textAttribute}>{dish.ingredients}</Text>
+                <Text style={styles.textAttribute}>
+                  <Text style={styles.titleAttribute}>Nguyên liệu: </Text>Lorem
+                  Ipsum is simply dummy text of the printing and typesetting
+                  industry.
+                </Text>
               </View>
-
-              {/* Công thức */}
               <View style={styles.containerAttribute}>
                 <Text style={styles.titleAttribute}>Công thức</Text>
-                <Text style={styles.textAttribute}>{dish.recipe}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={{ marginTop: 5 }}
-                activeOpacity={0.6}
-                onPress={() => setShowMoreAttribute(!showMoreAttribute)}
-              >
-                <Text
-                  style={{ fontFamily: FONTS.semiBold, color: COLORS.blue }}
-                >
-                  Thu gọn
+                <Text style={styles.textAttribute}>
+                  Lorem Ipsum is simply dummy text of the printing and
+                  typesetting industry.
                 </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ marginTop: 5 }}
+                  activeOpacity={0.6}
+                  onPress={() => setShowMoreAttribute(!showMoreAttribute)}
+                >
+                  <Text
+                    style={{ fontFamily: FONTS.semiBold, color: COLORS.blue }}
+                  >
+                    Thu gọn
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
+          <View style={styles.containerAttribute}>
+            <Text style={styles.titleAttribute}>Đánh giá (11)</Text>
+
+            {dataFeedbacks.map((item, index) => (
+              <View
+                key={index}
+                style={{ flexDirection: "row", marginTop: 10, marginBottom: 8 }}
+              >
+                <Image
+                  source={{
+                    uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+                  }}
+                  style={{
+                    width: 35,
+                    height: 35,
+                    resizeMode: "contain",
+                    borderRadius: 50,
+                    borderWidth: 1,
+                    borderColor: COLORS.green,
+                  }}
+                />
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={{ fontFamily: FONTS.medium }}>Nguyễn Long</Text>
+                  <View style={{ flexDirection: "row", marginTop: 3 }}>
+                    <Icon name="star" size={16} color={COLORS.star} />
+                    <Icon name="star" size={16} color={COLORS.star} />
+                    <Icon name="star" size={16} color={COLORS.star} />
+                    <Icon name="star" size={16} color={COLORS.star} />
+                    <Icon name="star" size={16} color={COLORS.star} />
+                  </View>
+                  <Text
+                    style={{
+                      fontFamily: FONTS.medium,
+                      marginTop: 3,
+                      lineHeight: 20,
+                    }}
+                  >
+                    It is a long established fact that a reader will be
+                    distracted by the readable content of a page when looking at
+                    its layout. The point of using Lorem Ipsum
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: FONTS.medium,
+                      color: COLORS.grey,
+                      marginTop: 5,
+                      fontSize: 13,
+                    }}
+                  >
+                    12:40, 19/10/2024
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       </ScrollView>
-
-      {/* Nút thêm vào giỏ hàng */}
       <View style={styles.containerButtonFloatBottom}>
         <View style={styles.boxButtonFloatBottom}>
           <TouchableOpacity
@@ -346,7 +337,7 @@ const DishDetailScreen = () => {
               borderColor: COLORS.green,
             }}
           >
-            <Icon name={"cart-outline"} size={30} color={COLORS.green} />
+            <Icon1 name={"cart-plus"} size={30} color={COLORS.green} />
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -380,9 +371,24 @@ const DishDetailScreen = () => {
   );
 };
 
-export default DishDetailScreen;
+export default DishDetail;
 
 const styles = StyleSheet.create({
+  containerButtonFloatBottom: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    left: 0,
+  },
+  boxButtonFloatBottom: {
+    backgroundColor: COLORS.white,
+    height: 80,
+    flexDirection: "row",
+    // justifyContent: "space-between",
+    elevation: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.darkGrey,
+  },
   top: {
     flexDirection: "row",
     alignItems: "center",
@@ -393,6 +399,7 @@ const styles = StyleSheet.create({
   img: {
     width: "100%",
     height: 300,
+    borderRadius: 0,
   },
   slide: {
     flex: 1,
@@ -417,20 +424,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
-  containerButtonFloatBottom: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    left: 0,
-  },
-  boxButtonFloatBottom: {
-    backgroundColor: COLORS.white,
-    height: 80,
-    flexDirection: "row",
-    elevation: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.darkGrey,
-  },
   bagdeCart: {
     fontFamily: FONTS.bold,
     color: COLORS.white,
@@ -438,6 +431,7 @@ const styles = StyleSheet.create({
     width: 23,
     height: 23,
     textAlign: "center",
+    textAlignVertical: "center",
     backgroundColor: COLORS.red,
     borderRadius: 150,
     position: "absolute",

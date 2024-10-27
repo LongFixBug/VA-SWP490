@@ -129,11 +129,11 @@ const CartScreen = ({ navigation }) => {
       />
       <View style={styles.containerButtonFloatBottom}>
         <View style={styles.boxButtonFloatBottom}>
-          <View
+          <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => showToastAddToCart()}
+            // onPress={() => showToastAddToCart()}
             style={{
-              width: "50%",
+              width: "40%",
               backgroundColor: COLORS.white,
               alignItems: "flex-end",
               justifyContent: "center",
@@ -147,9 +147,8 @@ const CartScreen = ({ navigation }) => {
             <Text
               style={{
                 fontFamily: FONTS.semiBold,
-                fontSize: 15,
+                fontSize: 16,
                 color: COLORS.black,
-                paddingRight: 80,
               }}
             >
               Tổng số tiền:
@@ -159,12 +158,11 @@ const CartScreen = ({ navigation }) => {
                 fontFamily: FONTS.bold,
                 fontSize: 18,
                 color: COLORS.green,
-                paddingRight: 90,
               }}
             >
               247.990đ
             </Text>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => navigation.navigate("Checkout")}

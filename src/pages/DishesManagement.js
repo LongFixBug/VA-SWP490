@@ -1,214 +1,162 @@
-import React, { useState, useEffect } from "react";
+import React, { useState} from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import "../styles/DishesManagement.css";
+import Pagination from "../components/Pagination";
+
+  
+const mockDishesData = [
+  {
+    dish_id: 1,
+    name: "Vegetable Stir-fry",
+    dish_type: "Main",
+    description: "A delicious stir-fry with fresh vegetables.",
+    image_url: "https://example.com/images/vegetable_stir_fry.jpg",
+    dietary_preference_id: 2,
+    price: 10.99,
+    recipe: "Stir vegetables in a hot pan with soy sauce.",
+    status: "available",
+  },
+  {
+    dish_id: 2,
+    name: "Miso Soup",
+    dish_type: "Starter",
+    description: "Traditional Japanese miso soup with tofu and seaweed.",
+    image_url: "https://example.com/images/miso_soup.jpg",
+    dietary_preference_id: 1,
+    price: 5.99,
+    recipe: "Mix miso paste in hot water, add tofu and seaweed.",
+    status: "available",
+  },
+  // Thêm nhiều món ăn khác nếu cần
+];
 
 const DishesManagement = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState({
-    key: null,
-    direction: "ascending",
-  });
-  const [dishes, setDishes] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const dishesPerPage = 2;
-  const [totalPages, setTotalPages] = useState(1);
+  const dishesPerPage = 5;
+  
 
-  useEffect(() => {
-    const fetchDishes = async () => {
-      try {
-        // Gọi API để lấy tất cả món ăn
-        const response = await axios.get(
-          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/nutritionists/alldish"
-        );
-        let fetchedDishes = response.data;
 
-        // Tìm kiếm dựa trên searchTerm
-        if (searchTerm) {
-          fetchedDishes = fetchedDishes.filter(
-            (dish) =>
-              dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              dish.dishType.toLowerCase().includes(searchTerm.toLowerCase())
-          );
-        }
+  const filteredDishes = mockDishesData.filter(
+    (dish) =>
+      dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dish.dish_type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-        setDishes(fetchedDishes); // Cập nhật danh sách món ăn đã lọc
-        setTotalPages(Math.ceil(fetchedDishes.length / dishesPerPage)); // Tính tổng số trang
-      } catch (error) {
-        console.error("Error fetching dishes:", error);
-      }
-    };
-
-    fetchDishes();
-  }, [searchTerm, sortConfig, currentPage]);
-
-  // Phân trang
+  const totalPages = Math.ceil(filteredDishes.length / dishesPerPage);
   const indexOfLastDish = currentPage * dishesPerPage;
   const indexOfFirstDish = indexOfLastDish - dishesPerPage;
-  const currentDishes = dishes.slice(indexOfFirstDish, indexOfLastDish);
+  const currentDishes = filteredDishes.slice(indexOfFirstDish, indexOfLastDish);
 
-  // Hàm thay đổi hướng sắp xếp
-  const handleSort = (key) => {
-    let direction = "ascending";
-    if (sortConfig.key === key && sortConfig.direction === "ascending") {
-      direction = "descending";
-    }
-    setSortConfig({ key, direction });
-  };
-
-  // Hàm xử lý khi nhấn nút xóa món ăn
-  const handleDeleteClick = async (dishId) => {
-    try {
-      await axios.delete(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/nutritionists/dish/${dishId}`
-      );
-      setDishes((prevDishes) =>
-        prevDishes.filter((dish) => dish.dishId !== dishId)
-      );
-    } catch (error) {
-      console.error("Error deleting dish:", error);
-    }
-  };
-
-  // Phân trang
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  const Sidebar = () => {
+    const navigate = useNavigate();
+    const handleLogout = () => {
+      navigate("/");
+    };
+
+    return (
+      <div className="sidebar">
+        <div
+          className="sidebar-item"
+          onClick={() => navigate("/dishes-management")}
+        >
+          Quản lý món ăn
+        </div>
+        <div
+          className="sidebar-item"
+          onClick={() => navigate("/nutritionCriteria-management")}
+        >
+          Quản lí thể trạng
+        </div>
+        <div className="sidebar-item logout" onClick={handleLogout}>
+          Đăng xuất
+        </div>
+      </div>
+    );
+  };
+
+  const SearchBar = ({ searchTerm, setSearchTerm }) => {
+    const navigate = useNavigate();
+    return (
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="Nhập từ khóa tìm kiếm..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <button
+          className="create-button"
+          onClick={() => navigate("/create-dish")}
+        >
+          Thêm món ăn mới
+        </button>
+      </div>
+    );
   };
 
   return (
-    <div className="dishes-management-container">
+    <div className="dishes-management">
       <Sidebar />
       <div className="content">
-        <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        <div className="header-actions">
+          <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        </div>
         <table className="dishes-table">
           <thead>
             <tr>
               <th></th>
-              <th onClick={() => handleSort("dishId")}>DishId</th>
-              <th onClick={() => handleSort("name")}>Tên món ăn</th>
-              <th onClick={() => handleSort("dishType")}>Loại món ăn</th>
-              <th>ImageUrl</th>
-              <th>Trạng thái</th>
+              <th>Mã Món</th>
+              <th>Tên</th>
+              <th>Loại</th>
               <th>Giá</th>
-              <th>Xem chi tiết</th>
-              <th>Tác vụ</th>
+              <th>Trạng Thái</th>
+              <th>Hình Ảnh</th>
+              <th>Xem Thêm</th>
             </tr>
           </thead>
           <tbody>
             {currentDishes.map((dish) => (
-              <tr key={dish.dishId}>
+              <tr key={dish.dish_id}>
                 <td>
                   <input type="checkbox" />
                 </td>
-                <td>{dish.dishId}</td>
+                <td>{dish.dish_id}</td>
                 <td>{dish.name}</td>
-                <td>{dish.dishType}</td>
-                <td>
-                  <img src={dish.imageUrl} alt={dish.name} width="50" />
-                </td>
-                <td>{dish.status || "unknown"}</td>
+                <td>{dish.dish_type}</td>
                 <td>{dish.price}</td>
+                <td>{dish.status}</td>
                 <td>
-                  <button
-                    className="detail-button"
-                    onClick={() => navigate(`/dish/${dish.dishId}`)}
-                  >
-                    Xem chi tiết
-                  </button>
+                  <img src={dish.image_url} alt={dish.name} width="50" />
                 </td>
                 <td>
-                  <button className="edit-button">✏️</button>
                   <button
-                    className="delete-button"
-                    onClick={() => handleDeleteClick(dish.dishId)}
+                    className="view-button"
+                    onClick={() => navigate(`/dish/${dish.dish_id}`)}
                   >
-                    ❌
+                    Xem thêm
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div className="pagination">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPrevPage={handlePrevPage}
-            onNextPage={handleNextPage}
-          />
-        </div>
       </div>
-    </div>
-  );
-};
-
-const Sidebar = () => {
-  const navigate = useNavigate();
-  const handleLogout = () => {
-    navigate("/");
-  };
-
-  return (
-    <div className="sidebar">
-      <div
-        className="sidebar-item"
-        onClick={() => navigate("/dishes-management")}
-      >
-        Quản lý món ăn
-      </div>
-      <div
-        className="sidebar-item"
-        onClick={() => navigate("/order-management")}
-      >
-        Quản lý đơn hàng
-      </div>
-      <div className="sidebar-item logout" onClick={handleLogout}>
-        Đăng xuất
-      </div>
-    </div>
-  );
-};
-
-const SearchBar = ({ searchTerm, setSearchTerm }) => {
-  const navigate = useNavigate();
-  return (
-    <div className="search-bar">
-      <input
-        type="text"
-        placeholder="Nhập tại đây..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
       />
-      <button
-        className="create-button"
-        onClick={() => navigate("/create-dish")}
-      >
-        Thêm món ăn
-      </button>
-    </div>
-  );
-};
-
-const Pagination = ({ currentPage, totalPages, onPrevPage, onNextPage }) => {
-  return (
-    <div className="pagination">
-      <button onClick={onPrevPage} disabled={currentPage === 1}>
-        Trang trước
-      </button>
-      <span>
-        Trang {currentPage} / {totalPages}
-      </span>
-      <button onClick={onNextPage} disabled={currentPage === totalPages}>
-        Trang sau
-      </button>
     </div>
   );
 };

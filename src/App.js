@@ -6,6 +6,8 @@ import CreateAccount from "./pages/CreateAccount";
 import Dashboards from "./pages/Dashboards";
 import UserDetail from "./pages/UserDetail";
 import DishesManagement from "./pages/DishesManagement";
+import NutritionCriteriaManagement from "./pages/NutritionCriteriaManagement";
+import NutritionCriteriaDetail from "./pages/NutritionCriteriaDetail";
 
 function App() {
   return (
@@ -17,6 +19,8 @@ function App() {
         <Route path="/dashboard" element={<Dashboards />} />
         <Route path="/user/:id" element={<UserDetail />} />{" "}
         <Route path="/dishes-management" element={<DishesManagement />} />
+        <Route path="/nutritionCriteria-management" element={<NutritionCriteriaManagement />} />
+        <Route path="/nutritionCriteria-detail/:id" element={<NutritionCriteriaDetail />} />{" "}
       </Routes>
     </Router>
   );

@@ -1,97 +1,180 @@
 /* DishesManagement.css */
 
-.dishes-management-container {
-    display: flex;
-    height: 100vh;
-  }
-  
-  .sidebar {
-    width: 200px;
-    background-color: #E0F2E9;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  
-  .sidebar-item {
-    padding: 10px;
-    cursor: pointer;
-    font-weight: bold;
-  }
-  
-  .sidebar-item.active {
-    background-color: #4CAF50;
-    color: white;
-  }
-  
-  .sidebar-item.logout {
-    margin-top: auto;
-    color: red;
-  }
-  
-  .content {
-    flex-grow: 1;
-    padding: 20px;
-  }
-  
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-  
-  .search-bar {
-    width: 300px;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #ddd;
-  }
-  
-  .search-button {
-    padding: 10px;
-    background-color: #ddd;
-    border: none;
-    cursor: pointer;
-  }
-  
-  .add-dish-button {
-    padding: 10px 20px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-  }
-  
-  .dishes-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .dishes-table th,
-  .dishes-table td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-  }
-  
-  .dishes-table th {
-    background-color: #f1f1f1;
-  }
-  
-  .edit-button,
-  .delete-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-  }
-  
-  .edit-button {
-    color: blue;
-  }
-  
-  .delete-button {
-    color: red;
-  }
-  
+.dishes-container {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 200px;
+  background-color: #E0F2E9;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebar-item {
+  padding: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.3s;
+}
+
+.sidebar-item.active {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.sidebar-item.logout {
+  margin-top: auto;
+  color: red;
+}
+
+.icon {
+  margin-right: 10px;
+}
+
+.content {
+  flex-grow: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  min-height: 80vh; /* Điều chỉnh chiều cao tối thiểu để pagination nằm dưới */
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.search-bar input {
+  padding: 10px;
+  flex-grow: 1;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+}
+
+.create-button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+  width: 150px;
+}
+
+create-button:hover {
+  background-color: #45a049;
+}
+
+.dishes-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dishes-table th,
+.dishes-table td {
+  border: 1px solid #ddd;
+  padding: 15px;
+  text-align: left;
+  font-size: 15px;
+}
+
+.dishes-table th {
+  background-color: #f1f1f1;
+  font-weight: bold;
+  text-align: center;
+}
+
+.dishes-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+.dishes-table img {
+  width: 50px;
+  height: auto;
+  border-radius: 5px;
+}
+
+.edit-button,
+.delete-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.detail-button, .edit-button, .delete-button, .view-button {
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.view-button {
+  background-color: #007bff;
+  color: white;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.view-button:hover {
+  background-color: #0056b3;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.pagination button {
+  background-color: #ddd;
+  color: #333;
+  border: none;
+  padding: 8px 16px;
+  margin: 0 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+
+.pagination button:hover {
+  background-color: #bbb;
+}
+
+.pagination button:disabled {
+  background-color: #f2f2f2;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.pagination span {
+  font-size: 16px;
+  margin: 0 10px;
+}

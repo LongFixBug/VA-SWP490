@@ -5,68 +5,66 @@ import {
   Text,
   StatusBar,
   TouchableOpacity,
-  Alert,
   TextInput,
-  Button,
   ScrollView,
   FlatList,
-  Keyboard,
 } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
-import Header from "../components/Header";
-
-const dataDishType = [
-  {
-    id: 0,
-    name: "Tất cả",
-    status: true,
-  },
-  {
-    id: 1,
-    name: "Món khai vị",
-  },
-  {
-    id: 2,
-    name: "Món chính",
-  },
-  {
-    id: 3,
-    name: "Món tráng miệng",
-  },
-  {
-    id: 4,
-    name: "Đồ uống",
-  },
-];
-
-const dataDish = Array.from({ length: 15 }, (_, index) => ({
-  id: index + 1,
-  name: `Item ${index + 1}`,
-}));
 
 const AllDishScreen = ({ navigation, route }) => {
   const fromSearch = route.params?.fromSearch;
-  const [currentDishType, setCurrenDishType] = React.useState(0);
-
+  const [currentDishType, setCurrentDishType] = useState(0);
+  const [dishes, setDishes] = useState([]);
   const textInputRef = React.useRef(null);
-  if (dataDish.length % 2 !== 0) {
-    dataDish.push({ id: "dummy", name: "" });
-  }
+  const [allDishes, setAllDishes] = useState([]); // Tất cả món ăn từ API
+  const [filteredDishes, setFilteredDishes] = useState([]); // Món ăn đã lọc
+
+  useEffect(() => {
+    const fetchDishes = async () => {
+      try {
+        const response = await fetch(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/nutritionists/alldish"
+        );
+        const jsonData = await response.json();
+        if (jsonData.length % 2 !== 0) {
+          jsonData.push({ dishId: "dummy" }); // Thêm mục giả
+        }
+        setAllDishes(jsonData);
+        setFilteredDishes(jsonData);
+      } catch (error) {
+        console.error("Error fetching dishes:", error);
+      }
+    };
+
+    fetchDishes();
+  }, []);
+  const dataDishType = [
+    { id: 0, name: "Tất cả", dishType: null },
+    { id: 1, name: "Món khai vị", dishType: "Khai vị" },
+    { id: 2, name: "Món chính", dishType: "Món chính" },
+    { id: 3, name: "Món tráng miệng", dishType: "Tráng miệng" },
+    { id: 4, name: "Đồ uống", dishType: "Đồ uống" },
+  ];
+  const filterDishesByType = (typeId) => {
+    setCurrentDishType(typeId);
+
+    if (typeId === 0) {
+      // Hiển thị tất cả món ăn nếu chọn "Tất cả"
+      setFilteredDishes(allDishes);
+    } else {
+      const selectedType = dataDishType.find((type) => type.id === typeId);
+      const filtered = allDishes.filter(
+        (dish) => dish.dishType === selectedType.dishType
+      );
+      setFilteredDishes(filtered);
+    }
+  };
 
   return (
     <>
-      {/* <Header
-        title={"Món ăn"}
-        leftIcon={"arrow-back-outline"}
-        rightIcon={"search"}
-        colorBackground={COLORS.white}
-        colorText={COLORS.black}
-        onPress={() => navigation.goBack()}
-        // onPressRight={() => setShowModalInformation(!showModalInformation)}
-      /> */}
       <View style={styles.top}>
         <TouchableOpacity
           activeOpacity={0.8}
@@ -122,7 +120,7 @@ const AllDishScreen = ({ navigation, route }) => {
             {dataDishType.map((item, index) => (
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => setCurrenDishType(item.id)}
+                onPress={() => setCurrentDishType(item.id)}
                 style={{
                   paddingHorizontal: 15,
                   paddingVertical: 10,
@@ -159,24 +157,22 @@ const AllDishScreen = ({ navigation, route }) => {
         </View>
       </View>
       <FlatList
-        data={dataDish}
+        data={dishes}
         showsVerticalScrollIndicator={false}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.dishId.toString()}
         numColumns={2}
         renderItem={({ item, index }) =>
-          item.id === "dummy" ? (
-            <View style={styles.dummyItem}>
-              <Text></Text>
-            </View>
+          item.dishId === "dummy" ? (
+            <View style={styles.dummyItem}></View> // Mục giả, không có nội dung
           ) : (
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => navigation.navigate("DishDetail")}
+              onPress={() => navigation.navigate("DishDetail", { dish: item })}
               style={styles.gridItem}
             >
               <Image
                 source={{
-                  uri: "https://nld.mediacdn.vn/291774122806476800/2023/6/1/2561434bcfe611b848f7-16856155291601981016037.jpg",
+                  uri: item.imageUrl || "https://picsum.photos/300",
                 }}
                 style={{
                   width: "100%",
@@ -186,9 +182,9 @@ const AllDishScreen = ({ navigation, route }) => {
               />
               <View style={{ padding: 5 }}>
                 <Text style={styles.textNameDish} numberOfLines={1}>
-                  Xôi hạt sen
+                  {item.name}
                 </Text>
-                <Text style={styles.textDishType}>Món khai vị</Text>
+                <Text style={styles.textDishType}>{item.dishType}</Text>
                 <View
                   style={{
                     flexDirection: "row",
@@ -199,10 +195,10 @@ const AllDishScreen = ({ navigation, route }) => {
                     <Icon name="star" size={16} color={COLORS.star} />
                     <Text style={styles.textDishType} numberOfLines={1}>
                       {" "}
-                      3,5
+                      {item.average_rating || "0"}
                     </Text>
                   </View>
-                  <Text style={styles.textDishType}>15.000đ</Text>
+                  <Text style={styles.textDishType}>{item.price} đ</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -224,7 +220,6 @@ const styles = StyleSheet.create({
   top: {
     flexDirection: "row",
     alignItems: "center",
-    // justifyContent: "space-between",
     backgroundColor: "transparent",
     height: 80,
     marginTop: StatusBar.currentHeight,
@@ -238,11 +233,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
   },
-  dummyItem: {
-    flex: 1,
-    margin: 10,
-    backgroundColor: "transparent",
-  },
   textNameDish: {
     color: COLORS.black,
     fontSize: 14,
@@ -254,5 +244,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
+  },
+  dummyItem: {
+    flex: 1,
+    margin: 10,
+    backgroundColor: "transparent", // Khoảng trống cho mục giả
   },
 });

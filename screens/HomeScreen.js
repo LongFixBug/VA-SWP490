@@ -130,14 +130,14 @@ const HomeScreen = () => {
     <View style={styles.container}>
       <ImageBackground
         source={{
-          // uri: "https://static.vecteezy.com/system/resources/previews/005/182/612/non_2x/green-abstract-geometric-shape-background-free-vector.jpg",
-          uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
+          uri: "https://img.freepik.com/free-vector/gradient-background-green-tones_23-2148361057.jpg?t=st=1730213577~exp=1730217177~hmac=26a87cd41f3c181425f09787c4ccc85c3346646104a3071504cfb8496d240a60&w=996",
+          //  uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
         }}
         style={{
           position: "absolute", // Đặt vị trí tuyệt đối
           top: 0,
           left: 0,
-          width: "200%",
+          width: "110%",
           height: "100%",
           resizeMode: "cover",
           zIndex: -1, // Cho nó chìm xuống dưới cùng
@@ -216,7 +216,7 @@ const HomeScreen = () => {
           >
             <Image
               source={{
-                uri: "https://picsum.photos/200/300",
+                uri: "https://scontent.fsgn16-1.fna.fbcdn.net/v/t1.15752-9/462576224_1297172808085453_6480875089080788157_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=9f807c&_nc_eui2=AeF3Bmi7Rh5TvsmlJKOcPHQVfsUEm7gb4nR-xQSbuBvidOvFLGSHdqmu2q3ktZ1k9Wd7HVvILoPCfmqrjvOP_5Td&_nc_ohc=E6oaCu5hvIUQ7kNvgGRhlFI&_nc_zt=23&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=A9m1Yp84rxEVKSNUwf8m-mO&oh=03_Q7cD1QGkZBAk6P6wtcAP-obHKGrAvDN1FBbfGRRlPCaixI4gBA&oe=67487978",
               }}
               style={{
                 height: 55,
@@ -317,7 +317,6 @@ const HomeScreen = () => {
             style={{
               height: 50,
               width: 50,
-              marginRight: 20,
               justifyContent: "center",
               alignItems: "center",
               backgroundColor: COLORS.white,
@@ -356,11 +355,14 @@ const HomeScreen = () => {
       <FlatList
         data={dishes}
         showsVerticalScrollIndicator={false}
-        keyExtractor={(item, index) => item.id}
+        keyExtractor={(item, index) =>
+          item.id ? item.id.toString() : index.toString()
+        }
         numColumns={2}
         columnWrapperStyle={{ justifyContent: "space-between" }}
         renderItem={({ item }) => (
           <TouchableOpacity
+            key={item.id || String}
             onPress={() => navigation.navigate("DishDetail", { dish: item })}
           >
             <View style={styles.gridItem}>
@@ -373,11 +375,7 @@ const HomeScreen = () => {
                 }}
               />
               <View style={{ padding: 5 }}>
-                {/* Sử dụng AnimatedText cho tên món ăn */}
                 <AnimatedText text={item.name} />
-                {/* <Text style={styles.textNameDish} numberOfLines={1}>
-                  {item.name}
-                </Text> */}
                 <Text style={styles.textDishType}>
                   {item.dishType || "Món ăn"}
                 </Text>
@@ -491,13 +489,14 @@ const styles = StyleSheet.create({
   searchSuggestions: {
     position: "absolute",
     top: 300,
-    right: "20%",
-    width: "85%",
+    marginLeft: 19,
+
+    width: "79%",
     backgroundColor: COLORS.white,
     borderWidth: 1,
     borderColor: "#ddd",
     zIndex: 1,
-    alignSelf: "center",
+
     borderRadius: 5,
   },
   suggestionText: {
@@ -513,11 +512,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: FONTS.semiBold,
-    color: COLORS.black,
+    color: COLORS.white,
   },
   viewAll: {
     fontSize: 14,
-    color: COLORS.green,
+    color: COLORS.white,
     fontFamily: FONTS.regular,
   },
   dishItem: {
@@ -543,17 +542,21 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     flex: 1,
-    margin: 10, // Điều chỉnh margin phù hợp
+    marginHorizontal: 5,
+    marginBottom: 10,
+    marginTop: 20,
     backgroundColor: COLORS.white,
     elevation: 1,
     borderRadius: 8,
     overflow: "hidden",
-    width: width / 2 - 25, // Cập nhật lại để vừa căn đều hai bên
+    width: width / 2 - 30, // Đảm bảo kích thước cố định để 2 cột hiển thị đều nhau
   },
   dummyItem: {
     flex: 1,
-    margin: 50,
+    marginHori0ontal: 5,
+    marginBottom: 10,
     backgroundColor: "transparent",
+    width: "45%",
   },
   textNameDish: {
     color: COLORS.black,

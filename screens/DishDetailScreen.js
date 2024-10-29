@@ -5,9 +5,6 @@ import {
   Text,
   StatusBar,
   TouchableOpacity,
-  Alert,
-  TextInput,
-  Button,
   ScrollView,
 } from "react-native";
 import React from "react";
@@ -18,20 +15,8 @@ import FONTS from "../constants/font";
 import Swiper from "react-native-swiper";
 import Toast from "react-native-toast-message";
 
-const dishDetail = [
-  "https://suckhoedoisong.qltns.mediacdn.vn/324455921873985536/2023/9/25/an-chay-1-1695615310939250177594.jpg",
-  "https://cdn.tgdd.vn/2021/08/CookProduct/Suonnonchaychiensaot-1200x676.jpg",
-  "https://cdn.tgdd.vn/Files/2021/08/03/1372828/suon-chay-lam-tu-gi-cac-mon-ngon-lam-tu-suon-chay-202201171310189048.jpg",
-  "https://i.ytimg.com/vi/I-GSYy_1oEA/maxresdefault.jpg",
-];
-
-const dataFeedbacks = Array.from({ length: 11 }, (_, index) => ({
-  id: index + 1,
-  name: `Item ${index + 1}`,
-}));
-
-const DetailDishScreen = ({ navigation }) => {
-  const [isLoading, setIsLoading] = React.useState(true);
+const DishDetailScreen = ({ navigation, route }) => {
+  const { dish } = route.params; // Access dish data passed from HomeScreen
   const [showMoreAttribute, setShowMoreAttribute] = React.useState(false);
 
   const showToastAddToCart = () => {
@@ -53,6 +38,7 @@ const DetailDishScreen = ({ navigation }) => {
           marginBottom: 80,
         }}
       >
+        {/* Top Navigation */}
         <View style={styles.top}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -87,10 +73,7 @@ const DetailDishScreen = ({ navigation }) => {
             </View>
           </TouchableOpacity>
           <View style={{ flexDirection: "row" }}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              //   onPress={isFavourite ? deleteFavourite : createFavourite}
-            >
+            <TouchableOpacity activeOpacity={0.8}>
               <View
                 style={{
                   height: 50,
@@ -128,6 +111,8 @@ const DetailDishScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Image Slider */}
         <View style={{ height: 250 }}>
           <Swiper
             style={styles.wrapper}
@@ -135,19 +120,14 @@ const DetailDishScreen = ({ navigation }) => {
             activeDotColor={COLORS.green}
             dotColor={COLORS.white}
             autoplay={false}
-            //   paginationStyle={{}}
           >
-            {dishDetail.map((item, index) => (
-              <View style={styles.slide} key={index}>
-                <Image
-                  source={{
-                    uri: item,
-                  }}
-                  style={styles.img}
-                  resizeMode="cover"
-                />
-              </View>
-            ))}
+            <View style={styles.slide}>
+              <Image
+                source={{ uri: dish.imageUrl }}
+                style={styles.img}
+                resizeMode="cover"
+              />
+            </View>
           </Swiper>
           <View
             style={{
@@ -167,10 +147,11 @@ const DetailDishScreen = ({ navigation }) => {
                 fontSize: 17,
               }}
             >
-              125.000đ
+              {dish.price} đ
             </Text>
           </View>
         </View>
+
         <View style={{ padding: 15 }}>
           <Text
             style={{
@@ -180,7 +161,7 @@ const DetailDishScreen = ({ navigation }) => {
               marginBottom: 5,
             }}
           >
-            Đậu hũ nhồi
+            {dish.name}
           </Text>
           <View
             style={{ flexDirection: "row", justifyContent: "space-between" }}
@@ -193,7 +174,7 @@ const DetailDishScreen = ({ navigation }) => {
                 marginBottom: 5,
               }}
             >
-              Món khai vị
+              {dish.dishType}
             </Text>
             <Text
               style={{
@@ -212,14 +193,14 @@ const DetailDishScreen = ({ navigation }) => {
               <Icon name="star" size={16} color={COLORS.star} />
             </Text>
           </View>
+
+          {/* Description */}
           <View style={styles.containerAttribute}>
             <Text style={styles.titleAttribute}>Mô tả</Text>
             <Text style={styles.textAttribute}>
-              Lorem Ipsum is simply dummy text of the printing and typesetting
-              industry.Lorem Ipsum has been the industry's standard dummy text
-              ever since the 1500s.
+              {dish.description || "Không có mô tả"}
             </Text>
-            {showMoreAttribute === false && (
+            {!showMoreAttribute && (
               <TouchableOpacity
                 style={{ marginTop: 5 }}
                 activeOpacity={0.6}
@@ -233,20 +214,20 @@ const DetailDishScreen = ({ navigation }) => {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Ingredients and Recipe */}
           {showMoreAttribute && (
             <>
               <View style={styles.containerAttribute}>
                 <Text style={styles.textAttribute}>
-                  <Text style={styles.titleAttribute}>Nguyên liệu: </Text>Lorem
-                  Ipsum is simply dummy text of the printing and typesetting
-                  industry.
+                  <Text style={styles.titleAttribute}>Nguyên liệu: </Text>
+                  {dish.ingredients || "Không có thông tin nguyên liệu"}
                 </Text>
               </View>
               <View style={styles.containerAttribute}>
                 <Text style={styles.titleAttribute}>Công thức</Text>
                 <Text style={styles.textAttribute}>
-                  Lorem Ipsum is simply dummy text of the printing and
-                  typesetting industry.
+                  {dish.recipe || "Không có công thức"}
                 </Text>
                 <TouchableOpacity
                   style={{ marginTop: 5 }}
@@ -262,68 +243,15 @@ const DetailDishScreen = ({ navigation }) => {
               </View>
             </>
           )}
-          <View style={styles.containerAttribute}>
-            <Text style={styles.titleAttribute}>Đánh giá (11)</Text>
-
-            {dataFeedbacks.map((item, index) => (
-              <View
-                key={index}
-                style={{ flexDirection: "row", marginTop: 10, marginBottom: 8 }}
-              >
-                <Image
-                  source={{
-                    uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
-                  }}
-                  style={{
-                    width: 35,
-                    height: 35,
-                    resizeMode: "contain",
-                    borderRadius: 50,
-                    borderWidth: 1,
-                    borderColor: COLORS.green,
-                  }}
-                />
-                <View style={{ marginLeft: 10, flex: 1 }}>
-                  <Text style={{ fontFamily: FONTS.medium }}>Nguyễn Long</Text>
-                  <View style={{ flexDirection: "row", marginTop: 3 }}>
-                    <Icon name="star" size={16} color={COLORS.star} />
-                    <Icon name="star" size={16} color={COLORS.star} />
-                    <Icon name="star" size={16} color={COLORS.star} />
-                    <Icon name="star" size={16} color={COLORS.star} />
-                    <Icon name="star" size={16} color={COLORS.star} />
-                  </View>
-                  <Text
-                    style={{
-                      fontFamily: FONTS.medium,
-                      marginTop: 3,
-                      lineHeight: 20,
-                    }}
-                  >
-                    It is a long established fact that a reader will be
-                    distracted by the readable content of a page when looking at
-                    its layout. The point of using Lorem Ipsum
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: FONTS.medium,
-                      color: COLORS.grey,
-                      marginTop: 5,
-                      fontSize: 13,
-                    }}
-                  >
-                    12:40, 19/10/2024
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
         </View>
       </ScrollView>
+
+      {/* Add to Cart Button */}
       <View style={styles.containerButtonFloatBottom}>
         <View style={styles.boxButtonFloatBottom}>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => showToastAddToCart()}
+            onPress={showToastAddToCart}
             style={{
               width: "30%",
               backgroundColor: COLORS.white,
@@ -371,7 +299,7 @@ const DetailDishScreen = ({ navigation }) => {
   );
 };
 
-export default DishDetail;
+export default DishDetailScreen;
 
 const styles = StyleSheet.create({
   containerButtonFloatBottom: {
@@ -384,7 +312,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     height: 80,
     flexDirection: "row",
-    // justifyContent: "space-between",
     elevation: 20,
     borderTopWidth: 1,
     borderTopColor: COLORS.darkGrey,

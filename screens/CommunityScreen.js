@@ -1,85 +1,81 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import COLORS from '../constants/color';
 import FONTS from '../constants/font';
 
-const CommunityScreen = () => {
+const CommunityScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('Cộng đồng');
+  const [communityPosts, setCommunityPosts] = useState([]);
+  const [expertPosts, setExpertPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Dữ liệu mẫu cho các bài đăng cộng đồng
-  const communityPosts = [
-    {
-      id: '1',
-      username: 'lukaku',
-      content: 'What your content?',
-      images: [],
-    },
-    {
-      id: '2',
-      username: 'cxzvc',
-      title: 'Title',
-      content: 'ajhvdfjahsvb dcjn asdadasdacasdasf acacacscdacac...',
-      images: [
-        { id: 'img1', uri: 'https://via.placeholder.com/100' },
-        { id: 'img2', uri: 'https://via.placeholder.com/100' },
-      ],
-    },
-  ];
+  // Fetch articles from the API
+  const fetchArticles = async () => {
+    try {
+      const response = await fetch('https://va-api-2efefb5aee82.herokuapp.com/articles');
+      const data = await response.json();
 
-  // Dữ liệu mẫu cho các bài đăng từ chuyên gia
-  const expertPosts = [
-    {
-      id: '1',
-      username: 'chuyengia',
-      title: 'Title',
-      content: 'ajhvdfjahsvb dcjn asdadasdacasdasf acacacscdacac...',
-      images: [
-        { id: 'img1', uri: 'https://via.placeholder.com/100' },
-        { id: 'img2', uri: 'https://via.placeholder.com/100' },
-      ],
-    },
-    {
-      id: '2',
-      username: 'chuyengia',
-      title: 'Title',
-      content: 'ajhvdfjahsvb dcjn asdadasdacasdasf acacacscdacacbajbhcba....',
-      images: [],
-    },
-  ];
+      // Separate posts based on role
+      const communityData = data.data.filter(post => post.author_role === 'Customer');
+      const expertData = data.data.filter(post => post.author_role === 'Nutritionist');
 
-  // Hiển thị một bài đăng trong cộng đồng
-  const renderPost = ({ item }) => (
-    <View style={styles.postContainer}>
-      <View style={styles.postHeader}>
-        <Text style={styles.username}>{item.username}</Text>
-        <Text style={styles.title}>{item.title}</Text>
+      setCommunityPosts(communityData);
+      setExpertPosts(expertData);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching articles:', error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchArticles();
+  }, []);
+
+  const renderNewPostSection = () => (
+    <TouchableOpacity style={styles.newPostContainer} onPress={() => navigation.navigate('NewPostScreen')}>
+      <View style={styles.newPostHeader}>
+        <Icon name="person-circle-outline" size={32} color={COLORS.black} />
+        <Text style={styles.username}>lukaku</Text>
       </View>
-      <Text style={styles.content}>{item.content}</Text>
-  
-      {item.images.length > 0 && (
-        <View style={styles.imageContainer}>
-          {item.images.map((image) => (
-            <Image key={image.id} source={{ uri: image.uri }} style={styles.postImage} />
-          ))}
-        </View>
-      )}
-  
-      {/* Chỉ hiện nút tym và comment cho các bài đăng không phải của user */}
-      {item.username !== 'lukaku' && (
-        <View style={styles.interactionBar}>
-          <TouchableOpacity style={styles.iconContainer}>
-            <Text style={styles.iconText}>❤️</Text> {/* Thêm icon bằng văn bản hoặc thay thế bằng Image */}
-            <Text style={styles.iconText}>12</Text> {/* Số lượng likes */}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconContainer}>
-            <Text style={styles.iconText}>💬</Text> {/* Thêm icon bằng văn bản hoặc thay thế bằng Image */}
-            <Text style={styles.iconText}>5</Text> {/* Số lượng comments */}
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+      <Text style={styles.newPostText}>What your content?</Text>
+      <View style={styles.newPostActions}>
+        <Icon name="image-outline" size={24} color={COLORS.grey} />
+        <Icon name="camera-outline" size={24} color={COLORS.grey} />
+      </View>
+    </TouchableOpacity>
   );
-  
+
+  const renderPost = ({ item }) => (
+    <TouchableOpacity
+      style={styles.postContainer}
+      onPress={() => navigation.navigate('PostDetailScreen', { article: item })}
+    >
+      <View style={styles.postHeader}>
+        <Icon name="person-circle-outline" size={32} color={COLORS.black} />
+      
+          <Text style={styles.username}>{item.author_role}</Text>
+      </View> 
+      {/* <Text style={styles.roleText}>{item.author_role === 'Customer' ? 'Customer' : 'Nutritionist'}</Text> */}
+      <Text style={styles.title}>{item.title}</Text>
+      <Text style={styles.content}>{item.content.substring(0, 50)}...</Text>
+      <View style={styles.interactionBar}>
+        <TouchableOpacity style={styles.iconContainer}>
+          <Icon name="heart-outline" size={20} color={COLORS.grey} />
+          <Text style={styles.iconText}>{item.likes}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.iconContainer}>
+          <Icon name="chatbubble-outline" size={20} color={COLORS.grey} />
+          <Text style={styles.iconText}>{item.comments}</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    return <ActivityIndicator size="large" color={COLORS.green} style={styles.loading} />;
+  }
 
   return (
     <View style={styles.container}>
@@ -99,36 +95,37 @@ const CommunityScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Danh sách bài đăng */}
+      {/* Only show new post section if in the "Cộng đồng" tab */}
+      {activeTab === 'Cộng đồng' && renderNewPostSection()}
+
+      {/* List of posts */}
       <FlatList
         data={activeTab === 'Cộng đồng' ? communityPosts : expertPosts}
         renderItem={renderPost}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.article_id.toString()}
         contentContainerStyle={styles.postList}
       />
     </View>
   );
 };
 
-export default CommunityScreen;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
+    padding: 10,
   },
   tabsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 20,
   },
   tabButton: {
     flex: 1,
-    padding: 15,
+    padding: 10,
     backgroundColor: COLORS.grey,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
     marginHorizontal: 5,
   },
   activeTab: {
@@ -142,6 +139,28 @@ const styles = StyleSheet.create({
   postList: {
     paddingHorizontal: 20,
   },
+  newPostContainer: {
+    backgroundColor: COLORS.lightGray,
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+  },
+  newPostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  newPostText: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: COLORS.grey,
+    marginBottom: 10,
+  },
+  newPostActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
   postContainer: {
     backgroundColor: COLORS.lightGray,
     borderRadius: 10,
@@ -150,34 +169,39 @@ const styles = StyleSheet.create({
   },
   postHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 10,
   },
   username: {
+    marginTop: 5,
+    marginLeft: 5,
     fontSize: 16,
     fontFamily: FONTS.semiBold,
     color: COLORS.black,
   },
   title: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.grey,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.black,
+    marginBottom: 5,
+    marginRight: 5,
+    textAlign: 'center',  // Căn giữa nội dung của text
   },
   content: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: COLORS.black,
+    color: COLORS.grey,
+    marginLeft: 5, // Keep the same margin as the title for alignment
     marginBottom: 10,
+    marginRight:5,
   },
-  imageContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  postImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-  },
+
+  // roleText: {
+  //   fontSize: 12,
+  //   color: COLORS.grey,
+  //   alignSelf: 'flex-end',
+  //   marginTop: -10,
+  //   marginRight: 10,
+  // },
   interactionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -192,4 +216,11 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: COLORS.grey,
   },
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
+
+export default CommunityScreen;

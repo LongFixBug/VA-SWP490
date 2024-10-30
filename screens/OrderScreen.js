@@ -1,203 +1,222 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert } from 'react-native';
-import COLORS from '../constants/color'; // Import màu sắc
-import FONTS from '../constants/font';  // Import fonts
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  StatusBar,
+  ScrollView,
+  Image,
+} from "react-native";
+import React from "react";
+import Icon from "react-native-vector-icons/Ionicons";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
 
-const OrderScreen = () => {
-  const [activeTab, setActiveTab] = useState('Chưa hoàn thành'); // Tab hiện tại
+const dataTabViewOrder = [
+  {
+    id: 0,
+    name: "Tất cả",
+  },
+  {
+    id: 1,
+    name: "Chờ xác nhận",
+  },
+  {
+    id: 2,
+    name: "Đang xử lí",
+  },
+  {
+    id: 3,
+    name: "Đang giao hàng",
+  },
+  {
+    id: 4,
+    name: "Đã giao",
+  },
+  {
+    id: 5,
+    name: "Đã hủy",
+  },
+];
 
-  // Dữ liệu mẫu cho các đơn hàng chưa hoàn thành
-  const pendingOrders = [
-    { id: '1', name: 'Gà chay, bò tay', status: 'Chờ xác nhận', quantity: 3, total: '888.888vnd' },
-    { id: '2', name: 'Gà chay, bò tay', status: 'Đã xác nhận', quantity: 3, total: '888.888vnd' },
-    { id: '3', name: 'Gà chay, bò tay', status: 'Đang giao', quantity: 3, total: '888.888vnd' },
-  ];
+const favouriteList = [
+  {
+    id: "1",
+    name: "Đậu hũ, sườn non, canh măng, đậu ve ",
+    time: "23",
+    image:
+      "https://cellphones.com.vn/sforum/wp-content/uploads/2023/09/mon-chay-ngon-de-lam-1.jpg",
+    status: "pending",
+  },
+  {
+    id: "2",
+    name: "Sườn non",
+    time: "70",
+    image:
+      "https://file.hstatic.net/1000341804/file/canh-chay-ngu-sac_dafc5d8509b64f6c82afc1477065ed66_grande.jpeg",
+    status: "cancelled",
+  },
+  {
+    id: "3",
+    name: "Canh măng",
+    time: "60",
+    image:
+      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/canh-bong-h%E1%BA%B9-n%E1%BA%A5u-n%E1%BA%A5m.jpg.jpg",
+    status: "completed",
+  },
+];
 
-  // Dữ liệu mẫu cho các đơn hàng đã hoàn thành
-  const completedOrders = [
-    { id: '1', name: 'Tên món ăn', status: 'Đã nhận hàng', quantity: 3, total: '888.888vnd' },
-    { id: '2', name: 'Tên món ăn', status: 'Đã hủy', quantity: 3, total: '888.888vnd' },
-    { id: '3', name: 'Tên món ăn', status: 'Đã nhận hàng', quantity: 3, total: '888.888vnd' },
-  ];
+const OrderScreen = ({ navigation }) => {
+  const [currentTabViewOrder, setCurrentTabViewOrder] = React.useState(0);
 
-  const handleCancelOrder = (id) => {
-    // Xử lý khi nhấn nút hủy đơn hàng
-    Alert.alert('Hủy đơn hàng', `Bạn có chắc chắn muốn hủy đơn hàng ${id}?`, [
-      { text: 'Không', style: 'cancel' },
-      { text: 'Hủy', onPress: () => console.log(`Đơn hàng ${id} đã bị hủy`) },
-    ]);
+  const orderStatus = {
+    pending: { color: COLORS.orange, text: "Chờ xác nhận" },
+    in_progress: { color: COLORS.blue, text: "Đang xử lí" },
+    delivered: { color: COLORS.green, text: "Đang giao hàng" },
+    completed: { color: COLORS.green, text: "Đã giao" },
+    cancelled: { color: COLORS.red, text: "Đã hủy" },
   };
-
-  const renderOrder = ({ item }) => (
-    <View style={styles.orderCard}>
-      <View style={styles.orderInfo}>
-        <Image
-          source={{ uri: 'https://via.placeholder.com/100' }} // Placeholder hình ảnh
-          style={styles.orderImage}
-        />
-        <View style={styles.orderDetails}>
-          <Text style={styles.orderName}>{item.name}</Text>
-          <Text style={styles.orderQuantity}>Số lượng: {item.quantity}</Text>
-          <Text style={styles.orderTotal}>Tổng số tiền: {item.total}</Text>
-        </View>
-      </View>
-  
-      {/* Kiểm tra trạng thái và bo góc cho tất cả */}
-      <View style={[
-        styles.orderStatus,
-        getStatusStyle(item.status), // Áp dụng style màu sắc dựa trên trạng thái
-        item.status === 'Đã hủy' && { borderRadius: 5 } // Bo góc cho trạng thái "Đã hủy"
-      ]}>
-        <Text style={styles.orderStatusText}>{item.status}</Text>
-      </View>
-  
-      {/* Hiển thị nút hủy nếu trạng thái là "Chờ xác nhận" */}
-      {item.status === 'Chờ xác nhận' && (
-        <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancelOrder(item.id)}>
-          <Text style={styles.cancelButtonText}>Hủy đơn hàng</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-  
-  
-
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case 'Chờ xác nhận':
-        return { backgroundColor: COLORS.yellow };
-      case 'Đã xác nhận':
-        return { backgroundColor: COLORS.green };
-      case 'Đang giao':
-        return { backgroundColor: COLORS.blue };
-      case 'Đã nhận hàng':
-        return { backgroundColor: COLORS.green };
-      case 'Đã hủy':
-        return { backgroundColor: COLORS.red };
-      default:
-        return { backgroundColor: COLORS.grey };
-    }
-  };
-
   return (
-    <View style={styles.container}>
-      {/* Tabs Chưa hoàn thành / Đã hoàn thành */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'Chưa hoàn thành' && styles.activeTab]}
-          onPress={() => setActiveTab('Chưa hoàn thành')}
+    <>
+      <View
+        style={{
+          marginTop: StatusBar.currentHeight,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: 20,
+          backgroundColor: COLORS.white,
+        }}
+      >
+        <Text
+          style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
         >
-          <Text style={styles.tabText}>Chưa hoàn thành</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'Đã hoàn thành' && styles.activeTab]}
-          onPress={() => setActiveTab('Đã hoàn thành')}
-        >
-          <Text style={styles.tabText}>Đã hoàn thành</Text>
-        </TouchableOpacity>
+          Đơn hàng
+        </Text>
+        <Icon name="menu" size={28} color={COLORS.green} />
       </View>
-
-      {/* Danh sách đơn hàng */}
-      <FlatList
-        data={activeTab === 'Chưa hoàn thành' ? pendingOrders : completedOrders} // Thay đổi dữ liệu dựa vào tab đang chọn
-        renderItem={renderOrder}
-        keyExtractor={(item) => item.id}
-      />
-    </View>
+      <View style={{ height: "auto" }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{}}
+        >
+          {dataTabViewOrder.map((tabView, index) => (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              key={index}
+              onPress={() => setCurrentTabViewOrder(tabView.id)}
+              style={{
+                paddingVertical: 20,
+                paddingHorizontal: 20,
+                borderBottomWidth: 3,
+                borderBottomColor:
+                  currentTabViewOrder === tabView.id
+                    ? COLORS.green
+                    : COLORS.greyPastel,
+                backgroundColor: COLORS.white,
+                borderTopWidth: 1,
+                borderTopColor: COLORS.greyPastel,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  fontSize: 16,
+                  color:
+                    currentTabViewOrder === tabView.id
+                      ? COLORS.green
+                      : COLORS.black,
+                }}
+              >
+                {tabView.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+      {currentTabViewOrder === 0 && (
+        <FlatList
+          showsVerticalScrollIndicator={false}
+          data={favouriteList}
+          renderItem={({ item, index }) => (
+            <TouchableOpacity
+              // onPress={() => {navigation.navigate("PostDetail", {post_id: item._id})}}
+              activeOpacity={0.8}
+              key={index}
+              style={{
+                backgroundColor: COLORS.white,
+                padding: 10,
+                marginHorizontal: 5,
+                marginBottom: 5,
+                flexDirection: "row",
+                borderWidth: 2,
+                borderColor: COLORS.greyPastel,
+                borderRadius: 10,
+              }}
+            >
+              <Image
+                source={{ uri: item.image }}
+                style={{ height: "auto", width: 100, borderRadius: 5 }}
+              />
+              <View
+                style={{
+                  flex: 1,
+                  padding: 0,
+                  paddingLeft: 15,
+                  paddingTop: 5,
+                }}
+              >
+                <Text
+                  style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}
+                  numberOfLines={1}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    fontSize: 12,
+                    color: COLORS.grey,
+                    marginTop: 5,
+                  }}
+                >
+                  Số lượng: 3
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    alignSelf: "flex-start",
+                    fontSize: 13,
+                    color: COLORS.green,
+                    marginTop: 5,
+                  }}
+                >
+                  Tổng tiền: 159.000đ
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    alignSelf: "flex-end",
+                    fontSize: 13,
+                    marginTop: 10,
+                    color: orderStatus[item.status].color,
+                  }}
+                >
+                  {orderStatus[item.status].text}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item.id}
+          style={{ backgroundColor: COLORS.white, paddingTop: 5 }}
+        />
+      )}
+    </>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    padding: 10,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  tabButton: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: COLORS.grey,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 5,
-  },
-  activeTab: {
-    backgroundColor: COLORS.green,
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.white,
-  },
-  orderCard: {
-    backgroundColor: COLORS.lightGray,
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    justifyContent: 'space-between',
-  },
-  orderInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between', // Căn hai phần (image và thông tin) cách xa nhau
-  },
-  orderImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
-  },
-  orderDetails: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  orderName: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.black,
-  },
-  orderQuantity: {
-    fontSize: 14,
-    color: COLORS.grey,
-  },
-  orderTotal: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.black,
-  },
-  orderStatus: {
-    width: 100, // Đặt chiều rộng cố định
-    height: 30, // Đặt chiều cao cố định
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 5, // Bo góc cho tất cả các trạng thái, bao gồm "Đã hủy"
-    alignSelf: 'flex-end', // Căn sang bên phải
-    justifyContent: 'center', // Căn giữa theo chiều dọc
-    alignItems: 'center', // Căn giữa theo chiều ngang
-    marginTop: -25, // Điều chỉnh vị trí
-  },
-  orderStatusText: {
-    fontSize: 12,
-    color: COLORS.white,
-    fontFamily: FONTS.regular,
-  },
-  cancelButton: {
-    marginTop: 10,
-    backgroundColor: COLORS.red,
-    padding: 8,
-    borderRadius: 5,
-    alignSelf: 'flex-end',
-  },
-  cancelButtonText: {
-    color: COLORS.white,
-    fontFamily: FONTS.semiBold,
-    fontSize: 14,
-  },
-});
-
-
 export default OrderScreen;
+
+const styles = StyleSheet.create({});

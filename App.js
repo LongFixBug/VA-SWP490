@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import Icon from "react-native-vector-icons/Ionicons";
 import Icon1 from "react-native-vector-icons/SimpleLineIcons";
@@ -9,20 +9,75 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
-// import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
+import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
+import RegisterScreen from "./screens/RegisterScreen";
+import InputProfileScreen from "./screens/InputProfileScreen";
+
 import HomeScreen from "./screens/HomeScreen";
 import OrderScreen from "./screens/OrderScreen";
 import CommunityScreen from "./screens/CommunityScreen";
 import NotificationScreen from "./screens/NotificationScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import OrderDetailScreen from "./screens/OrderDetailScreen";
+import AllDishScreen from "./screens/AllDishScreen";
+import SuggestedDishesScreen from "./screens/SuggestedDishesScreen";
+import DishDetailScreen from "./screens/DishDetailScreen";
+import NewPostScreen from "./screens/NewPostScreen";
+import PostDetailScreen from "./screens/PostDetailScreen";
+import SearchDishesScreen from "./screens/SearchDishes";
+import CartScreen from "./screens/CartScreen";
+import FavouriteScreen from "./screens/FavouriteScreen";
+import CheckoutScreen from "./screens/CheckoutScreen";
+import PaymentScreen from "./screens/PaymentScreen";
+import MenuScreen from "./screens/MenuScreen";
+import MembershipScreen from "./screens/MembershipScreen";
+import DetailMenuScreen from "./screens/DetailMenuScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
+
+const toastConfig = {
+  success: (props) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: COLORS.green, marginTop: 30, height: 70 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 15,
+        fontFamily: FONTS.semiBold,
+      }}
+      text2Style={{
+        fontSize: 14,
+        fontFamily: FONTS.medium,
+      }}
+    />
+  ),
+  error: (props) => (
+    <ErrorToast
+      {...props}
+      text1Style={{
+        fontSize: 17,
+        fontFamily: FONTS.medium,
+      }}
+      text2Style={{
+        fontSize: 15,
+        fontFamily: FONTS.medium,
+      }}
+    />
+  ),
+  tomatoToast: ({ text1, props }) => (
+    <View style={{ height: 60, width: "100%", backgroundColor: "tomato" }}>
+      <Text>{text1}</Text>
+      <Text>{props.uuid}</Text>
+    </View>
+  ),
+};
 
 const TabRoute = ({ userId }) => {
   return (
@@ -36,36 +91,20 @@ const TabRoute = ({ userId }) => {
         tabBarStyle: {
           backgroundColor: COLORS.white,
           height: 60,
-          borderTopLeftRadius: 20, 
-          borderTopRightRadius: 20, 
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
         },
-        
       })}
     >
       <Tab.Screen
         name="Trang chủ"
         component={HomeScreen}
-        // initialParams={{ userId }}
-        options={{
-          tabBarIcon: ({ focused, color, size }) => {
-            return focused ? (
-                <Icon name="home" color={color} size={size} />
-            ) : (
-              <Icon name="home-outline" color={color} size={25} />
-            );
-          },
-          headerShown: false,
-        }}
-      />
-      <Tab.Screen
-        name="Đơn hàng"
-        component={OrderScreen}
         options={{
           tabBarIcon: ({ focused, color, size }) => {
             return focused ? (
               <View
                 style={{
-                  backgroundColor: COLORS.green,
+                  backgroundColor: COLORS.white,
                   borderRadius: 50,
                   padding: 20,
                   marginTop: -40,
@@ -78,7 +117,37 @@ const TabRoute = ({ userId }) => {
                   elevation: 4,
                 }}
               >
-                <Icon name="list" color="#fff" size={size} />
+                <Icon name="home" color={COLORS.green} size={size} />
+              </View>
+            ) : (
+              <Icon name="home-outline" color={color} size={28} />
+            );
+          },
+          headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Tìm kiếm"
+        component={OrderScreen}
+        options={{
+          tabBarIcon: ({ focused, color, size }) => {
+            return focused ? (
+              <View
+                style={{
+                  backgroundColor: COLORS.white,
+                  borderRadius: 50,
+                  padding: 20,
+                  marginTop: -40,
+                  shadowColor: COLORS.green,
+                  shadowOffset: {
+                    width: 0,
+                    height: 5,
+                  },
+                  shadowOpacity: 0.25,
+                  elevation: 4,
+                }}
+              >
+                <Icon name="list" color={COLORS.green} size={size} />
               </View>
             ) : (
               <Icon name="list-outline" color={color} size={28} />
@@ -88,14 +157,14 @@ const TabRoute = ({ userId }) => {
         }}
       />
       <Tab.Screen
-        name="Cộng đồng"
+        name="Đăng tin"
         component={CommunityScreen}
         options={{
           tabBarIcon: ({ focused, color, size }) => {
             return focused ? (
               <View
                 style={{
-                  backgroundColor: COLORS.green,
+                  backgroundColor: COLORS.white,
                   borderRadius: 50,
                   padding: 20,
                   marginTop: -40,
@@ -108,7 +177,7 @@ const TabRoute = ({ userId }) => {
                   elevation: 4,
                 }}
               >
-                <Icon name="people" color="#fff" size={size} />
+                <Icon name="people" color={color} size={size} />
               </View>
             ) : (
               <Icon name="people-outline" color={color} size={28} />
@@ -126,8 +195,7 @@ const TabRoute = ({ userId }) => {
             return focused ? (
               <View
                 style={{
-                  position: 'relative', // Đặt vị trí tương đối để có thể dùng "absolute" cho badge
-                  backgroundColor: COLORS.green,
+                  backgroundColor: COLORS.white,
                   borderRadius: 50,
                   padding: 20,
                   marginTop: -40,
@@ -140,31 +208,7 @@ const TabRoute = ({ userId }) => {
                   elevation: 4,
                 }}
               >
-                <Icon name="notifications" color="#fff" size={size} />
-                {/* <View
-              style={{
-                position: 'absolute',
-                top: 5, // Điều chỉnh vị trí của badge
-                right: 5,
-                backgroundColor: 'red', // Màu nền cho badge
-                borderRadius: 10,
-                width: 20,
-                height: 20,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <Text
-                style={{
-                  color: 'white',
-                  fontSize: 12,
-                  fontFamily: FONTS.semiBold, // Font badge
-                }}
-              >
-                8
-              </Text>
-            </View>
-             */}
+                <Icon name="notifications" color={COLORS.green} size={size} />
               </View>
             ) : (
               <Icon name="notifications-outline" color={color} size={28} />
@@ -186,7 +230,7 @@ const TabRoute = ({ userId }) => {
             return focused ? (
               <View
                 style={{
-                  backgroundColor: COLORS.green,
+                  backgroundColor: COLORS.white,
                   borderRadius: 50,
                   padding: 20,
                   marginTop: -40,
@@ -199,7 +243,7 @@ const TabRoute = ({ userId }) => {
                   elevation: 4,
                 }}
               >
-                <Icon name="person" color="#fff" size={size} />
+                <Icon name="person" color={COLORS.green} size={size} />
               </View>
             ) : (
               <Icon name="person-outline" color={color} size={28} />
@@ -213,32 +257,55 @@ const TabRoute = ({ userId }) => {
 };
 
 export default function App() {
-  const [fontsLoaded, fontError] = useFonts({
+  const [fontsLoaded] = useFonts({
     "OpenSans-Bold": require("./assets/fonts/OpenSans-Bold.ttf"),
-    "OpenSans-Medium": require("./assets/fonts/OpenSans-Medium.ttf"),
     "OpenSans-SemiBold": require("./assets/fonts/OpenSans-SemiBold.ttf"),
+    "Montserrat-Bold": require("./assets/fonts/Montserrat-Bold.ttf"),
+
+    "Montserrat-Medium": require("./assets/fonts/Montserrat-Medium.ttf"),
+    "Montserrat-SemiBold": require("./assets/fonts/Montserrat-SemiBold.ttf"),
   });
 
   if (!fontsLoaded) {
     return null;
   }
   return (
-  <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Stack.Navigator
+          screenOptions={{ headerShown: false }}
+          initialRouteName="Login"
+        >
+          <Stack.Screen name="Splash" component={SplashScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
 
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{ headerShown: false }}
-        initialRouteName="Login"
-      >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Home" component={TabRoute} />
-
-      </Stack.Navigator>
-
-    </NavigationContainer>
-  
-  </GestureHandlerRootView>
-    )
+          <Stack.Screen name="Home" component={TabRoute} />
+          <Stack.Screen name="Order" component={OrderScreen} />
+          <Stack.Screen name="OrderDetails" component={OrderDetailScreen} />
+          <Stack.Screen
+            name="SuggestedDishes"
+            component={SuggestedDishesScreen}
+          />
+          <Stack.Screen name="InputProfile" component={InputProfileScreen} />
+          <Stack.Screen name="DishDetail" component={DishDetailScreen} />
+          <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
+          <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
+          <Stack.Screen name="SearchDishes" component={SearchDishesScreen} />
+          <Stack.Screen name="Cart" component={CartScreen} />
+          <Stack.Screen name="Favourite" component={FavouriteScreen} />
+          <Stack.Screen name="AllDishes" component={AllDishScreen} />
+          <Stack.Screen name="Checkout" component={CheckoutScreen} />
+          <Stack.Screen name="Payment" component={PaymentScreen} />
+          <Stack.Screen name="Menu" component={MenuScreen} />
+          <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
+          <Stack.Screen name="Membership" component={MembershipScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+      <Toast config={toastConfig} />
+    </GestureHandlerRootView>
+  );
 }
 
 const styles = StyleSheet.create({

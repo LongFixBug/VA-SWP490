@@ -1,44 +1,34 @@
-import React, { useState} from "react";
+import React, { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/DishesManagement.css";
 import Pagination from "../components/Pagination";
+import axios from "axios";
 
-  
-const mockDishesData = [
-  {
-    dish_id: 1,
-    name: "Vegetable Stir-fry",
-    dish_type: "Main",
-    description: "A delicious stir-fry with fresh vegetables.",
-    image_url: "https://example.com/images/vegetable_stir_fry.jpg",
-    dietary_preference_id: 2,
-    price: 10.99,
-    recipe: "Stir vegetables in a hot pan with soy sauce.",
-    status: "available",
-  },
-  {
-    dish_id: 2,
-    name: "Miso Soup",
-    dish_type: "Starter",
-    description: "Traditional Japanese miso soup with tofu and seaweed.",
-    image_url: "https://example.com/images/miso_soup.jpg",
-    dietary_preference_id: 1,
-    price: 5.99,
-    recipe: "Mix miso paste in hot water, add tofu and seaweed.",
-    status: "available",
-  },
-  // Thêm nhiều món ăn khác nếu cần
-];
 
 const DishesManagement = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [dishes, setDishes] = useState([]);
   const dishesPerPage = 5;
   
+  // Fetch dishes data from API
+  useEffect(() => {
+    const fetchDishes = async () => {
+      try {
+        const response = await axios.get(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/alldish"
+        );
+        setDishes(response.data);
+      } catch (error) {
+        console.error("Error fetching dishes:", error);
+      }
+    };
+    fetchDishes();
+  }, []);
 
-
-  const filteredDishes = mockDishesData.filter(
+// Filter dishes based on search term
+  const filteredDishes = dishes.filter(
     (dish) =>
       dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dish.dish_type.toLowerCase().includes(searchTerm.toLowerCase())

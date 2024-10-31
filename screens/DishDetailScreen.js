@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -6,8 +7,8 @@ import {
   StatusBar,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
-import React from "react";
 import Icon from "react-native-vector-icons/Ionicons";
 import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
 import COLORS from "../constants/color";
@@ -16,16 +17,111 @@ import Swiper from "react-native-swiper";
 import Toast from "react-native-toast-message";
 
 const DishDetailScreen = ({ navigation, route }) => {
-  const { dish } = route.params; // Access dish data passed from HomeScreen
-  const [showMoreAttribute, setShowMoreAttribute] = React.useState(false);
+  const { dishId } = route.params;
+  const [dish, setDish] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showMoreAttribute, setShowMoreAttribute] = useState(false);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [averageRating, setAverageRating] = useState(0);
+
+  useEffect(() => {
+    const fetchDishDetail = async () => {
+      try {
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${dishId}`
+        );
+        const data = await response.json();
+        setDish(data);
+      } catch (error) {
+        console.error("Error fetching dish details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchFeedbacks = async () => {
+      try {
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
+        );
+        const data = await response.json();
+        setFeedbacks(data);
+
+        // Tính rating trung bình
+        if (data.length > 0) {
+          const totalRating = data.reduce(
+            (acc, feedback) => acc + feedback.rating,
+            0
+          );
+          setAverageRating((totalRating / data.length).toFixed(1));
+        } else {
+          setAverageRating("0.0");
+        }
+      } catch (error) {
+        console.error("Error fetching feedbacks:", error);
+      }
+    };
+
+    fetchDishDetail();
+    fetchFeedbacks();
+  }, [dishId]);
+
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <Icon key={`full-${i}`} name="star" size={16} color={COLORS.star} />
+      );
+    }
+
+    if (halfStar) {
+      stars.push(
+        <Icon key="half" name="star-half" size={16} color={COLORS.star} />
+      );
+    }
+
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(
+        <Icon
+          key={`empty-${i}`}
+          name="star-outline"
+          size={16}
+          color={COLORS.star}
+        />
+      );
+    }
+
+    return stars;
+  };
 
   const showToastAddToCart = () => {
     Toast.show({
       type: "success",
       text1: "Thông báo",
-      text2: "Thêm vào giỏ hàng thành công !👋",
+      text2: "Thêm vào giỏ hàng thành công! 👋",
     });
   };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={COLORS.green} />
+        <Text>Đang tải thông tin món ăn...</Text>
+      </View>
+    );
+  }
+
+  if (!dish) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Không tìm thấy thông tin món ăn.</Text>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -59,57 +155,17 @@ const DishDetailScreen = ({ navigation, route }) => {
             >
               <Icon name="arrow-back-outline" size={28} color={COLORS.green} />
             </View>
-            <View>
-              <Text
-                style={{
-                  fontFamily: FONTS.bold,
-                  color: COLORS.black,
-                  marginLeft: 10,
-                  fontSize: 20,
-                }}
-              >
-                Chi tiết món ăn
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <View style={{ flexDirection: "row" }}>
-            <TouchableOpacity activeOpacity={0.8}>
-              <View
-                style={{
-                  height: 50,
-                  width: 50,
-                  marginRight: 0,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: COLORS.white,
-                  borderRadius: 10,
-                  elevation: 0,
-                }}
-              >
-                <Icon name={"heart-outline"} size={30} color={COLORS.green} />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate("Cart")}
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                color: COLORS.black,
+                marginLeft: 10,
+                fontSize: 20,
+              }}
             >
-              <View
-                style={{
-                  height: 50,
-                  width: 50,
-                  marginRight: 20,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: COLORS.white,
-                  borderRadius: 10,
-                  elevation: 0,
-                }}
-              >
-                <Icon name={"cart-outline"} size={30} color={COLORS.green} />
-                <Text style={styles.bagdeCart}>77</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+              Chi tiết món ăn
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Image Slider */}
@@ -152,6 +208,7 @@ const DishDetailScreen = ({ navigation, route }) => {
           </View>
         </View>
 
+        {/* Dish Details */}
         <View style={{ padding: 15 }}>
           <Text
             style={{
@@ -176,22 +233,18 @@ const DishDetailScreen = ({ navigation, route }) => {
             >
               {dish.dishType}
             </Text>
-            <Text
-              style={{
-                fontFamily: FONTS.bold,
-                color: COLORS.black,
-                fontSize: 13,
-                borderBottomWidth: 1,
-                borderBottomColor: COLORS.greyPastel,
-                paddingBottom: 5,
-              }}
-            >
-              <Icon name="star" size={16} color={COLORS.star} />
-              <Icon name="star" size={16} color={COLORS.star} />
-              <Icon name="star" size={16} color={COLORS.star} />
-              <Icon name="star" size={16} color={COLORS.star} />
-              <Icon name="star" size={16} color={COLORS.star} />
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {renderStars(averageRating)}
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  fontSize: 15,
+                  marginLeft: 5,
+                }}
+              >
+                {averageRating}
+              </Text>
+            </View>
           </View>
 
           {/* Description */}
@@ -215,34 +268,52 @@ const DishDetailScreen = ({ navigation, route }) => {
             )}
           </View>
 
-          {/* Ingredients and Recipe */}
+          {/* Recipe */}
           {showMoreAttribute && (
-            <>
-              <View style={styles.containerAttribute}>
-                <Text style={styles.textAttribute}>
-                  <Text style={styles.titleAttribute}>Nguyên liệu: </Text>
-                  {dish.ingredients || "Không có thông tin nguyên liệu"}
-                </Text>
-              </View>
-              <View style={styles.containerAttribute}>
-                <Text style={styles.titleAttribute}>Công thức</Text>
-                <Text style={styles.textAttribute}>
-                  {dish.recipe || "Không có công thức"}
-                </Text>
-                <TouchableOpacity
-                  style={{ marginTop: 5 }}
-                  activeOpacity={0.6}
-                  onPress={() => setShowMoreAttribute(!showMoreAttribute)}
+            <View style={styles.containerAttribute}>
+              <Text style={styles.titleAttribute}>Công thức</Text>
+              <Text style={styles.textAttribute}>
+                {dish.recipe || "Không có công thức"}
+              </Text>
+              <TouchableOpacity
+                style={{ marginTop: 5 }}
+                activeOpacity={0.6}
+                onPress={() => setShowMoreAttribute(!showMoreAttribute)}
+              >
+                <Text
+                  style={{ fontFamily: FONTS.semiBold, color: COLORS.blue }}
                 >
-                  <Text
-                    style={{ fontFamily: FONTS.semiBold, color: COLORS.blue }}
-                  >
-                    Thu gọn
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </>
+                  Thu gọn
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
+
+          {/* Feedbacks */}
+          <View style={styles.containerAttribute}>
+            <Text style={styles.titleAttribute}>Đánh giá & Nhận xét</Text>
+            {feedbacks.length > 0 ? (
+              feedbacks.map((feedback) => (
+                <View key={feedback.feedbackId} style={styles.feedbackItem}>
+                  <Text style={styles.feedbackUsername}>
+                    {feedback.username}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    {renderStars(feedback.rating)}
+                    <Text style={styles.feedbackRating}>{feedback.rating}</Text>
+                  </View>
+                  <Text style={styles.feedbackContent}>
+                    {feedback.feedbackContent}
+                  </Text>
+                  <Text style={{ color: COLORS.grey, fontSize: 12 }}>
+                    {new Date(feedback.feedbackDate).toLocaleDateString()}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.feedbackContent}>Chưa có đánh giá.</Text>
+            )}
+          </View>
         </View>
       </ScrollView>
 
@@ -351,18 +422,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
-  bagdeCart: {
+  feedbackItem: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: 8,
+  },
+  feedbackUsername: {
     fontFamily: FONTS.bold,
-    color: COLORS.white,
-    fontSize: 12,
-    width: 23,
-    height: 23,
-    textAlign: "center",
-    textAlignVertical: "center",
-    backgroundColor: COLORS.red,
-    borderRadius: 150,
-    position: "absolute",
-    top: 0,
-    right: 0,
+    color: COLORS.black,
+    fontSize: 15,
+  },
+  feedbackContent: {
+    fontFamily: FONTS.medium,
+    color: COLORS.grey,
+    fontSize: 14,
+    marginVertical: 5,
+  },
+  feedbackRating: {
+    fontFamily: FONTS.semiBold,
+    color: COLORS.star,
+    fontSize: 14,
   },
 });

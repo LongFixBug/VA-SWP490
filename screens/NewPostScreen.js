@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import COLORS from '../constants/color';
-import FONTS from '../constants/font';
-import { useNavigation } from '@react-navigation/native';
-
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Pressable,
+  Image,
+  ScrollView,
+} from "react-native";
+import Icon from "react-native-vector-icons/Ionicons";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
+import { useNavigation } from "@react-navigation/native";
 
 const NewPostScreen = () => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
   const navigation = useNavigation();
 
   return (
@@ -24,7 +32,24 @@ const NewPostScreen = () => {
       <ScrollView style={styles.scrollViewContent}>
         {/* User Info and Title */}
         <View style={styles.userInfo}>
-          <Icon name="person-circle-outline" size={32} color={COLORS.black} />
+          <Pressable
+            onPress={() => {
+              navigation.navigate("Profile");
+            }}
+          >
+            <Image
+              source={{
+                uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+              }}
+              style={{
+                height: 55,
+                width: 55,
+                borderRadius: 50,
+                borderWidth: 1,
+                borderColor: COLORS.white,
+              }}
+            />
+          </Pressable>
           <Text style={styles.username}>lukaku</Text>
         </View>
 
@@ -66,8 +91,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 10,
     marginTop: 10,
   },
@@ -80,8 +105,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   username: {
@@ -105,19 +130,19 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     height: 150, // Adjust height based on your preference
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
     marginBottom: 20,
   },
   iconContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingHorizontal: 40,
     marginTop: 20,
   },
   postButton: {
     backgroundColor: COLORS.green,
     padding: 15,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 10,
     marginBottom: 10,
   },

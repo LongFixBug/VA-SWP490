@@ -17,6 +17,7 @@ const Tab = createBottomTabNavigator();
 import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
+import InputOTPScreen from "./screens/InputOTPScreen";
 import InputProfileScreen from "./screens/InputProfileScreen";
 
 import HomeScreen from "./screens/HomeScreen";
@@ -127,7 +128,7 @@ const TabRoute = ({ userId }) => {
         }}
       />
       <Tab.Screen
-        name="Tìm kiếm"
+        name="Đơn hàng"
         component={OrderScreen}
         options={{
           tabBarIcon: ({ focused, color, size }) => {
@@ -279,6 +280,7 @@ export default function App() {
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="InputOTP" component={InputOTPScreen} />
 
           <Stack.Screen name="Home" component={TabRoute} />
           <Stack.Screen name="Order" component={OrderScreen} />

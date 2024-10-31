@@ -65,15 +65,43 @@ const HomeScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
-  // Fetch dishes from API
+  // Fetch rating for each dish
+  const fetchDishRating = async (dishId) => {
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
+      );
+      const jsonData = await response.json();
+      const ratings = jsonData.map((feedback) => feedback.rating);
+      const averageRating = ratings.length
+        ? (
+            ratings.reduce((acc, rating) => acc + rating, 0) / ratings.length
+          ).toFixed(1)
+        : "0.0";
+      return parseFloat(averageRating);
+    } catch (error) {
+      console.error(`Error fetching rating for dish ${dishId}:`, error);
+      return 0;
+    }
+  };
+
+  // Fetch dishes from API and add rating for each dish
   const fetchDishes = async () => {
     try {
       const response = await fetch(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/nutritionists/alldish"
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/alldish"
       );
       const jsonData = await response.json();
-      // console.log("Fetched data: ", jsonData); // Log the fetched data
-      setDishes(jsonData);
+
+      // Map through dishes to add ratings
+      const dishesWithRatings = await Promise.all(
+        jsonData.map(async (dish) => {
+          const rating = await fetchDishRating(dish.dishId);
+          return { ...dish, averageRating: rating };
+        })
+      );
+
+      setDishes(dishesWithRatings);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dishes:", error);
@@ -99,7 +127,7 @@ const HomeScreen = () => {
   };
 
   const handleSearchSelect = (dish) => {
-    navigation.navigate("DishDetail", { dish });
+    navigation.navigate("DishDetail", { dishId: dish.dishId }); // Truyền dishId thay vì dish
     setSearchResults([]); // Clear suggestions after selection
   };
 
@@ -118,7 +146,7 @@ const HomeScreen = () => {
 
   const renderDishItem = ({ item }) => (
     <TouchableOpacity
-      onPress={() => navigation.navigate("DishDetail", { dish: item })}
+      onPress={() => navigation.navigate("DishDetail", { dishId: item.dishId })} // Truyền dishId thay vì toàn bộ dish
     >
       <View style={styles.dishItem}>
         <Text>{item.name}</Text>
@@ -172,62 +200,68 @@ const HomeScreen = () => {
             Nguyễn hải Long
           </Text>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <View
-            style={{
-              alignItems: "flex-end",
-              marginRight: 8,
-              padding: 5,
-              borderRadius: 5,
-              elevation: 0,
-              // borderWidth:1,
-              // borderColor: COLORS.white,
-              // padding: 5,
-              // borderRadius: 8
-            }}
-          >
-            <Text
+        <TouchableOpacity
+          style={{ flexDirection: "row", alignItems: "center" }}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("Membership")}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
               style={{
-                fontFamily: FONTS.bold,
-                color: COLORS.white,
-                fontSize: 13,
-                alignSelf: "center",
-                borderBottomWidth: 1,
-                borderBottomColor: "white",
-                paddingBottom: 3,
+                alignItems: "flex-end",
+                marginRight: 8,
+                padding: 5,
+                borderRadius: 5,
+                elevation: 0,
+                // borderWidth:1,
+                // borderColor: COLORS.white,
+                // padding: 5,
+                // borderRadius: 8
               }}
             >
-              <Icon name="star" size={16} color={COLORS.white} /> 1200 điểm
-            </Text>
-            <Text
-              style={{
-                fontFamily: FONTS.bold,
-                color: COLORS.yellow,
-                fontSize: 12,
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  color: COLORS.white,
+                  fontSize: 13,
+                  alignSelf: "center",
+                  borderBottomWidth: 1,
+                  borderBottomColor: "white",
+                  paddingBottom: 3,
+                }}
+              >
+                <Icon name="star" size={16} color={COLORS.white} /> 1200 điểm
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  color: COLORS.diamond,
+                  fontSize: 12,
+                }}
+              >
+                Kim cương
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                navigation.navigate("Profile");
               }}
             >
-              Vàng
-            </Text>
+              <Image
+                source={{
+                  uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+                }}
+                style={{
+                  height: 55,
+                  width: 55,
+                  borderRadius: 50,
+                  borderWidth: 1,
+                  borderColor: COLORS.white,
+                }}
+              />
+            </Pressable>
           </View>
-          <Pressable
-            onPress={() => {
-              navigation.navigate("Profile");
-            }}
-          >
-            <Image
-              source={{
-                uri: "https://scontent.fsgn16-1.fna.fbcdn.net/v/t1.15752-9/462576224_1297172808085453_6480875089080788157_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=9f807c&_nc_eui2=AeF3Bmi7Rh5TvsmlJKOcPHQVfsUEm7gb4nR-xQSbuBvidOvFLGSHdqmu2q3ktZ1k9Wd7HVvILoPCfmqrjvOP_5Td&_nc_ohc=E6oaCu5hvIUQ7kNvgGRhlFI&_nc_zt=23&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=A9m1Yp84rxEVKSNUwf8m-mO&oh=03_Q7cD1QGkZBAk6P6wtcAP-obHKGrAvDN1FBbfGRRlPCaixI4gBA&oe=67487978",
-              }}
-              style={{
-                height: 55,
-                width: 55,
-                borderRadius: 50,
-                borderWidth: 1,
-                borderColor: COLORS.white,
-              }}
-            />
-          </Pressable>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* <View style={styles.userInfo}>
@@ -356,14 +390,16 @@ const HomeScreen = () => {
         data={dishes}
         showsVerticalScrollIndicator={false}
         keyExtractor={(item, index) =>
-          item.id ? item.id.toString() : index.toString()
+          item.dishId ? item.dishId.toString() : index.toString()
         }
         numColumns={2}
         columnWrapperStyle={{ justifyContent: "space-between" }}
         renderItem={({ item }) => (
           <TouchableOpacity
-            key={item.id || String}
-            onPress={() => navigation.navigate("DishDetail", { dish: item })}
+            key={item.dishId || String}
+            onPress={() =>
+              navigation.navigate("DishDetail", { dishId: item.dishId })
+            }
           >
             <View style={styles.gridItem}>
               <Image
@@ -388,7 +424,7 @@ const HomeScreen = () => {
                   <View style={{ flexDirection: "row" }}>
                     <Text style={styles.star}>⭐</Text>
                     <Text style={styles.rating}>
-                      {item.average_rating || 0}
+                      {item.averageRating || "0.0"}
                     </Text>
                   </View>
                   <Text style={styles.textDishType}>

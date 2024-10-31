@@ -142,7 +142,9 @@ const OrderScreen = ({ navigation }) => {
           data={favouriteList}
           renderItem={({ item, index }) => (
             <TouchableOpacity
-              // onPress={() => {navigation.navigate("PostDetail", {post_id: item._id})}}
+              onPress={() => {
+                navigation.navigate("DetailOrder");
+              }}
               activeOpacity={0.8}
               key={index}
               style={{

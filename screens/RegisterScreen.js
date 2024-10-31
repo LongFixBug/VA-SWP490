@@ -17,12 +17,26 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { ButtonFlex } from "../components/Button";
 import auth from "@react-native-firebase/auth";
 import { OTPVerification } from "@msg91comm/react-native-sendotp";
+import { sendOTP } from "../utils/otpService";
 
 const RegisterScreen = ({ navigation }) => {
   const [phone, setPhone] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [noti, setNoti] = React.useState();
   const [isModalVisible, setModalVisible] = React.useState(false);
+
+  const [otpSent, setOtpSent] = React.useState(false);
+  const [otpCode, setOtpCode] = React.useState("");
+
+  const handleSendOTP = async () => {
+    const otp = await sendOTP(phone);
+    if (otp) {
+      setOtpSent(true);
+      navigation.navigate("InputOTP", { phone: phone, otp: otp });
+    }
+    // const otp = "123456";
+    // navigation.navigate("InputOTP", { phone: phone, otp: otp });
+  };
 
   // const [confirm, setConfirm] = React.useState(null);
   // const [code, setCode] = React.useState('');
@@ -144,10 +158,9 @@ const RegisterScreen = ({ navigation }) => {
           !phone
             ? setNoti("Vui lòng nhập số điện thoại! ")
             : phone.length === 9
-            ? setModalVisible(true)
+            ? handleSendOTP()
             : setNoti("Không đúng định dạng!")
         }
-        //  onPress={() => navigation.navigate("InputProfile")}
       />
       <View style={styles.registerContainer}>
         <Text style={{ fontFamily: FONTS.medium }}>Quay lại đăng nhập? </Text>
@@ -161,7 +174,7 @@ const RegisterScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <Modal visible={isModalVisible}>
+      {/* <Modal visible={isModalVisible}>
         <OTPVerification
           onVisible={isModalVisible}
           identifier={"+84" + phone}
@@ -171,7 +184,7 @@ const RegisterScreen = ({ navigation }) => {
               const newData = JSON.parse(data);
               if (newData.type === "success") {
                 setModalVisible(false);
-                navigation.navigate("InputProfile", { phone: phone });
+                navigation.navigate("Register", { phone: phone });
               } else if (newData.type === "error") {
                 Alert.alert("Thông báo", "OTP không đúng.");
               } else if (newData.closeByUser) {
@@ -185,7 +198,7 @@ const RegisterScreen = ({ navigation }) => {
           authToken={"411800TuqEAgy4b5WN657a0b32P1"}
           // Get authToken from MSG91 OTP Tokens
         />
-      </Modal>
+      </Modal> */}
     </SafeAreaView>
   );
 };

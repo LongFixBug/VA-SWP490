@@ -17,6 +17,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const { width, height } = Dimensions.get("window");
 
@@ -64,6 +66,104 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [username, setUsername] = useState("");
+  const [tierId, setTierId] = useState(null);
+  const [accumulatedPoints, setAccumulatedPoints] = useState(0);
+  const [tierLabel, setTierLabel] = useState("");
+
+
+  const fetchMembershipData = async (id) => {
+    try {
+      console.log(`Đang gọi API với userId: ${id}`);
+      const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`);
+      
+      if (!response.ok) {
+        console.error("HTTP Error:", response.status, response.statusText);
+        return;
+      }
+  
+      const rawResponse = await response.text();
+      console.log("Phản hồi thô từ API:", rawResponse);
+  
+      if (!rawResponse) {
+        console.log("Người dùng chưa có đóng góp, hiển thị tier Bronze");
+        
+        // Gọi API getUserByUserId để lấy thông tin người dùng
+        const userResponse = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
+        
+        if (!userResponse.ok) {
+          console.error("HTTP Error khi gọi API getUserByUserId:", userResponse.status, userResponse.statusText);
+          return;
+        }
+  
+        const userData = await userResponse.json();
+        console.log("Dữ liệu người dùng:", userData);
+  
+        // Cài đặt thông tin người dùng và hiển thị tier là Bronze
+        setUsername(userData.username || "Unknown User");
+        setTierLabel("Bronze");
+        setAccumulatedPoints(0);
+        
+        return;
+      }
+  
+      // Nếu có dữ liệu membership, xử lý như bình thường
+      const data = JSON.parse(rawResponse);
+      console.log("Dữ liệu membership:", data);
+  
+      if (data) {
+        setUsername(data.username || "Unknown User");
+        setTierId(data.tierId);
+        setAccumulatedPoints(data.accumulatedPoints);
+  
+        switch (data.tierId) {
+          case 1:
+            setTierLabel("Silver");
+            break;
+          case 2:
+            setTierLabel("Gold");
+            break;
+          case 3:
+            setTierLabel("Platinum");
+            break;
+          case 4:
+            setTierLabel("Diamond");
+            break;
+          default:
+            setTierLabel("N/A");
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu membership:", error);
+    }
+  };
+  
+  
+  
+
+
+    // Lấy userId từ AsyncStorage
+    useEffect(() => {
+      const getUserIdFromStorage = async () => {
+          try {
+              const storedUserId = await AsyncStorage.getItem('userId');
+              console.log("User ID lấy từ AsyncStorage:", storedUserId); // Thêm log để kiểm tra
+              if (storedUserId) {
+                  setUserId(storedUserId);
+                  console.log("User ID đã được set:", storedUserId); // Thêm log để kiểm tra
+                  fetchMembershipData(storedUserId);
+              } else {
+                  console.log("Không tìm thấy User ID trong AsyncStorage."); // Thêm log để kiểm tra
+              }
+          } catch (error) {
+              console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
+          }
+      };
+  
+      getUserIdFromStorage();
+  }, []);
+
 
   // Fetch rating for each dish
   const fetchDishRating = async (dishId) => {
@@ -84,6 +184,8 @@ const HomeScreen = () => {
       return 0;
     }
   };
+
+
 
   // Fetch dishes from API and add rating for each dish
   const fetchDishes = async () => {
@@ -197,7 +299,7 @@ const HomeScreen = () => {
               fontSize: 18,
             }}
           >
-            Nguyễn hải Long
+            {username}
           </Text>
         </View>
         <TouchableOpacity
@@ -213,10 +315,6 @@ const HomeScreen = () => {
                 padding: 5,
                 borderRadius: 5,
                 elevation: 0,
-                // borderWidth:1,
-                // borderColor: COLORS.white,
-                // padding: 5,
-                // borderRadius: 8
               }}
             >
               <Text
@@ -230,7 +328,7 @@ const HomeScreen = () => {
                   paddingBottom: 3,
                 }}
               >
-                <Icon name="star" size={16} color={COLORS.white} /> 1200 điểm
+                <Icon name="star" size={16} color={COLORS.white} /> {accumulatedPoints} điểm
               </Text>
               <Text
                 style={{
@@ -239,42 +337,24 @@ const HomeScreen = () => {
                   fontSize: 12,
                 }}
               >
-                Kim cương
+                {tierLabel}
               </Text>
             </View>
-            <Pressable
-              onPress={() => {
-                navigation.navigate("Profile");
+            <Image
+              source={{
+                uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
               }}
-            >
-              <Image
-                source={{
-                  uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
-                }}
-                style={{
-                  height: 55,
-                  width: 55,
-                  borderRadius: 50,
-                  borderWidth: 1,
-                  borderColor: COLORS.white,
-                }}
-              />
-            </Pressable>
+              style={{
+                height: 55,
+                width: 55,
+                borderRadius: 50,
+                borderWidth: 1,
+                borderColor: COLORS.white,
+              }}
+            />
           </View>
         </TouchableOpacity>
       </View>
-
-      {/* <View style={styles.userInfo}>
-        <Image source={{ uri: userData.avatar }} style={styles.avatar} />
-        <View>
-          <Text style={styles.greeting}>xin chào,</Text>
-          <Text style={styles.username}>{userData.name}</Text>
-        </View>
-        <View style={styles.points}>
-          <Text style={styles.pointNumber}>{userData.points} điểm</Text>
-          <Text style={styles.pointLabel}>{userData.rank}</Text>
-        </View>
-      </View> */}
 
       {/* Feature Icons */}
       <View style={styles.featureIcons}>

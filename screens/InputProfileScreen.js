@@ -18,6 +18,7 @@ import RadioGroup from 'react-native-radio-buttons-group';
 import { ButtonFlex } from '../components/Button';
 import moment from 'moment';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const InputProfileScreen = ({ navigation, route }) => {
   // Nhận phoneNumber và password từ route params
@@ -63,19 +64,19 @@ const InputProfileScreen = ({ navigation, route }) => {
   };
 
   const handleRegister = async () => {
-    // Check if all required fields are filled
+    // Kiểm tra nếu các trường bắt buộc đã được nhập đầy đủ
     if (!username || !email || !phoneNumber || !address || !dob || !password || !confirmPassword) {
       setError('Vui lòng nhập đầy đủ thông tin!');
       return;
     }
   
-    // Check if the password and confirm password match
+    // Kiểm tra nếu mật khẩu và xác nhận mật khẩu khớp
     if (password !== confirmPassword) {
       Alert.alert('Lỗi', 'Mật khẩu và xác nhận mật khẩu không khớp!');
       return;
     }
   
-    // Prepare the data to be sent to the API
+    // Chuẩn bị dữ liệu để gửi tới API
     const age = moment().diff(dob, 'years');
     const gender = selectedSexId === '1' ? 'Man' : selectedSexId === '2' ? 'Woman' : 'Other';
   
@@ -85,39 +86,65 @@ const InputProfileScreen = ({ navigation, route }) => {
       email,
       phoneNumber,
       address,
-      height: parseFloat(height), // Ensure height is numeric
-      weight: parseFloat(weight), // Ensure weight is numeric
+      height: parseFloat(height), // Đảm bảo chiều cao là số
+      weight: parseFloat(weight), // Đảm bảo cân nặng là số
       age,
       gender,
+      dietaryPreferenceId: parseInt(selectedPreferencesId), // Thêm dietary_preference_id
       profession,
       activityLevel,
+      goal,
+      isPhoneVerified: true, // Thêm is_phone_verified
     };
   
-    // Log the request data
+    // Ghi log dữ liệu đã nhập
     console.log('Dữ liệu đã nhập:', requestData);
-  
     try {
-      // Send the registration data to the API
       const response = await axios.post(
         'https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/RegisterCustomer',
         requestData
       );
   
-      // Check if the response indicates success
       if (response.status === 200) {
         console.log('Đăng ký thành công:', response.data);
-        Alert.alert('Thông báo', 'Đăng ký thành công!', [
-          { text: 'OK', onPress: () => navigation.navigate('Home') },
-        ]);
+  
+        try {
+          const userResponse = await axios.get(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByUsername/${username}`
+          );
+  
+          if (userResponse.status === 200 && userResponse.data) {
+            const userId = userResponse.data?.userId || userResponse.data?.[0]?.userId;
+            const fetchedUsername = userResponse.data?.username || userResponse.data?.[0]?.username;
+        
+            console.log('Lấy được userId:', userId);
+            console.log('Lấy được username:', fetchedUsername);
+        
+            // Lưu cả userId và username vào AsyncStorage
+            await AsyncStorage.setItem('userId', userId.toString());
+            await AsyncStorage.setItem('username', fetchedUsername);
+        
+            Alert.alert('Thông báo', 'Đăng ký thành công!', [
+              { text: 'OK', onPress: () => navigation.navigate('Home') },
+            ]);
+          } else {
+            console.log('Phản hồi từ getUserByName không hợp lệ hoặc không có userId:', userResponse.data);
+            Alert.alert('Lỗi', 'Không thể lấy thông tin người dùng sau khi đăng ký.');
+          }
+        } catch (getUserError) {
+          console.error('Lỗi chi tiết khi gọi API getUserByName:', getUserError.response ? getUserError.response.data : getUserError.message);
+          Alert.alert('Lỗi', 'Không thể lấy thông tin user sau khi đăng ký. Vui lòng thử lại sau.');
+        }
       } else {
         console.log('Phản hồi không thành công:', response.data);
         Alert.alert('Lỗi', 'Đăng ký thất bại. Vui lòng thử lại sau.');
       }
-    } catch (error) {
-      console.error('Lỗi đăng ký:', error.response ? error.response.data : error.message);
+    } catch (registerError) {
+      console.error('Lỗi đăng ký:', registerError.response ? registerError.response.data : registerError.message);
       Alert.alert('Lỗi', 'Đăng ký thất bại. Vui lòng thử lại sau.');
     }
   };
+  
   
   
   
@@ -411,14 +438,18 @@ const InputProfileScreen = ({ navigation, route }) => {
             Sở thích ăn uống <Text style={{ color: COLORS.red }}>*</Text>
           </Text>
           <View style={[styles.inputRow, { marginTop: 15, borderBottomWidth: 0 }]}>
-            <RadioGroup
-              radioButtons={radioButtonsPreferences}
-              onPress={setSelectedPreferencesId}
-              selectedId={selectedPreferencesId}
-              layout="column"
-              labelStyle={{ fontFamily: FONTS.medium }}
-              containerStyle={{ flexDirection: 'row', flexWrap: 'wrap' }}
-            />
+          <RadioGroup
+  radioButtons={radioButtonsPreferences}
+  onPress={(selectedValue) => {
+    setSelectedPreferencesId(selectedValue); // Giả sử selectedValue là ID hoặc value bạn cần
+  }}
+  selectedId={selectedPreferencesId}
+  layout="column"
+  labelStyle={{ fontFamily: FONTS.medium }}
+  containerStyle={{ flexDirection: 'row', flexWrap: 'wrap' }}
+/>
+
+
           </View>
         </View>
         <View style={styles.inputContainer}>

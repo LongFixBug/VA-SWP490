@@ -1,153 +1,133 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
-import Icon from "react-native-vector-icons/Ionicons";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import COLORS from "../constants/color";
-import FONTS from "../constants/font";
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
+import COLORS from '../constants/color';
+import FONTS from '../constants/font';
+import Icon from 'react-native-vector-icons/Ionicons';
+import IconAnt from 'react-native-vector-icons/AntDesign';
 
-const PostDetailScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation();
-  const { article } = route.params; // Received from CommunityScreen
-  const [newComment, setNewComment] = useState("");
+const PostDetailScreen = ({ route, navigation }) => {
+  const { post } = route.params; // Nhận dữ liệu bài viết từ CommunityScreen
   const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(true);
 
+  // Lấy dữ liệu bình luận từ API khi màn hình được mount
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const response = await fetch(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${article.articleId}`
-        );
+        const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`);
         const data = await response.json();
         setComments(data);
-        setLoading(false);
       } catch (error) {
-        console.error("Error fetching comments:", error);
-        setLoading(false);
+        console.error('Error fetching comments:', error);
+      } finally {
+        setLoadingComments(false);
       }
     };
 
     fetchComments();
-  }, [article.articleId]);
+  }, [post.articleId]);
 
+  // Hàm xử lý khi người dùng đăng bình luận
   const handlePostComment = () => {
-    if (newComment) {
+    if (newComment.trim()) {
+      // Gửi dữ liệu bình luận mới lên server (giả lập)
       setComments([
         ...comments,
         {
           commentId: comments.length + 1,
-          userName: "lukaku",
+          userName: 'Người dùng',
           content: newComment,
-          postDate: "Just now",
+          postDate: new Date().toISOString(),
         },
       ]);
-      setNewComment("");
+      setNewComment('');
     }
   };
 
+  // Hàm hiển thị từng bình luận
   const renderComment = ({ item }) => (
     <View style={styles.commentContainer}>
       <Icon name="person-circle-outline" size={32} color={COLORS.black} />
       <View style={styles.commentContent}>
         <Text style={styles.commentUsername}>{item.userName}</Text>
         <Text style={styles.commentText}>{item.content}</Text>
-        <Text style={styles.commentTime}>
-          {new Date(item.postDate).toLocaleDateString()}
-        </Text>
+        <Text style={styles.commentTime}>{new Date(item.postDate).toLocaleString()}</Text>
       </View>
     </View>
   );
-
-  const renderHeader = () => (
-    <View style={styles.postContent}>
-      <View style={styles.postHeader}>
-        <Icon name="person-circle-outline" size={32} color={COLORS.black} />
-        <Text style={styles.username}>{article.author_role}</Text>
-      </View>
-      <Text style={styles.title}>{article.title}</Text>
-      <Text style={styles.content}>{article.content}</Text>
-
-      <View style={styles.interactionBar}>
-        <TouchableOpacity style={styles.iconContainer}>
-          <Icon name="heart-outline" size={20} color={COLORS.grey} />
-          <Text style={styles.iconText}>{article.likes}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.iconContainer}>
-          <Icon name="chatbubble-outline" size={20} color={COLORS.grey} />
-          <Text style={styles.iconText}>{comments.length}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.commentSectionTitle}>Bình luận</Text>
-    </View>
-  );
-
-  if (loading) {
-    return (
-      <ActivityIndicator
-        size="large"
-        color={COLORS.green}
-        style={styles.loading}
-      />
-    );
-  }
 
   return (
     <View style={styles.container}>
-      <View style={styles.top}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => navigation.goBack()}
-          style={{ flexDirection: "row", alignItems: "center" }}
-        >
-          <View
-            style={{
-              height: 50,
-              width: 50,
-              marginLeft: 20,
-              justifyContent: "center",
-              alignItems: "center",
-              backgroundColor: COLORS.white,
-              borderRadius: 10,
-              elevation: 0,
-            }}
-          >
-            <Icon name="arrow-back-outline" size={28} color={COLORS.green} />
-          </View>
-          <Text
-            style={{
-              fontFamily: FONTS.bold,
-              color: COLORS.black,
-              marginLeft: 10,
-              fontSize: 20,
-            }}
-          >
-            Chi tiết món ăn
-          </Text>
-        </TouchableOpacity>
-      </View>
-
+      {/* FlatList để hiển thị toàn bộ nội dung và bình luận */}
       <FlatList
         data={comments}
-        renderItem={renderComment}
         keyExtractor={(item) => item.commentId.toString()}
-        ListHeaderComponent={renderHeader}
+        renderItem={renderComment}
+        ListHeaderComponent={
+          <View>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.goBack()}
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+              >
+                <View style={styles.backButton}>
+                  <Icon name="arrow-back-outline" size={28} color={COLORS.green} />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Chi tiết bài viết</Text>
+            </View>
+
+            {/* Thông tin tác giả và bài viết */}
+            <View style={styles.authorInfo}>
+              <Image
+                source={{ uri: 'https://mighty.tools/mockmind-api/content/human/44.jpg' }}
+                style={styles.authorImage}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.authorName}>{post.authorName}</Text>
+                <Text style={styles.postDate}>{post.createdAt}</Text>
+              </View>
+            </View>
+
+            {/* Nội dung bài viết */}
+            <Text style={styles.postTitle}>{post.title}</Text>
+            <Text style={styles.postContent}>{post.content}</Text>
+
+            {/* Hình ảnh của bài viết */}
+            <View style={styles.imageContainer}>
+              {post.images && post.images.map((imageUrl, index) => (
+                <Image
+                  key={index}
+                  source={{ uri: imageUrl }}
+                  style={styles.postImage}
+                />
+              ))}
+            </View>
+
+            {/* Hành động trên bài viết */}
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity style={styles.actionButton}>
+                <IconAnt name="like2" size={28} color={COLORS.greySolid} />
+                <Text style={styles.actionText}>{post.likes || 0}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton}>
+                <Icon name="chatbubble-outline" size={27} color={COLORS.greySolid} />
+                <Text style={styles.actionText}>{comments.length}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.commentSectionTitle}>Bình luận</Text>
+          </View>
+        }
       />
 
+      {/* Nhập bình luận mới */}
       <View style={styles.commentInputContainer}>
-        <Icon name="person-circle-outline" size={32} color={COLORS.black} />
         <TextInput
           style={styles.commentInput}
-          placeholder="Bình luận của bạn"
+          placeholder="Viết bình luận..."
           value={newComment}
           onChangeText={setNewComment}
         />
@@ -159,56 +139,89 @@ const PostDetailScreen = () => {
   );
 };
 
+export default PostDetailScreen;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
+    paddingHorizontal: 15,
   },
-  top: {
-    flexDirection: "row",
-    alignItems: "center",
-    height: 80,
-    backgroundColor: "transparent",
-  },
-  postContent: {
-    padding: 15,
-  },
-  postHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  username: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.black,
-    marginLeft: 10,
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.black,
-    marginBottom: 5,
-  },
-  content: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.grey,
-    marginBottom: 15,
-  },
-  interactionBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginVertical: 10,
   },
-  iconContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  backButton: {
+    height: 50,
+    width: 50,
+    marginLeft: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
   },
-  iconText: {
-    marginLeft: 5,
-    fontFamily: FONTS.regular,
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.semiBold,
+    marginLeft: 10,
+  },
+  authorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  authorImage: {
+    width: 45,
+    height: 45,
+    borderRadius: 50,
+    marginRight: 10,
+  },
+  authorName: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+  },
+  postDate: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
     color: COLORS.grey,
+    marginTop: 3,
+  },
+  postTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 18,
+    marginBottom: 10,
+  },
+  postContent: {
+    fontFamily: FONTS.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  imageContainer: {
+    marginTop: 10,
+  },
+  postImage: {
+    width: 200,
+    height: 150,
+    resizeMode: 'cover',
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    marginTop: 20,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 20,
+  },
+  actionText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 16,
+    color: COLORS.greySolid,
+    marginLeft: 5,
   },
   commentSectionTitle: {
     fontSize: 16,
@@ -216,10 +229,8 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   commentContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
     marginBottom: 15,
-    padding: 20,
   },
   commentContent: {
     marginLeft: 10,
@@ -227,42 +238,35 @@ const styles = StyleSheet.create({
   },
   commentUsername: {
     fontSize: 14,
-    fontFamily: FONTS.semiBold,
+    fontFamily: FONTS.medium,
   },
   commentText: {
     fontSize: 14,
-    fontFamily: FONTS.regular,
     color: COLORS.grey,
   },
   commentTime: {
-    marginTop: 5,
     fontSize: 12,
-    color: COLORS.grey,
+    color: COLORS.lightGray,
+    marginTop: 5,
   },
   commentInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: COLORS.lightGray,
+    padding: 10,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: COLORS.white,
   },
   commentInput: {
     flex: 1,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    padding: 10,
     borderWidth: 1,
     borderColor: COLORS.lightGray,
     borderRadius: 20,
-    marginLeft: 10,
+    padding: 10,
     marginRight: 10,
   },
-  loading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
 });
-
-export default PostDetailScreen;

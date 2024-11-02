@@ -10,7 +10,6 @@ const generateOTP = () => {
 
 export const sendOTP = async (phoneNumber) => {
   const otp = generateOTP();
-
   try {
     const response = await axios.post(
       `${INFOPBIP_BASE_URL}/sms/2/text/advanced`,
@@ -22,7 +21,7 @@ export const sendOTP = async (phoneNumber) => {
                 to: "84" + phoneNumber,
               },
             ],
-            text: `Your OTP code is ${otp}`,
+            text: `Vegetarian Asistant! Ma xac minh so dien thoai cua ban la ${otp}`,
             from: "447491163443",
           },
         ],

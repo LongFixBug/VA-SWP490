@@ -15,13 +15,12 @@ import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
 import { ButtonFlex } from "../components/Button";
-import auth from "@react-native-firebase/auth";
-import { OTPVerification } from "@msg91comm/react-native-sendotp";
 import { sendOTP } from "../utils/otpService";
 
 const RegisterScreen = ({ navigation }) => {
   const [phone, setPhone] = React.useState("");
-  const [email, setEmail] = React.useState("");
+  
+  // const [email, setEmail] = React.useState("");
   const [noti, setNoti] = React.useState();
   const [isModalVisible, setModalVisible] = React.useState(false);
 

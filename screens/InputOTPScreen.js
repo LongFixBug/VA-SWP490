@@ -32,10 +32,10 @@ export default function InputOTPScreen({ navigation, route }) {
 
   const handleCheckOTP = () => {
     if (internalVal.length !== 6) return;
-    if (internalVal == otp) {
+    if (internalVal.toString() === otp.toString()) {
       navigation.navigate("InputProfile", { phone: phone });
     } else {
-      setNoti("OTP không đúng. Vui lòng thử lại! ");
+      setNoti("OTP không đúng. Vui lòng thử lại!");
     }
   };
 

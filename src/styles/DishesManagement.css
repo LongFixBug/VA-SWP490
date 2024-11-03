@@ -1,6 +1,4 @@
-/* DishesManagement.css */
-
-.dishes-container {
+.dishes-management {
   display: flex;
   height: 100vh;
 }
@@ -20,7 +18,6 @@
   font-weight: bold;
   display: flex;
   align-items: center;
-  transition: background-color 0.3s;
 }
 
 .sidebar-item.active {
@@ -28,153 +25,87 @@
   color: white;
 }
 
+.icon {
+  margin-right: 10px;
+}
+
 .sidebar-item.logout {
   margin-top: auto;
   color: red;
 }
 
-.icon {
-  margin-right: 10px;
-}
-
 .content {
   flex-grow: 1;
   padding: 20px;
-  display: flex;
-  flex-direction: column;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  min-height: 80vh; /* Điều chỉnh chiều cao tối thiểu để pagination nằm dưới */
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
 
-.search-bar {
+.tabs {
   display: flex;
-  align-items: center;
   gap: 10px;
-  width: 100%;
 }
 
-.search-bar input {
+.tab {
+  font-weight: normal;
   padding: 10px;
-  flex-grow: 1;
-  border-radius: 5px;
-  border: 1px solid #ddd;
-}
-
-.create-button {
-  padding: 10px 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
   cursor: pointer;
-  border-radius: 5px;
-  font-size: 16px;
+}
+
+.tab.active {
   font-weight: bold;
-  transition: background-color 0.3s;
-  width: 150px;
+  background-color: #e0e0e0;
 }
 
-create-button:hover {
-  background-color: #45a049;
-}
 
-.dishes-table {
+.customer-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.dishes-table th,
-.dishes-table td {
+.customer-table th, .customer-table td {
   border: 1px solid #ddd;
-  padding: 15px;
+  padding: 10px;
   text-align: left;
-  font-size: 15px;
 }
 
-.dishes-table th {
+.customer-table th {
   background-color: #f1f1f1;
-  font-weight: bold;
-  text-align: center;
 }
 
-.dishes-table tr:hover {
-  background-color: #f9f9f9;
-}
-
-.dishes-table img {
-  width: 50px;
-  height: auto;
-  border-radius: 5px;
-}
-
-.edit-button,
-.delete-button {
+.detail-button, .edit-button, .delete-button {
   background: none;
   border: none;
   cursor: pointer;
 }
 
-.detail-button, .edit-button, .delete-button, .view-button {
-  background: none;
-  border: none;
-  color: #007bff;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.view-button {
-  background-color: #007bff;
+.sidebar-item.active {
+  background-color: #4CAF50;
   color: white;
-  padding: 5px 10px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
 }
 
-.view-button:hover {
-  background-color: #0056b3;
-}
-
-.pagination {
+.content {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  min-height: 80vh;
+}
+.header {
+  display: flex;
   align-items: center;
-  margin-top: 20px;
+  gap: 13%; /* Khoảng cách giữa SearchBar và nút Create */
+  
 }
 
-.pagination button {
-  background-color: #ddd;
-  color: #333;
-  border: none;
-  padding: 8px 16px;
-  margin: 0 5px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
-}
-
-
-.pagination button:hover {
-  background-color: #bbb;
-}
-
-.pagination button:disabled {
-  background-color: #f2f2f2;
-  color: #999;
-  cursor: not-allowed;
-}
-
-.pagination span {
+.create-button {
+  width: 10%;
+  margin-bottom: 20px;
   font-size: 16px;
-  margin: 0 10px;
+  background-color: #4CAF50; /* Màu xanh lá */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.create-button:hover {
+  background-color: #45a049; /* Màu xanh đậm hơn khi hover */
 }

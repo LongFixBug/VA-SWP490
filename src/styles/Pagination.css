@@ -1,22 +1,21 @@
 .pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-top: auto; /* Đảm bảo nó ở dưới cùng của trang */
-  padding: 20px 0; /* Thêm khoảng cách giữa nội dung và pagination */
-  }
-  
-  .pagination button {
-    padding: 10px 20px;
-    border: none;
-    background-color: #4CAF50;
-    color: white;
-    cursor: pointer;
-  }
-  
-  .pagination button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-  }
-  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 50px; /* Đảm bảo nó ở dưới cùng của trang */
+padding: 20px 0; 
+}
+
+.pagination button {
+  padding: 10px 20px;
+  border: none;
+  background-color: #4CAF50;
+  color: white;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}

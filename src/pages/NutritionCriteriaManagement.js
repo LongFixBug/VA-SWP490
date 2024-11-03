@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/NutritionCriteriaManagement.css";
-
 import Pagination from "../components/Pagination";
+import SearchBar from "../components/SearchBar";
 
 const currentCriteria = [
   {
@@ -47,42 +47,19 @@ const NutritionCriteriaManagement = () => {
   );
 
   const totalPages = Math.ceil(filteredCriteria.length / itemsPerPage);
-
-  // Xác định danh sách tiêu chí hiện tại dựa trên trang
   const indexOfLastCriteria = currentPage * itemsPerPage;
   const indexOfFirstCriteria = indexOfLastCriteria - itemsPerPage;
   const currentCriteriaPage = filteredCriteria.slice(
     indexOfFirstCriteria,
     indexOfLastCriteria
   );
-  const SearchBar = ({ searchTerm, setSearchTerm }) => {
-    const navigate = useNavigate();
-    return (
-      <div className="search-bar">
-        <input
-          type="text"
-          placeholder="Nhập từ khóa tìm kiếm..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <button
-          className="create-button"
-          onClick={() => navigate("/create-nutrition-criteria")}
-        >
-          Thêm tiêu chuẩn
-        </button>
-      </div>
-    );
-  };
 
-  // Điều hướng trang trước
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
   };
 
-  // Điều hướng trang sau
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
@@ -95,6 +72,12 @@ const NutritionCriteriaManagement = () => {
       <div className="content">
         <div className="header-actions">
           <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+          <button
+            className="create-button"
+            onClick={() => navigate("/create-nutritionCriteria")}
+          >
+            Create
+          </button>
         </div>
         <table className="nutrition-criteria-table">
           <thead>
@@ -168,6 +151,12 @@ const Sidebar = () => {
         onClick={() => navigate("/nutritionCriteria-management")}
       >
         Quản lí thể trạng
+      </div>
+      <div
+        className="sidebar-item"
+        onClick={() => navigate("/Ingredient-management")}
+      >
+        Quản lí nguyên liệu
       </div>
       <div className="sidebar-item logout" onClick={handleLogout}>
         Đăng xuất

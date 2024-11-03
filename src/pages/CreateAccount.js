@@ -84,9 +84,9 @@ const CreateAccount = () => {
             <option value="Staff">Staff</option>
           </select>
         </div>
-        <button type="submit" className="create-button">
-          Tạo tài khoản
-        </button>
+        <div className="create-button2">
+          <button type="submit">Tạo tài khoản</button>
+        </div>
       </form>
     </div>
   );

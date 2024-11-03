@@ -13,9 +13,15 @@ const Login = () => {
     // Kiểm tra nếu thông tin đăng nhập đúng
     if (username === 'admin' && password === 'admin123') {
       navigate('/admin'); // Điều hướng đến trang admin
+    } else if (username === "nutritionist" && password === "nutri123") {
+      // Nếu thông tin hợp lệ cho staff, điều hướng đến trang Dishes Management
+      navigate("/dishes-management");
     } else if (username === "staff" && password === "staff123") {
       // Nếu thông tin hợp lệ cho staff, điều hướng đến trang Dishes Management
       navigate("/dishes-management");
+    } else if (username === "moderator" && password === "moderator123") {
+      // Nếu thông tin hợp lệ cho staff, điều hướng đến trang Dishes Management
+      navigate("/articleModerate-management");
     } else {
       setError('Tên đăng nhập hoặc mật khẩu không đúng!'); // Hiển thị thông báo lỗi
     }

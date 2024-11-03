@@ -72,6 +72,7 @@ const HomeScreen = () => {
   const [accumulatedPoints, setAccumulatedPoints] = useState(0);
   const [tierLabel, setTierLabel] = useState("");
 
+  const [cartCount, setCartCount] = useState(0);
 
   const fetchMembershipData = async (id) => {
     try {
@@ -256,6 +257,33 @@ const HomeScreen = () => {
     </TouchableOpacity>
   );
 
+  const refreshCartCount = async () => {
+    try {
+      const storedCart = await AsyncStorage.getItem("cart");
+      if (storedCart) {
+        const parsedCart = JSON.parse(storedCart);
+        setCartCount(parsedCart.length);
+      } else {
+        setCartCount(0);
+      }
+    } catch (error) {
+      console.error("Lỗi khi làm mới dữ liệu giỏ hàng từ AsyncStorage:", error);
+    }
+  };
+
+  // useEffect để lấy số lượng món ăn khi màn hình Home hiển thị
+  useEffect(() => {
+    refreshCartCount();
+
+    // Đăng ký listener để lắng nghe sự kiện thay đổi trong AsyncStorage
+    const subscription = navigation.addListener("focus", () => {
+      refreshCartCount();
+    });
+
+    // Dọn dẹp khi component bị hủy
+    return subscription;
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       <ImageBackground
@@ -439,7 +467,9 @@ const HomeScreen = () => {
             }}
           >
             <Icon name={"cart-outline"} size={30} color={COLORS.green} />
-            <Text style={styles.bagdeCart}>77</Text>
+            {cartCount > 0 && (
+            <Text style={styles.bagdeCart}>{cartCount}</Text>
+          )}
           </View>
         </TouchableOpacity>
       </View>

@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Ionicons";
 import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
 import COLORS from "../constants/color";
@@ -23,6 +24,26 @@ const DishDetailScreen = ({ navigation, route }) => {
   const [showMoreAttribute, setShowMoreAttribute] = useState(false);
   const [feedbacks, setFeedbacks] = useState([]);
   const [averageRating, setAverageRating] = useState(0);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    // Lấy userId từ AsyncStorage và ghi log
+    const getUserIdFromStorage = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (storedUserId) {
+          setUserId(storedUserId);
+          console.log("User ID từ AsyncStorage:", storedUserId);
+        } else {
+          console.log("Không tìm thấy User ID trong AsyncStorage.");
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
+      }
+    };
+
+    getUserIdFromStorage();
+  }, []);
 
   useEffect(() => {
     const fetchDishDetail = async () => {
@@ -47,7 +68,6 @@ const DishDetailScreen = ({ navigation, route }) => {
         const data = await response.json();
         setFeedbacks(data);
 
-        // Tính rating trung bình
         if (data.length > 0) {
           const totalRating = data.reduce(
             (acc, feedback) => acc + feedback.rating,
@@ -65,6 +85,68 @@ const DishDetailScreen = ({ navigation, route }) => {
     fetchDishDetail();
     fetchFeedbacks();
   }, [dishId]);
+
+  const handleAddToCart = async () => {
+    if (!userId) {
+      console.log("User ID is missing.");
+      return;
+    }
+  
+    console.log("User ID được gửi vào API:", userId);
+    console.log("Dish ID được gửi vào API:", dishId);
+  
+    try {
+      const response = await fetch(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/cart/addToCart",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: userId,
+            dishId: dishId,
+            quantity: 1,
+          }),
+        }
+      );
+  
+      if (response.ok) {
+        // Lấy dữ liệu giỏ hàng hiện tại từ AsyncStorage
+        const existingCart = await AsyncStorage.getItem("cart");
+        let cart = existingCart ? JSON.parse(existingCart) : [];
+  
+        // Kiểm tra xem món ăn đã tồn tại trong giỏ hàng chưa
+        const existingItemIndex = cart.findIndex((item) => item.dishId === dish.dishId);
+        if (existingItemIndex !== -1) {
+          // Tăng số lượng nếu đã tồn tại
+          cart[existingItemIndex].quantity += 1;
+        } else {
+          // Thêm món mới vào giỏ hàng
+          cart.push({ ...dish, quantity: 1 });
+        }
+  
+        // Lưu lại mảng món ăn vào AsyncStorage
+        await AsyncStorage.setItem("cart", JSON.stringify(cart));
+        console.log("Giỏ hàng sau khi cập nhật:", cart);
+  
+        showToastAddToCart();
+      } else {
+        console.error("Failed to add to cart:", response.status);
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+    }
+  };
+  
+  
+  const showToastAddToCart = () => {
+    Toast.show({
+      type: "success",
+      text1: "Thông báo",
+      text2: "Thêm vào giỏ hàng thành công! 👋",
+    });
+  };
 
   const renderStars = (rating) => {
     const stars = [];
@@ -96,14 +178,6 @@ const DishDetailScreen = ({ navigation, route }) => {
     }
 
     return stars;
-  };
-
-  const showToastAddToCart = () => {
-    Toast.show({
-      type: "success",
-      text1: "Thông báo",
-      text2: "Thêm vào giỏ hàng thành công! 👋",
-    });
   };
 
   if (loading) {
@@ -141,30 +215,10 @@ const DishDetailScreen = ({ navigation, route }) => {
             onPress={() => navigation.goBack()}
             style={{ flexDirection: "row", alignItems: "center" }}
           >
-            <View
-              style={{
-                height: 50,
-                width: 50,
-                marginLeft: 20,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: COLORS.white,
-                borderRadius: 10,
-                elevation: 0,
-              }}
-            >
+            <View style={styles.backButton}>
               <Icon name="arrow-back-outline" size={28} color={COLORS.green} />
             </View>
-            <Text
-              style={{
-                fontFamily: FONTS.bold,
-                color: COLORS.black,
-                marginLeft: 10,
-                fontSize: 20,
-              }}
-            >
-              Chi tiết món ăn
-            </Text>
+            <Text style={styles.headerText}>Chi tiết món ăn</Text>
           </TouchableOpacity>
         </View>
 
@@ -185,65 +239,19 @@ const DishDetailScreen = ({ navigation, route }) => {
               />
             </View>
           </Swiper>
-          <View
-            style={{
-              elevation: 2,
-              position: "absolute",
-              right: 10,
-              bottom: 50,
-              backgroundColor: COLORS.green,
-              padding: 10,
-              borderRadius: 8,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: FONTS.bold,
-                color: COLORS.white,
-                fontSize: 17,
-              }}
-            >
-              {dish.price} đ
-            </Text>
+          <View style={styles.priceTag}>
+            <Text style={styles.priceText}>{dish.price} đ</Text>
           </View>
         </View>
 
         {/* Dish Details */}
         <View style={{ padding: 15 }}>
-          <Text
-            style={{
-              fontFamily: FONTS.semiBold,
-              color: COLORS.black,
-              fontSize: 22,
-              marginBottom: 5,
-            }}
-          >
-            {dish.name}
-          </Text>
-          <View
-            style={{ flexDirection: "row", justifyContent: "space-between" }}
-          >
-            <Text
-              style={{
-                fontFamily: FONTS.medium,
-                color: COLORS.grey,
-                fontSize: 15,
-                marginBottom: 5,
-              }}
-            >
-              {dish.dishType}
-            </Text>
+          <Text style={styles.dishName}>{dish.name}</Text>
+          <View style={styles.dishInfo}>
+            <Text style={styles.dishType}>{dish.dishType}</Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               {renderStars(averageRating)}
-              <Text
-                style={{
-                  fontFamily: FONTS.medium,
-                  fontSize: 15,
-                  marginLeft: 5,
-                }}
-              >
-                {averageRating}
-              </Text>
+              <Text style={styles.ratingText}>{averageRating}</Text>
             </View>
           </View>
 
@@ -259,11 +267,7 @@ const DishDetailScreen = ({ navigation, route }) => {
                 activeOpacity={0.6}
                 onPress={() => setShowMoreAttribute(!showMoreAttribute)}
               >
-                <Text
-                  style={{ fontFamily: FONTS.semiBold, color: COLORS.blue }}
-                >
-                  Xem thêm
-                </Text>
+                <Text style={styles.showMoreText}>Xem thêm</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -280,11 +284,7 @@ const DishDetailScreen = ({ navigation, route }) => {
                 activeOpacity={0.6}
                 onPress={() => setShowMoreAttribute(!showMoreAttribute)}
               >
-                <Text
-                  style={{ fontFamily: FONTS.semiBold, color: COLORS.blue }}
-                >
-                  Thu gọn
-                </Text>
+                <Text style={styles.showMoreText}>Thu gọn</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -322,47 +322,17 @@ const DishDetailScreen = ({ navigation, route }) => {
         <View style={styles.boxButtonFloatBottom}>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={showToastAddToCart}
-            style={{
-              width: "30%",
-              backgroundColor: COLORS.white,
-              alignItems: "center",
-              justifyContent: "center",
-              marginHorizontal: 10,
-              marginVertical: 10,
-              borderRadius: 10,
-              elevation: 2,
-              borderWidth: 1,
-              borderColor: COLORS.green,
-            }}
+            onPress={handleAddToCart}
+            style={styles.addToCartButton}
           >
             <Icon1 name={"cart-plus"} size={30} color={COLORS.green} />
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => navigation.navigate("Cart")}
-            style={{
-              flex: 1,
-              backgroundColor: COLORS.green,
-              alignItems: "center",
-              justifyContent: "center",
-              marginVertical: 10,
-              borderRadius: 10,
-              elevation: 2,
-              marginRight: 10,
-              borderWidth: 1,
-              borderColor: COLORS.green,
-            }}
+            style={styles.orderButton}
           >
-            <Text
-              style={{
-                fontFamily: FONTS.semiBold,
-                fontSize: 20,
-                color: COLORS.white,
-              }}
-            >
-              Đặt hàng
-            </Text>
+            <Text style={styles.orderButtonText}>Đặt hàng</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -387,12 +357,21 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.darkGrey,
   },
-  top: {
-    flexDirection: "row",
+  backButton: {
+    height: 50,
+    width: 50,
+    marginLeft: 20,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "transparent",
-    height: 80,
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    elevation: 0,
+  },
+  headerText: {
+    fontFamily: FONTS.bold,
+    color: COLORS.black,
+    marginLeft: 10,
+    fontSize: 20,
   },
   img: {
     width: "100%",
@@ -403,6 +382,41 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  priceTag: {
+    elevation: 2,
+    position: "absolute",
+    right: 10,
+    bottom: 50,
+    backgroundColor: COLORS.green,
+    padding: 10,
+    borderRadius: 8,
+  },
+  priceText: {
+    fontFamily: FONTS.bold,
+    color: COLORS.white,
+    fontSize: 17,
+  },
+  dishName: {
+    fontFamily: FONTS.semiBold,
+    color: COLORS.black,
+    fontSize: 22,
+    marginBottom: 5,
+  },
+  dishInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  dishType: {
+    fontFamily: FONTS.medium,
+    color: COLORS.grey,
+    fontSize: 15,
+    marginBottom: 5,
+  },
+  ratingText: {
+    fontFamily: FONTS.medium,
+    fontSize: 15,
+    marginLeft: 5,
   },
   containerAttribute: {
     marginTop: 10,
@@ -421,6 +435,10 @@ const styles = StyleSheet.create({
     color: COLORS.grey,
     fontSize: 15,
     lineHeight: 23,
+  },
+  showMoreText: {
+    fontFamily: FONTS.semiBold,
+    color: COLORS.blue,
   },
   feedbackItem: {
     marginTop: 10,
@@ -443,5 +461,34 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     color: COLORS.star,
     fontSize: 14,
+  },
+  addToCartButton: {
+    width: "30%",
+    backgroundColor: COLORS.white,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 10,
+    marginVertical: 10,
+    borderRadius: 10,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.green,
+  },
+  orderButton: {
+    flex: 1,
+    backgroundColor: COLORS.green,
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 10,
+    borderRadius: 10,
+    elevation: 2,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: COLORS.green,
+  },
+  orderButtonText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 20,
+    color: COLORS.white,
   },
 });

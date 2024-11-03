@@ -49,20 +49,28 @@ const CommunityScreen = ({ navigation }) => {
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/GetArticleByRoleId/3"
       );
       const communityData = await communityResponse.json();
-
+  
       const expertResponse = await fetch(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/GetArticleByRoleId/5"
       );
       const expertData = await expertResponse.json();
-
-      setCommunityPosts(communityData);
-      setExpertPosts(expertData);
+  
+      // Filter posts by status 'accepted'
+      const filteredCommunityPosts = communityData.filter(
+        (post) => post.status === "accepted"
+      );
+      const filteredExpertPosts = expertData.filter(
+        (post) => post.status === "accepted"
+      );
+  
+      setCommunityPosts(filteredCommunityPosts);
+      setExpertPosts(filteredExpertPosts);
       setLoading(false);
-      setRefreshing(false); // Kết thúc trạng thái làm mới
+      setRefreshing(false); // End refreshing state
     } catch (error) {
       console.error("Error fetching articles:", error);
       setLoading(false);
-      setRefreshing(false); // Kết thúc trạng thái làm mới ngay cả khi có lỗi
+      setRefreshing(false); // End refreshing state even if there is an error
     }
   };
 

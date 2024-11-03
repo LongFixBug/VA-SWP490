@@ -39,9 +39,11 @@ import PaymentScreen from "./screens/PaymentScreen";
 import MenuScreen from "./screens/MenuScreen";
 import MembershipScreen from "./screens/MembershipScreen";
 import DetailMenuScreen from "./screens/DetailMenuScreen";
+import EditProfileScreen from "./screens/EditProfileScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
+
 
 const toastConfig = {
   success: (props) => (
@@ -303,6 +305,7 @@ export default function App() {
           <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
           <Stack.Screen name="Membership" component={MembershipScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />

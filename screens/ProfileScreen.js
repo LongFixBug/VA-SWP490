@@ -115,23 +115,33 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <>
-      <View
-        style={{
-          marginTop: StatusBar.currentHeight,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: 20,
-          backgroundColor: COLORS.white,
-        }}
-      >
-        <Text
-          style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
-        >
-          Trang cá nhân
-        </Text>
-        <Icon name="settings-outline" size={28} color={COLORS.green} />
-      </View>
+     <View
+  style={{
+    marginTop: StatusBar.currentHeight,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: COLORS.white,
+  }}
+>
+  <Text
+    style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
+  >
+    Trang cá nhân
+  </Text>
+
+  <TouchableOpacity
+    onPress={() => {
+      console.log('Navigating to EditProfile');
+      navigation.navigate('EditProfile');
+    }}
+  >
+    <Icon name="settings-outline" size={28} color={COLORS.green} />
+  </TouchableOpacity>
+</View>
+
+      
       <ScrollView
         style={{ flex: 1, backgroundColor: COLORS.white, padding: 10 }}
         refreshControl={

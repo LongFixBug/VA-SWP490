@@ -5,8 +5,14 @@ const Table = ({ users, handleSort, handleEditClick, handleDeleteClick }) => {
   const navigate = useNavigate();
 
   const handleViewDetails = (userId) => {
-    navigate(`/user/${userId}`); // Điều hướng đến trang chi tiết người dùng
+    if (userId) {
+      console.log("Navigating to user details with ID:", userId);
+      navigate(`/user/${userId}`);
+    } else {
+      console.error("Error: User ID is undefined");
+    }
   };
+  
 
   return (
     <table className="customer-table">
@@ -14,7 +20,7 @@ const Table = ({ users, handleSort, handleEditClick, handleDeleteClick }) => {
         <tr>
           <th></th>
           <th onClick={() => handleSort("username")}>Tên đăng nhập</th>
-          <th onClick={() => handleSort("fullname")}>Họ và tên</th>
+
           <th onClick={() => handleSort("email")}>Email</th>
           <th>SĐT</th>
           <th>Vai trò</th>
@@ -30,7 +36,7 @@ const Table = ({ users, handleSort, handleEditClick, handleDeleteClick }) => {
               <input type="checkbox" />
             </td>
             <td>{user.username}</td>
-            <td>{user.fullname}</td>
+
             <td>{user.email}</td>
             <td>{user.phoneNumber}</td>
             <td>
@@ -39,10 +45,10 @@ const Table = ({ users, handleSort, handleEditClick, handleDeleteClick }) => {
                 : user.roleId === 2
                 ? "Staff"
                 : user.roleId === 3
-                ? "Nutritionist"
+                ? "Customer"
                 : user.roleId === 4
                 ? "Moderator"
-                : "Customer"}
+                : "Nutritionist"}
             </td>
             <td>{user.status || "unknown"}</td>
             <td>

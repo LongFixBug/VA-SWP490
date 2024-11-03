@@ -19,7 +19,7 @@ const AdminPage = () => {
   const [users, setUsers] = useState([]); // Lưu danh sách users
   // const [editingUser, setEditingUser] = useState(null); // Lưu người dùng đang được sửa
   const [currentPage, setCurrentPage] = useState(1); // Trang hiện tại
-  const usersPerPage = 2; // Số lượng người dùng trên mỗi trang
+  const usersPerPage = 5; // Số lượng người dùng trên mỗi trang
   const [totalPages, setTotalPages] = useState(1); // Tổng số trang
 
   useEffect(() => {
@@ -34,7 +34,7 @@ const AdminPage = () => {
 
         // Lọc người dùng theo vai trò dựa trên tab hiện tại
         if (activeTab === "Customer") {
-          fetchedUsers = fetchedUsers.filter((user) => user.roleId === 5);
+          fetchedUsers = fetchedUsers.filter((user) => user.roleId === 3);
         } else if (activeTab === "system") {
           fetchedUsers = fetchedUsers.filter((user) =>
             [2, 5, 4].includes(user.roleId)
@@ -116,12 +116,12 @@ const AdminPage = () => {
 
     const handleViewDetails = (userId) => {
       if (userId) {
-        console.log("Navigating to user details with ID:", userId);
         navigate(`/user/${userId}`);
       } else {
         console.error("Error: User ID is undefined");
       }
     };
+
 
     return (
       <table className="customer-table">
@@ -130,7 +130,6 @@ const AdminPage = () => {
             <th></th>
             <th>userId</th>
             <th onClick={() => handleSort("username")}>Tên đăng nhập</th>
-
             <th onClick={() => handleSort("email")}>Email</th>
             <th>SĐT</th>
             <th>Vai trò</th>
@@ -147,19 +146,18 @@ const AdminPage = () => {
               </td>
               <td>{user.userId}</td>
               <td>{user.username}</td>
-
               <td>{user.email}</td>
               <td>{user.phoneNumber}</td>
               <td>
                 {user.roleId === 1
                   ? "Admin"
                   : user.roleId === 2
-                    ? "Staff"
-                    : user.roleId === 3
-                      ? "Customer"
-                      : user.roleId === 4
-                        ? "Moderator"
-                        : "Nutritionist"}
+                  ? "Staff"
+                  : user.roleId === 3
+                  ? "Customer"
+                  : user.roleId === 4
+                  ? "Moderator"
+                  : "Nutritionist"}
               </td>
               <td>{user.status || "unknown"}</td>
               <td>
@@ -171,12 +169,6 @@ const AdminPage = () => {
                 </button>
               </td>
               <td>
-                {/* <button
-                  className="edit-button"
-                  onClick={() => handleEditClick(user)}
-                >
-                  ✏️
-                </button> */}
                 <button
                   className="delete-button"
                   onClick={() => handleDeleteClick(user.userId)}
@@ -191,21 +183,27 @@ const AdminPage = () => {
     );
   };
 
-
   return (
     <div className="admin-container">
       <Sidebar activeTab={activeTab} />
       <div className="content">
         <Header activeTab={activeTab} setActiveTab={setActiveTab} />
-        <SearchBar
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          navigate={navigate}
-        />
+        <div className="header">
+          <SearchBar
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            navigate={navigate}
+          />
+          <button
+            className="create-button"
+            onClick={() => navigate("/create-account")}
+          >
+            Create
+          </button>
+        </div>
         <Table
-          users={currentUsers} // Hiển thị người dùng của trang hiện tại
+          users={currentUsers}
           handleSort={handleSort}
-          // handleEditClick={handleEditClick}
           handleDeleteClick={handleDeleteClick}
         />
         <div className="pagination">

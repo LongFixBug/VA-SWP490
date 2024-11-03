@@ -1,21 +1,24 @@
+// src/components/SearchBar.js
 import React from "react";
 import "../styles/SearchBar.css";
-const SearchBar = ({ searchTerm, setSearchTerm, navigate }) => {
+// import { useNavigate } from "react-router-dom";
+
+const SearchBar = ({ searchTerm, setSearchTerm }) => {
+  // const navigate = useNavigate();
   return (
     <div className="search-bar">
       <input
         type="text"
-        placeholder="Nhập tại đây..."
+        placeholder="Nhập từ khóa tìm kiếm..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
-      <button
+      {/* <button
         className="create-button"
-        style={{ width: "10%" }}
         onClick={() => navigate("/create-account")}
       >
-        Tạo tài khoản
-      </button>
+        Thêm người dùng
+      </button> */}
     </div>
   );
 };

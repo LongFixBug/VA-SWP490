@@ -1,57 +1,51 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/NutritionCriteriaManagement.css";
+import "../styles/IngredientManagement.css";
 import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
 
-const currentCriteria = [
+const currentIngredients = [
   {
-    criteriaId: 1,
-    gender: "Male",
-    age_range: "18-25",
-    bmi_range: "18.5-24.9",
-    profession: "Engineer",
-    activity_level: "High",
-    goal: "Gain Muscle",
-    calories: 2500,
-    protein: 100,
-    carbs: 300,
-    fat: 70,
-    fiber: 30,
-    vitamin_A: 500,
-    vitamin_B: 10,
-    vitamin_C: 60,
-    vitamin_D: 15,
-    vitamin_E: 20,
-    calcium: 1000,
-    iron: 8,
-    magnesium: 400,
-    omega_3: 1,
-    sugars: 30,
-    cholesterol: 300,
-    sodium: 1500,
+    ingredient_id: 1,
+    name: "Tomato",
+    weight: 100,
+    calories: 18,
+    protein: 0.9,
+    carbs: 3.9,
+    fat: 0.2,
+    fiber: 1.2,
+    vitamin_A: 833,
+    vitamin_B: 0.04,
+    vitamin_C: 13.7,
+    vitamin_D: 0,
+    vitamin_E: 0.54,
+    calcium: 10,
+    iron: 0.3,
+    magnesium: 11,
+    omega_3: 0,
+    sugars: 2.6,
+    cholesterol: 0,
+    sodium: 5,
   },
   // Thêm nhiều đối tượng khác nếu cần
 ];
 const itemsPerPage = 2;
 
-const NutritionCriteriaManagement = () => {
+const IngredientManagement = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredCriteria = currentCriteria.filter(
-    (criteria) =>
-      criteria.gender.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      criteria.profession.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredIngredients = currentIngredients.filter((ingredient) =>
+    ingredient.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredCriteria.length / itemsPerPage);
-  const indexOfLastCriteria = currentPage * itemsPerPage;
-  const indexOfFirstCriteria = indexOfLastCriteria - itemsPerPage;
-  const currentCriteriaPage = filteredCriteria.slice(
-    indexOfFirstCriteria,
-    indexOfLastCriteria
+  const totalPages = Math.ceil(filteredIngredients.length / itemsPerPage);
+  const indexOfLastIngredient = currentPage * itemsPerPage;
+  const indexOfFirstIngredient = indexOfLastIngredient - itemsPerPage;
+  const currentIngredientsPage = filteredIngredients.slice(
+    indexOfFirstIngredient,
+    indexOfLastIngredient
   );
 
   const handlePrevPage = () => {
@@ -67,53 +61,60 @@ const NutritionCriteriaManagement = () => {
   };
 
   return (
-    <div className="Nutrition-container">
+    <div className="Ingredient-container">
       <Sidebar />
       <div className="content">
-        <div className="header-actions">
+        <div className="header">
           <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
           <button
             className="create-button"
-            onClick={() => navigate("/create-nutritionCriteria")}
+            onClick={() => navigate("/create-ingredient")}
           >
             Create
           </button>
         </div>
-        <table className="nutrition-criteria-table">
+        <table className="ingredient-table">
           <thead>
             <tr>
               <th></th>
-              <th>Criteria ID</th>
-              <th>Gender</th>
-              <th>Age Range</th>
-              <th>BMI Range</th>
-              <th>Profession</th>
-              <th>Goal</th>
-              <th>Xem thêm</th>
+              <th>Ingredient ID</th>
+              <th>Name</th>
+              <th>Weight (g)</th>
+              <th>Calories</th>
+              <th>Protein (g)</th>
+              <th>Carbs (g)</th>
+              <th>Fat (g)</th>
+              <th>Fiber (g)</th>
+
+              <th>Cholesterol (mg)</th>
+              <th>Sodium (mg)</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {currentCriteriaPage.map((criteria) => (
-              <tr key={criteria.criteriaId}>
+            {currentIngredientsPage.map((ingredient) => (
+              <tr key={ingredient.ingredient_id}>
                 <td>
                   <input type="checkbox" />
                 </td>
-                <td>{criteria.criteriaId}</td>
-                <td>{criteria.gender}</td>
-                <td>{criteria.age_range}</td>
-                <td>{criteria.bmi_range}</td>
-                <td>{criteria.profession}</td>
-                <td>{criteria.goal}</td>
+                <td>{ingredient.ingredient_id}</td>
+                <td>{ingredient.name}</td>
+                <td>{ingredient.weight}</td>
+                <td>{ingredient.calories}</td>
+                <td>{ingredient.protein}</td>
+                <td>{ingredient.carbs}</td>
+                <td>{ingredient.fat}</td>
+                <td>{ingredient.fiber}</td>
+                <td>{ingredient.cholesterol}</td>
+                <td>{ingredient.sodium}</td>
                 <td>
                   <button
                     className="detail-button"
                     onClick={() =>
-                      navigate(
-                        `/nutritionCriteria-detail/${criteria.criteriaId}`
-                      )
+                      navigate(`/ingredient-detail/${ingredient.ingredient_id}`)
                     }
                   >
-                    Xem thêm
+                    View
                   </button>
                 </td>
               </tr>
@@ -172,4 +173,4 @@ const Sidebar = () => {
   );
 };
 
-export default NutritionCriteriaManagement;
+export default IngredientManagement;

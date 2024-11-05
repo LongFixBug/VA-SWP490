@@ -120,17 +120,9 @@ const RegisterScreen = ({ navigation }) => {
           />
         </View>
       </View>
-      <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>Email (tùy chọn)</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.textInput}
-            placeholder="vegetarianassistant@gmail.com"
-            placeholderTextColor={COLORS.lightGrey}
-            onChangeText={(txtEmail) => setEmail(txtEmail)}
-          />
-        </View>
-      </View>
+      
+
+      
       {noti && (
         <Text
           style={{

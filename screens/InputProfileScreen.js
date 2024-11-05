@@ -75,6 +75,8 @@ const InputProfileScreen = ({ navigation, route }) => {
       Alert.alert('Lỗi', 'Mật khẩu và xác nhận mật khẩu không khớp!');
       return;
     }
+
+    const formattedPhoneNumber = phoneNumber.startsWith('0') ? phoneNumber : '0' + phoneNumber;
   
     // Chuẩn bị dữ liệu để gửi tới API
     const age = moment().diff(dob, 'years');
@@ -84,7 +86,7 @@ const InputProfileScreen = ({ navigation, route }) => {
       username,
       password,
       email,
-      phoneNumber,
+      phoneNumber: formattedPhoneNumber,
       address,
       height: parseFloat(height), // Đảm bảo chiều cao là số
       weight: parseFloat(weight), // Đảm bảo cân nặng là số
@@ -122,7 +124,7 @@ const InputProfileScreen = ({ navigation, route }) => {
         
             // Lưu cả userId và username vào AsyncStorage
             await AsyncStorage.setItem('userId', userId.toString());
-            await AsyncStorage.setItem('username', fetchedUsername);
+            // await AsyncStorage.setItem('username', fetchedUsername);
         
             Alert.alert('Thông báo', 'Đăng ký thành công!', [
               { text: 'OK', onPress: () => navigation.navigate('Home') },

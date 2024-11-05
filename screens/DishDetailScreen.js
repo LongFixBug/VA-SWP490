@@ -25,15 +25,19 @@ const DishDetailScreen = ({ navigation, route }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [averageRating, setAverageRating] = useState(0);
   const [userId, setUserId] = useState(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+
 
   useEffect(() => {
-    // Lấy userId từ AsyncStorage và ghi log
     const getUserIdFromStorage = async () => {
       try {
         const storedUserId = await AsyncStorage.getItem("userId");
         if (storedUserId) {
           setUserId(storedUserId);
           console.log("User ID từ AsyncStorage:", storedUserId);
+          
+          // Gọi hàm checkIfFavorite ngay sau khi lấy được userId
+          checkIfFavorite(storedUserId);
         } else {
           console.log("Không tìm thấy User ID trong AsyncStorage.");
         }
@@ -41,9 +45,10 @@ const DishDetailScreen = ({ navigation, route }) => {
         console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
       }
     };
-
+  
     getUserIdFromStorage();
   }, []);
+  
 
   useEffect(() => {
     const fetchDishDetail = async () => {
@@ -86,6 +91,34 @@ const DishDetailScreen = ({ navigation, route }) => {
     fetchFeedbacks();
   }, [dishId]);
 
+  // Function to check if the dish is already favorited
+  const checkIfFavorite = async (userId) => {
+    if (!userId) {
+      console.log("User ID is missing.");
+      return;
+    }
+  
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/getAllDishFavoriteByUserId/${userId}`
+      );
+      const favorites = await response.json();
+  
+      // Ghi log danh sách các món ăn yêu thích
+      console.log("Danh sách các món ăn yêu thích:", favorites);
+  
+      // Kiểm tra xem món ăn hiện tại có trong danh sách yêu thích không
+      const isFavorite = favorites.some((favorite) => favorite.dishId === parseInt(dishId));
+      console.log(`Is dish ${dishId} favorited: `, isFavorite);
+      setIsFavorited(isFavorite);
+    } catch (error) {
+      console.error("Error checking favorite status:", error);
+    }
+  };
+  
+  
+
+
   const handleAddToCart = async () => {
     if (!userId) {
       console.log("User ID is missing.");
@@ -97,7 +130,7 @@ const DishDetailScreen = ({ navigation, route }) => {
   
     try {
       const response = await fetch(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/cart/addToCart",
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/addToCart",
         {
           method: "POST",
           headers: {
@@ -112,24 +145,7 @@ const DishDetailScreen = ({ navigation, route }) => {
       );
   
       if (response.ok) {
-        // Lấy dữ liệu giỏ hàng hiện tại từ AsyncStorage
-        const existingCart = await AsyncStorage.getItem("cart");
-        let cart = existingCart ? JSON.parse(existingCart) : [];
-  
-        // Kiểm tra xem món ăn đã tồn tại trong giỏ hàng chưa
-        const existingItemIndex = cart.findIndex((item) => item.dishId === dish.dishId);
-        if (existingItemIndex !== -1) {
-          // Tăng số lượng nếu đã tồn tại
-          cart[existingItemIndex].quantity += 1;
-        } else {
-          // Thêm món mới vào giỏ hàng
-          cart.push({ ...dish, quantity: 1 });
-        }
-  
-        // Lưu lại mảng món ăn vào AsyncStorage
-        await AsyncStorage.setItem("cart", JSON.stringify(cart));
-        console.log("Giỏ hàng sau khi cập nhật:", cart);
-  
+        console.log("Món ăn đã được thêm vào giỏ hàng thành công.");
         showToastAddToCart();
       } else {
         console.error("Failed to add to cart:", response.status);
@@ -138,6 +154,55 @@ const DishDetailScreen = ({ navigation, route }) => {
       console.error("Error adding to cart:", error);
     }
   };
+  
+
+  const handleFavoriteToggle = async () => {
+    if (!userId) {
+      console.log("User ID is missing.");
+      return;
+    }
+
+    if (isFavorited) {
+      // Call API to remove from favorites
+      try {
+        await fetch("https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/deleteFavoriteDish", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            favoriteId: 0,
+            userId: parseInt(userId),
+            dishId: dishId,
+            favoriteDate: new Date().toISOString(),
+          }),
+        });
+        setIsFavorited(false);
+      } catch (error) {
+        console.error("Error removing favorite dish:", error);
+      }
+    } else {
+      // Call API to add to favorites
+      try {
+        await fetch("https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/createFavoriteDish", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            favoriteId: 0,
+            userId: parseInt(userId),
+            dishId: dishId,
+            favoriteDate: new Date().toISOString(),
+          }),
+        });
+        setIsFavorited(true);
+      } catch (error) {
+        console.error("Error adding favorite dish:", error);
+      }
+    }
+  };
+
   
   
   const showToastAddToCart = () => {
@@ -221,6 +286,8 @@ const DishDetailScreen = ({ navigation, route }) => {
             <Text style={styles.headerText}>Chi tiết món ăn</Text>
           </TouchableOpacity>
         </View>
+        
+
 
         {/* Image Slider */}
         <View style={{ height: 250 }}>
@@ -246,7 +313,19 @@ const DishDetailScreen = ({ navigation, route }) => {
 
         {/* Dish Details */}
         <View style={{ padding: 15 }}>
-          <Text style={styles.dishName}>{dish.name}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+    <Text style={styles.dishName}>{dish.name}</Text>
+    {/* Heart Icon for Favorite Toggle */}
+    <TouchableOpacity activeOpacity={0.8} onPress={handleFavoriteToggle}>
+      <View style={styles.heartIconContainer}>
+        <Icon
+          name={isFavorited ? "heart" : "heart-outline"}
+          size={30}
+          color={isFavorited ? "red" : COLORS.green}
+        />
+      </View>
+    </TouchableOpacity>
+</View>
           <View style={styles.dishInfo}>
             <Text style={styles.dishType}>{dish.dishType}</Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -490,5 +569,15 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     fontSize: 20,
     color: COLORS.white,
+  },
+  heartIconContainer: {
+    height: 50,
+    width: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    elevation: 0,
+    marginRight: 20,
   },
 });

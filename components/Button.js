@@ -20,7 +20,11 @@ const ButtonFloatBottom = ({ title, onPress, buttonColor }) => {
   return (
     <View style={styles.containerButtonFloatBottom}>
       <View style={styles.boxButtonFloatBottom}>
-        <TouchableOpacity activeOpacity={0.7} style={[styles.buttonFloatBottom,  {backgroundColor: buttonColor} ]} onPress={onPress}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[styles.buttonFloatBottom, { backgroundColor: buttonColor }]}
+          onPress={onPress}
+        >
           <Text style={styles.buttonFloatBottomText}>{title}</Text>
         </TouchableOpacity>
       </View>
@@ -28,25 +32,65 @@ const ButtonFloatBottom = ({ title, onPress, buttonColor }) => {
   );
 };
 
-const TwoButtonFloatBottom = ({ titleLeft, onPressLeft, buttonColorLeft, colorTextLeft, titleRight, onPressRight, buttonColorRight, colorTextRight }) => {
+const TwoButtonFloatBottom = ({
+  titleLeft,
+  onPressLeft,
+  buttonColorLeft,
+  colorTextLeft,
+  titleRight,
+  onPressRight,
+  buttonColorRight,
+  colorTextRight,
+}) => {
   return (
     <View style={styles.containerButtonFloatBottom}>
-      <View style={{
-    flexDirection: "row",
-    backgroundColor: COLORS.white,
-    height: 80,
-    justifyContent: "center",
-    alignItems: 'center',
-    elevation: 10,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.darkGrey}}>
-        <TouchableOpacity activeOpacity={0.7} style={[styles.twoBoxButtonFloatBottom,  {marginLeft: 10, backgroundColor: buttonColorLeft} ]} onPress={onPressLeft}>
-          <Icon name="chatbubble-ellipses-outline" size={20} color={colorTextLeft}/>
-          <Text style={[styles.buttonFloatBottomText,{color: colorTextLeft}]}>{" "}{titleLeft}</Text>
+      <View
+        style={{
+          flexDirection: "row",
+          backgroundColor: COLORS.white,
+          height: 80,
+          justifyContent: "center",
+          alignItems: "center",
+          elevation: 10,
+          borderTopWidth: 1,
+          borderTopColor: COLORS.darkGrey,
+        }}
+      >
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[
+            styles.twoBoxButtonFloatBottom,
+            { marginLeft: 10, backgroundColor: buttonColorLeft },
+          ]}
+          onPress={onPressLeft}
+        >
+          <Icon
+            name="chatbubble-ellipses-outline"
+            size={20}
+            color={colorTextLeft}
+          />
+          <Text
+            style={[styles.buttonFloatBottomText, { color: colorTextLeft }]}
+          >
+            {" "}
+            {titleLeft}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7} style={[styles.twoBoxButtonFloatBottom,  {backgroundColor: buttonColorRight} ]} onPress={onPressRight}>
-        <Icon name="duplicate" size={20} color={colorTextRight}/>
-          <Text style={[styles.buttonFloatBottomText,{color: colorTextRight}]}>{" "}{titleRight}</Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[
+            styles.twoBoxButtonFloatBottom,
+            { backgroundColor: buttonColorRight },
+          ]}
+          onPress={onPressRight}
+        >
+          <Icon name="duplicate" size={20} color={colorTextRight} />
+          <Text
+            style={[styles.buttonFloatBottomText, { color: colorTextRight }]}
+          >
+            {" "}
+            {titleRight}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -84,7 +128,7 @@ const styles = StyleSheet.create({
     height: 80,
     justifyContent: "center",
     borderTopWidth: 1,
-    borderTopColor: COLORS.darkGrey
+    borderTopColor: COLORS.darkGrey,
   },
   buttonFloatBottom: {
     marginLeft: 15,
@@ -106,10 +150,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 10,
     elevation: 2,
-    flexDirection: 'row',
+    flexDirection: "row",
     flex: 1,
     marginRight: 10,
-    justifyContent: 'center'
+    justifyContent: "center",
   },
 });
 

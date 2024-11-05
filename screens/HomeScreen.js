@@ -147,25 +147,41 @@ const HomeScreen = () => {
     // Lấy userId từ AsyncStorage
     useEffect(() => {
       const getUserIdFromStorage = async () => {
-          try {
-              const storedUserId = await AsyncStorage.getItem('userId');
-              console.log("User ID lấy từ AsyncStorage:", storedUserId); // Thêm log để kiểm tra
-              if (storedUserId) {
-                  setUserId(storedUserId);
-                  console.log("User ID đã được set:", storedUserId); // Thêm log để kiểm tra
-                  fetchMembershipData(storedUserId);
-              } else {
-                  console.log("Không tìm thấy User ID trong AsyncStorage."); // Thêm log để kiểm tra
-              }
-          } catch (error) {
-              console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
+        try {
+          const storedUserId = await AsyncStorage.getItem("userId");
+          console.log("User ID retrieved from AsyncStorage:", storedUserId);
+          
+          if (storedUserId) {
+            setUserId(storedUserId);
+            fetchUserData(storedUserId);  // Fetch user data with the userId
+          } else {
+            console.log("No User ID found in AsyncStorage.");
           }
+        } catch (error) {
+          console.error("Error retrieving userId from AsyncStorage:", error);
+        }
       };
   
       getUserIdFromStorage();
-  }, []);
+    }, []);
+  const fetchUserData = async (id) => {
+    try {
+      const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
+      
+      if (!response.ok) {
+        console.error("HTTP Error when fetching user data:", response.status, response.statusText);
+        return;
+      }
+  
+      const userData = await response.json();
+      console.log("User data retrieved from API:", userData);
 
-
+      // Set the username to display in "Xin chào ..."
+      setUsername(userData.username || "Unknown User");
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
   // Fetch rating for each dish
   const fetchDishRating = async (dishId) => {
     try {
@@ -192,7 +208,7 @@ const HomeScreen = () => {
   const fetchDishes = async () => {
     try {
       const response = await fetch(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/alldish"
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/allDish"
       );
       const jsonData = await response.json();
 
@@ -259,17 +275,34 @@ const HomeScreen = () => {
 
   const refreshCartCount = async () => {
     try {
-      const storedCart = await AsyncStorage.getItem("cart");
-      if (storedCart) {
-        const parsedCart = JSON.parse(storedCart);
-        setCartCount(parsedCart.length);
-      } else {
-        setCartCount(0);
+      if (userId) {
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${userId}`
+        );
+        const data = await response.json();
+  
+        // Lọc các mục có quantity > 0 và đếm số lượng
+        const validCartItems = data.filter(item => item.quantity > 0);
+        setCartCount(validCartItems.length); // Cập nhật số lượng món ăn có quantity > 0
       }
     } catch (error) {
-      console.error("Lỗi khi làm mới dữ liệu giỏ hàng từ AsyncStorage:", error);
+      console.error("Lỗi khi lấy dữ liệu giỏ hàng từ API:", error);
     }
   };
+  
+  
+  // useEffect để làm mới số lượng món trong giỏ khi màn hình Home hiển thị
+  useEffect(() => {
+    refreshCartCount();
+  
+    // Đăng ký listener để lắng nghe sự kiện thay đổi
+    const subscription = navigation.addListener("focus", () => {
+      refreshCartCount();
+    });
+  
+    return subscription;
+  }, [navigation, userId]);
+  
 
   // useEffect để lấy số lượng món ăn khi màn hình Home hiển thị
   useEffect(() => {

@@ -131,20 +131,23 @@ const CheckoutScreen = ({ navigation }) => {
   };
 
   const handleCheckout = async () => {
-    // Lọc các mục giỏ hàng có quantity > 0
+    // Filter out items with quantity > 0
     const validCartItems = detailedCartItems.filter(item => item.quantity > 0);
   
-    // Kiểm tra nếu giỏ hàng rỗng sau khi lọc
     if (validCartItems.length === 0) {
       Alert.alert("Thông báo", "Giỏ hàng trống.");
       return;
     }
   
-    // Chuẩn bị dữ liệu đơn hàng
+    // Calculate the discount amount
+    const discountAmount = totalPrice * discountRate;
+    // Calculate the final price after applying the discount
+    const adjustedFinalPrice = totalPrice - discountAmount;
+  
     let orderData = {
-      orderId: 0, // orderId sẽ được tạo tự động trên backend
+      orderId: 0,
       userId: parseInt(userId, 10),
-      totalPrice: finalPrice,
+      totalPrice: adjustedFinalPrice, // Use the adjusted final price here
       deliveryAddress: deliveryInfo.address || "Không có địa chỉ",
       note: note,
       deliveryFee: 0,
@@ -153,18 +156,13 @@ const CheckoutScreen = ({ navigation }) => {
       status: "pending",
     };
   
-    // Đặt thời gian hoàn thành (completedTime) là thời điểm hiện tại
     const currentTime = new Date().toISOString();
     if (currentTime) {
       orderData.completedTime = currentTime;
     }
   
-    // Log dữ liệu đơn hàng để kiểm tra trước khi gửi
-    console.log("Order data being sent:", orderData);
-  
     try {
-      // Gửi yêu cầu tạo đơn hàng
-      const response = await fetch(
+      await fetch(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderByCustomer",
         {
           method: "POST",
@@ -175,47 +173,52 @@ const CheckoutScreen = ({ navigation }) => {
         }
       );
   
-      if (response.ok) {
-        // Nhận phản hồi từ API về dữ liệu đơn hàng đã tạo
-        const data = await response.json();
-        console.log("Order created successfully:", data);
+      // Fetch the latest order by user ID
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
+      );
+      const orders = await response.json();
   
-        // Hiển thị thông báo thành công và điều hướng về trang Home
-        Alert.alert("Thành công", "Đơn hàng đã được tạo!", [
-          { text: "OK", onPress: () => navigation.navigate("Home") }
-        ]);
+      // Get the latest orderId
+      const latestOrder = orders.reduce((maxOrder, order) =>
+        order.orderId > maxOrder.orderId ? order : maxOrder
+      );
+      const orderId = latestOrder.orderId;
   
-        // Gửi thông tin chi tiết từng món trong giỏ hàng
-        for (const item of validCartItems) {
-          await fetch(
-            "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderDetail",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                orderId: data.orderId, // Lấy orderId từ phản hồi của API tạo đơn hàng
-                dishId: item.dishId,
-                quantity: item.quantity,
-                price: item.price,
-              }),
-            }
-          );
-        }
-      } else {
-        // Xử lý lỗi nếu không tạo được đơn hàng
-        const errorText = await response.text();
-        console.error("Failed to create order:", errorText);
-        Alert.alert("Lỗi", "Không thể tạo đơn hàng.", [{ text: "OK" }]);
+      console.log("Latest orderId:", orderId);
+  
+      // Send order details for each item in the cart
+      for (const item of validCartItems) {
+        await fetch(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderDetail",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              orderId: orderId,
+              dishId: item.dishId,
+              quantity: item.quantity,
+              price: item.price,
+            }),
+          }
+        );
       }
+  
+      Alert.alert("Thành công", "Đơn hàng đã được tạo!", [
+        { text: "OK", onPress: () => navigation.navigate("Home") }
+      ]);
+  
     } catch (error) {
-      console.log("Error creating order:", error);
-      Alert.alert("Tạo đơn hàng thành công.", "Đơn hàng của bạn đã được tạo thành công!", [
+      console.log("Error creating order details:", error);
+      Alert.alert("Lỗi", "Có lỗi xảy ra khi tạo đơn hàng.", [
         { text: "OK", onPress: () => navigation.navigate("Home") }
       ]);
     }
   };
+  
+  
   
   
   

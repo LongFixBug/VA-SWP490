@@ -154,6 +154,7 @@ const HomeScreen = () => {
           if (storedUserId) {
             setUserId(storedUserId);
             fetchUserData(storedUserId);  // Fetch user data with the userId
+            fetchMembershipData(storedUserId);
           } else {
             console.log("No User ID found in AsyncStorage.");
           }

@@ -7,7 +7,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 const ButtonFlex = ({ title, onPress, stylesText, stylesButton }) => {
   return (
     <TouchableOpacity
-      activeOpacity={0.5}
+      activeOpacity={0.8}
       style={[styles.buttonFlex, stylesButton]}
       onPress={onPress}
     >
@@ -16,13 +16,17 @@ const ButtonFlex = ({ title, onPress, stylesText, stylesButton }) => {
   );
 };
 
-const ButtonFloatBottom = ({ title, onPress, buttonColor }) => {
+const ButtonFloatBottom = ({ title, onPress, buttonColor, stylesButton }) => {
   return (
     <View style={styles.containerButtonFloatBottom}>
       <View style={styles.boxButtonFloatBottom}>
         <TouchableOpacity
           activeOpacity={0.7}
-          style={[styles.buttonFloatBottom, { backgroundColor: buttonColor }]}
+          style={[
+            styles.buttonFloatBottom,
+            stylesButton,
+            { backgroundColor: buttonColor },
+          ]}
           onPress={onPress}
         >
           <Text style={styles.buttonFloatBottomText}>{title}</Text>
@@ -131,8 +135,7 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.darkGrey,
   },
   buttonFloatBottom: {
-    marginLeft: 15,
-    marginRight: 15,
+    marginHorizontal: 15,
     height: 50,
     borderRadius: 10,
     backgroundColor: COLORS.orange,

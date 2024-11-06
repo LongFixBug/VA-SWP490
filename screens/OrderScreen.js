@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -5,125 +6,130 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
-  ScrollView,
   Image,
+  ScrollView,
 } from "react-native";
-import React from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const dataTabViewOrder = [
-  {
-    id: 0,
-    name: "Tất cả",
-  },
-  {
-    id: 1,
-    name: "Chờ xác nhận",
-  },
-  {
-    id: 2,
-    name: "Đang xử lí",
-  },
-  {
-    id: 3,
-    name: "Đang giao hàng",
-  },
-  {
-    id: 4,
-    name: "Đã giao",
-  },
-  {
-    id: 5,
-    name: "Đã hủy",
-  },
-];
-
-const favouriteList = [
-  {
-    id: "1",
-    name: "Đậu hũ, sườn non, canh măng, đậu ve ",
-    time: "23",
-    image:
-      "https://cellphones.com.vn/sforum/wp-content/uploads/2023/09/mon-chay-ngon-de-lam-1.jpg",
-    status: "pending",
-  },
-  {
-    id: "2",
-    name: "Sườn non",
-    time: "70",
-    image:
-      "https://file.hstatic.net/1000341804/file/canh-chay-ngu-sac_dafc5d8509b64f6c82afc1477065ed66_grande.jpeg",
-    status: "cancelled",
-  },
-  {
-    id: "3",
-    name: "Canh măng",
-    time: "60",
-    image:
-      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/canh-bong-h%E1%BA%B9-n%E1%BA%A5u-n%E1%BA%A5m.jpg.jpg",
-    status: "completed",
-  },
+  { id: 0, name: "Tất cả" },
+  { id: 1, name: "Chờ xác nhận" },
+  { id: 2, name: "Đang xử lí" },
+  { id: 3, name: "Đang giao hàng" },
+  { id: 4, name: "Đã giao" },
+  { id: 5, name: "Đã hủy" },
 ];
 
 const OrderScreen = ({ navigation }) => {
-  const [currentTabViewOrder, setCurrentTabViewOrder] = React.useState(0);
+  const [currentTabViewOrder, setCurrentTabViewOrder] = useState(0);
+  const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
 
   const orderStatus = {
     pending: { color: COLORS.orange, text: "Chờ xác nhận" },
     in_progress: { color: COLORS.blue, text: "Đang xử lí" },
-    delivered: { color: COLORS.green, text: "Đang giao hàng" },
+    shipping: { color: COLORS.green, text: "Đang giao hàng" },
     completed: { color: COLORS.green, text: "Đã giao" },
     cancelled: { color: COLORS.red, text: "Đã hủy" },
   };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/57`
+      );
+      const data = await response.json();
+
+      const ordersWithDetails = await Promise.all(
+        data.map(async (order) => {
+          const orderDetailResponse = await fetch(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailOrderId/${order.orderId}`
+          );
+          const orderDetails = await orderDetailResponse.json();
+
+          const dishesWithDetails = await Promise.all(
+            orderDetails.map(async (detail) => {
+              const dishResponse = await fetch(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${detail.dishId}`
+              );
+              const dish = await dishResponse.json();
+              return { ...detail, dish };
+            })
+          );
+
+          return { ...order, orderDetails: dishesWithDetails };
+        })
+      );
+
+      setOrders(ordersWithDetails);
+      filterOrdersByStatus(currentTabViewOrder, ordersWithDetails);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    }
+  };
+
+  const saveOrderToStorage = async (order) => {
+    try {
+      console.log("Order selected:", order); // Log order details
+      await AsyncStorage.setItem("selectedOrder", JSON.stringify(order));
+    } catch (error) {
+      console.error("Error saving order to AsyncStorage:", error);
+    }
+  };
+
+  const filterOrdersByStatus = (status, allOrders) => {
+    if (status === 0) {
+      setFilteredOrders(allOrders);
+    } else {
+      const filtered = allOrders.filter(
+        (order) =>
+          orderStatus[order.status]?.text === dataTabViewOrder[status].name
+      );
+      setFilteredOrders(filtered);
+    }
+  };
+
+  useEffect(() => {
+    filterOrdersByStatus(currentTabViewOrder, orders);
+  }, [currentTabViewOrder, orders]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [currentTabViewOrder])
+  );
+
   return (
     <>
-      <View
-        style={{
-          marginTop: StatusBar.currentHeight,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: 20,
-          backgroundColor: COLORS.white,
-        }}
-      >
-        <Text
-          style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
-        >
-          Đơn hàng
-        </Text>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Đơn hàng</Text>
         <Icon name="menu" size={28} color={COLORS.green} />
       </View>
       <View style={{ height: "auto" }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{}}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {dataTabViewOrder.map((tabView, index) => (
             <TouchableOpacity
-              activeOpacity={0.8}
               key={index}
               onPress={() => setCurrentTabViewOrder(tabView.id)}
               style={{
-                paddingVertical: 20,
-                paddingHorizontal: 20,
-                borderBottomWidth: 3,
+                ...styles.tabView,
                 borderBottomColor:
                   currentTabViewOrder === tabView.id
                     ? COLORS.green
                     : COLORS.greyPastel,
-                backgroundColor: COLORS.white,
-                borderTopWidth: 1,
-                borderTopColor: COLORS.greyPastel,
               }}
             >
               <Text
                 style={{
-                  fontFamily: FONTS.medium,
-                  fontSize: 16,
+                  ...styles.tabText,
                   color:
                     currentTabViewOrder === tabView.id
                       ? COLORS.green
@@ -136,89 +142,122 @@ const OrderScreen = ({ navigation }) => {
           ))}
         </ScrollView>
       </View>
-      {currentTabViewOrder === 0 && (
-        <FlatList
-          showsVerticalScrollIndicator={false}
-          data={favouriteList}
-          renderItem={({ item, index }) => (
-            <TouchableOpacity
-              onPress={() => {
-                navigation.navigate("OrderDetails");
-              }}
-              activeOpacity={0.8}
-              key={index}
-              style={{
-                backgroundColor: COLORS.white,
-                padding: 10,
-                marginHorizontal: 5,
-                marginBottom: 5,
-                flexDirection: "row",
-                borderWidth: 2,
-                borderColor: COLORS.greyPastel,
-                borderRadius: 10,
-              }}
-            >
-              <Image
-                source={{ uri: item.image }}
-                style={{ height: "auto", width: 100, borderRadius: 5 }}
-              />
-              <View
+      <FlatList
+        data={filteredOrders}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            onPress={() => {
+              saveOrderToStorage(item); // Save the selected order to AsyncStorage
+              navigation.navigate("OrderDetail", { orderId: item.orderId }); // Navigate to OrderDetail with orderId
+            }}
+            style={styles.orderContainer}
+          >
+            <Image
+              source={{ uri: item.orderDetails[0]?.dish.imageUrl }}
+              style={styles.orderImage}
+            />
+            <View style={styles.orderDetails}>
+              <Text style={styles.orderName} numberOfLines={1}>
+                {item.orderDetails.map((detail) => detail.dish.name).join(", ")}
+              </Text>
+              <Text style={styles.orderQuantity}>
+                Số lượng:{" "}
+                {item.orderDetails.reduce(
+                  (acc, detail) => acc + detail.quantity,
+                  0
+                )}
+              </Text>
+              <Text style={styles.orderTotal}>Tổng tiền: {item.totalPrice}đ</Text>
+              <Text
                 style={{
-                  flex: 1,
-                  padding: 0,
-                  paddingLeft: 15,
-                  paddingTop: 5,
+                  ...styles.orderStatus,
+                  color: orderStatus[item.status]?.color,
                 }}
               >
-                <Text
-                  style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}
-                  numberOfLines={1}
-                >
-                  {item.name}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: FONTS.semiBold,
-                    fontSize: 12,
-                    color: COLORS.grey,
-                    marginTop: 5,
-                  }}
-                >
-                  Số lượng: 3
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: FONTS.semiBold,
-                    alignSelf: "flex-start",
-                    fontSize: 13,
-                    color: COLORS.green,
-                    marginTop: 5,
-                  }}
-                >
-                  Tổng tiền: 159.000đ
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: FONTS.semiBold,
-                    alignSelf: "flex-end",
-                    fontSize: 13,
-                    marginTop: 10,
-                    color: orderStatus[item.status].color,
-                  }}
-                >
-                  {orderStatus[item.status].text}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          keyExtractor={(item) => item.id}
-          style={{ backgroundColor: COLORS.white, paddingTop: 5 }}
-        />
-      )}
+                {orderStatus[item.status]?.text}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.orderId.toString()}
+        style={styles.flatList}
+      />
     </>
   );
 };
 
 export default OrderScreen;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  header: {
+    marginTop: StatusBar.currentHeight,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: COLORS.white,
+  },
+  headerText: {
+    fontFamily: FONTS.bold,
+    fontSize: 25,
+    color: COLORS.green,
+  },
+  tabView: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 3,
+    backgroundColor: COLORS.white,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.greyPastel,
+  },
+  tabText: {
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+  },
+  orderContainer: {
+    backgroundColor: COLORS.white,
+    padding: 10,
+    marginHorizontal: 5,
+    marginBottom: 5,
+    flexDirection: "row",
+    borderWidth: 2,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+  },
+  orderImage: {
+    height: "auto",
+    width: 100,
+    borderRadius: 5,
+  },
+  orderDetails: {
+    flex: 1,
+    paddingLeft: 15,
+    paddingTop: 5,
+  },
+  orderName: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 15,
+  },
+  orderQuantity: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 12,
+    color: COLORS.grey,
+    marginTop: 5,
+  },
+  orderTotal: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 13,
+    color: COLORS.green,
+    marginTop: 5,
+  },
+  orderStatus: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 13,
+    alignSelf: "flex-end",
+    marginTop: 10,
+  },
+  flatList: {
+    backgroundColor: COLORS.white,
+    paddingTop: 5,
+  },
+});

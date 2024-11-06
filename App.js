@@ -286,7 +286,7 @@ export default function App() {
 
           <Stack.Screen name="Home" component={TabRoute} />
           <Stack.Screen name="Order" component={OrderScreen} />
-          <Stack.Screen name="OrderDetails" component={OrderDetailScreen} />
+          <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
           <Stack.Screen
             name="SuggestedDishes"
             component={SuggestedDishesScreen}

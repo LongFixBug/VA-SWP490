@@ -26,6 +26,23 @@ const CheckoutScreen = ({ navigation }) => {
   const [finalPrice, setFinalPrice] = useState(0);
   const [tierInfo, setTierInfo] = useState(null);
   const [note, setNote] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState(0);
+
+  const parseAddress = (fullAddress) => {
+    if (!fullAddress) return { province: "", district: "", address: "" };
+    const parts = fullAddress.split(", ");
+    return {
+      province: parts[0] || "",
+      district: parts[1] || "",
+      address: parts[2] || "",
+    };
+  };
+  
+  
+  // Sử dụng hàm parseAddress để tách chuỗi thành các phần riêng biệt
+  const { province, district, address } = parseAddress(deliveryInfo.address);
+  
+  
 
   const dataPayment = [
     {
@@ -43,33 +60,37 @@ const CheckoutScreen = ({ navigation }) => {
       try {
         const storedUserId = await AsyncStorage.getItem("userId");
         if (storedUserId) {
-          console.log("User ID retrieved from AsyncStorage:", storedUserId);
           setUserId(storedUserId);
-          fetchDeliveryInfo(storedUserId);
-          fetchCartDetails(storedUserId);
-          fetchTierInfo(storedUserId);
+          await fetchDeliveryInfo(storedUserId); // Đảm bảo fetchDeliveryInfo chạy xong trước
+          await fetchCartDetails(storedUserId);
+          await fetchTierInfo(storedUserId);
         } else {
-          console.log("No User ID found in AsyncStorage");
+          console.log("Không tìm thấy User ID trong AsyncStorage");
         }
       } catch (error) {
-        console.error("Error fetching userId from AsyncStorage:", error);
+        console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
       }
     };
+    
+    const fetchDeliveryInfo = async (id) => {
+      try {
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
+        );
+        const data = await response.json();
+        console.log("Delivery info:", data);
+        setDeliveryInfo(data);
+        fetchDeliveryFee(); // Gọi fetchDeliveryFee ở đây sau khi cập nhật deliveryInfo
+      } catch (error) {
+        console.error("Error fetching delivery info:", error);
+      }
+    };
+    
     getUserIdFromStorage();
   }, []);
+  
 
-  const fetchDeliveryInfo = async (id) => {
-    try {
-      const response = await fetch(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
-      );
-      const data = await response.json();
-      console.log("Delivery info:", data);
-      setDeliveryInfo(data);
-    } catch (error) {
-      console.error("Error fetching delivery info:", error);
-    }
-  };
+
 
   const fetchCartDetails = async (id) => {
     try {
@@ -131,7 +152,7 @@ const CheckoutScreen = ({ navigation }) => {
   };
 
   const handleCheckout = async () => {
-    // Filter out items with quantity > 0
+    // Lọc các món có quantity > 0
     const validCartItems = detailedCartItems.filter(item => item.quantity > 0);
   
     if (validCartItems.length === 0) {
@@ -139,18 +160,15 @@ const CheckoutScreen = ({ navigation }) => {
       return;
     }
   
-    // Calculate the discount amount
-    const discountAmount = totalPrice * discountRate;
-    // Calculate the final price after applying the discount
-    const adjustedFinalPrice = totalPrice - discountAmount;
+   
   
     let orderData = {
       orderId: 0,
       userId: parseInt(userId, 10),
-      totalPrice: adjustedFinalPrice, // Use the adjusted final price here
+      totalPrice: finalPrice, // Sử dụng finalPrice đã được tính từ useEffect
       deliveryAddress: deliveryInfo.address || "Không có địa chỉ",
       note: note,
-      deliveryFee: 0,
+      deliveryFee: deliveryFee,
       deliveryFailedFee: 0,
       orderDate: new Date().toISOString(),
       status: "pending",
@@ -160,6 +178,7 @@ const CheckoutScreen = ({ navigation }) => {
     if (currentTime) {
       orderData.completedTime = currentTime;
     }
+    console.log("Order Data:", orderData);
   
     try {
       await fetch(
@@ -173,13 +192,13 @@ const CheckoutScreen = ({ navigation }) => {
         }
       );
   
-      // Fetch the latest order by user ID
+      // Lấy đơn hàng mới nhất theo user ID
       const response = await fetch(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
       );
       const orders = await response.json();
   
-      // Get the latest orderId
+      // Lấy orderId mới nhất
       const latestOrder = orders.reduce((maxOrder, order) =>
         order.orderId > maxOrder.orderId ? order : maxOrder
       );
@@ -187,7 +206,7 @@ const CheckoutScreen = ({ navigation }) => {
   
       console.log("Latest orderId:", orderId);
   
-      // Send order details for each item in the cart
+      // Gửi chi tiết đơn hàng cho từng món trong giỏ hàng
       for (const item of validCartItems) {
         await fetch(
           "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderDetail",
@@ -219,6 +238,50 @@ const CheckoutScreen = ({ navigation }) => {
   };
   
   
+
+  const fetchDeliveryFee = async () => {
+    try {
+      const queryParams = new URLSearchParams({
+        pick_province: "Hồ Chí Minh",
+        pick_district: "Quận 9",
+        province: deliveryInfo.province || "Hồ Chí Minh",
+        district: deliveryInfo.district || "Quận 12",
+        address: deliveryInfo.address || "338/10 Đ. Lê Thị Riêng",
+        weight: 1000, // hoặc thiết lập trọng lượng động
+        value: totalPrice, // giá trị đơn hàng
+      }).toString();
+  
+      const response = await fetch(`https://services.giaohangtietkiem.vn/services/shipment/fee?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'token': '35j4uHBQNjODAEOrWBlA23Sscp3TicIQ0k4mN2', // Sử dụng token mới
+        },
+      });
+  
+      const data = await response.json();
+      console.log("Dữ liệu phí giao hàng:", data);
+      
+      // Kiểm tra xem 'data' có chứa 'fee' hay không
+      if (data && data.fee) {
+        setDeliveryFee(data.fee.fee);
+        setFinalPrice((totalPrice - totalPrice * discountRate) + data.fee.fee);
+      } else {
+        console.error("Không tìm thấy dữ liệu 'fee' trong phản hồi:", data);
+        Alert.alert("Lỗi", "Không thể lấy phí giao hàng. Vui lòng thử lại sau.");
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy phí giao hàng:", error);
+    }
+  };
+  
+  useEffect(() => {
+    const discountAmount = totalPrice * discountRate;
+    const adjustedFinalPrice = (totalPrice - discountAmount) + deliveryFee;
+    setFinalPrice(adjustedFinalPrice);
+  }, [totalPrice, discountRate, deliveryFee]);
+  
+
   
   
   

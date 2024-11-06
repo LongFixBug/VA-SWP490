@@ -6,7 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  
+  Modal,
   Alert,
 } from 'react-native';
 import { Menu, Provider } from 'react-native-paper';
@@ -19,6 +19,8 @@ import { ButtonFlex } from '../components/Button';
 import moment from 'moment';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FlatList } from 'react-native';
+
 
 const InputProfileScreen = ({ navigation, route }) => {
   // Nhận phoneNumber và password từ route params
@@ -29,7 +31,7 @@ const InputProfileScreen = ({ navigation, route }) => {
   const [error, setError] = useState('');
   const [selectedPreferencesId, setSelectedPreferencesId] = useState('1');
   const [selectedSexId, setSelectedSexId] = useState('1');
-  const [address, setAddress] = useState('');
+  
   const [dob, setDob] = useState(new Date());
   const age = moment().diff(dob, 'years');
 
@@ -49,6 +51,9 @@ const InputProfileScreen = ({ navigation, route }) => {
   const [visibleProfessionMenu, setVisibleProfessionMenu] = useState(false);
   const [visibleActivityMenu, setVisibleActivityMenu] = useState(false);
   const [visibleGoalMenu, setVisibleGoalMenu] = useState(false);
+  const [province, setProvince] = useState("Hồ Chí Minh");
+  const [district, setDistrict] = useState("");
+  const [address, setAddress] = useState("");
 
   const openProfessionMenu = () => setVisibleProfessionMenu(true);
   const closeProfessionMenu = () => setVisibleProfessionMenu(false);
@@ -57,48 +62,78 @@ const InputProfileScreen = ({ navigation, route }) => {
   const openGoalMenu = () => setVisibleGoalMenu(true);
   const closeGoalMenu = () => setVisibleGoalMenu(false);
 
+
+
+  const [visibleDistrictModal, setVisibleDistrictModal] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState("Quận 1");
+  const [visibleProvinceMenu, setVisibleProvinceMenu] = useState(false);
+
+  const openDistrictModal = () => setVisibleDistrictModal(true);
+  const closeDistrictModal = () => setVisibleDistrictModal(false);
+  const openProvinceMenu = () => setVisibleProvinceMenu(true);
+  const closeProvinceMenu = () => setVisibleProvinceMenu(false);
+
   const onDateChange = (event, selectedDate) => {
     const currentDate = selectedDate || dob;
     setShowDatePicker(false);
     setDob(currentDate);
   };
 
-  const handleRegister = async () => {
-    // Kiểm tra nếu các trường bắt buộc đã được nhập đầy đủ
-    if (!username || !email || !phoneNumber || !address || !dob || !password || !confirmPassword) {
-      setError('Vui lòng nhập đầy đủ thông tin!');
-      return;
-    }
-  
-    // Kiểm tra nếu mật khẩu và xác nhận mật khẩu khớp
-    if (password !== confirmPassword) {
-      Alert.alert('Lỗi', 'Mật khẩu và xác nhận mật khẩu không khớp!');
-      return;
-    }
+  const districts = [
+    "Quận 1", "Quận 3", "Quận 4", "Quận 5", "Quận 6",
+    "Quận 7", "Quận 8", "Quận 10", "Quận 11", "Quận 12",
+    "Quận Bình Tân", "Quận Bình Thạnh", "Quận Gò Vấp",
+    "Quận Phú Nhuận", "Quận Tân Bình", "Quận Tân Phú",
+    "Huyện Bình Chánh", "Huyện Cần Giờ", "Huyện Củ Chi",
+    "Huyện Hóc Môn", "Huyện Nhà Bè", "Thành phố Thủ Đức"
+  ];
 
-    const formattedPhoneNumber = phoneNumber.startsWith('0') ? phoneNumber : '0' + phoneNumber;
-  
-    // Chuẩn bị dữ liệu để gửi tới API
-    const age = moment().diff(dob, 'years');
-    const gender = selectedSexId === '1' ? 'Man' : selectedSexId === '2' ? 'Woman' : 'Other';
-  
-    const requestData = {
-      username,
-      password,
-      email,
-      phoneNumber: formattedPhoneNumber,
-      address,
-      height: parseFloat(height), // Đảm bảo chiều cao là số
-      weight: parseFloat(weight), // Đảm bảo cân nặng là số
-      age,
-      gender,
-      dietaryPreferenceId: parseInt(selectedPreferencesId), // Thêm dietary_preference_id
-      profession,
-      activityLevel,
-      goal,
-      isPhoneVerified: true, // Thêm is_phone_verified
-    };
-  
+  const handleRegister = async () => {
+
+
+     // Kiểm tra nếu cả 3 phần của địa chỉ đều được nhập đầy đủ
+  if (!province || !selectedDistrict || !address.trim()) {
+    Alert.alert("Lỗi", "Vui lòng nhập đầy đủ địa chỉ!");
+    return;
+  }
+
+  const fullAddress = `${province}, ${selectedDistrict}, ${address}`;
+  console.log("Địa chỉ đầy đủ:", fullAddress);
+
+  // Kiểm tra nếu các trường bắt buộc đã được nhập đầy đủ
+  if (!username || !email || !phoneNumber || !dob || !password || !confirmPassword) {
+    setError('Vui lòng nhập đầy đủ thông tin!');
+    return;
+  }
+
+  // Kiểm tra nếu mật khẩu và xác nhận mật khẩu khớp
+  if (password !== confirmPassword) {
+    Alert.alert('Lỗi', 'Mật khẩu và xác nhận mật khẩu không khớp!');
+    return;
+  }
+
+  const formattedPhoneNumber = phoneNumber.startsWith('0') ? phoneNumber : '0' + phoneNumber;
+
+  // Chuẩn bị dữ liệu để gửi tới API
+  const age = moment().diff(dob, 'years');
+  const gender = selectedSexId === '1' ? 'Man' : selectedSexId === '2' ? 'Woman' : 'Other';
+
+  const requestData = {
+    username,
+    password,
+    email,
+    phoneNumber: formattedPhoneNumber,
+    address: fullAddress, // Sử dụng địa chỉ đầy đủ ở đây
+    height: parseFloat(height), // Đảm bảo chiều cao là số
+    weight: parseFloat(weight), // Đảm bảo cân nặng là số
+    age,
+    gender,
+    dietaryPreferenceId: parseInt(selectedPreferencesId), // Thêm dietary_preference_id
+    profession,
+    activityLevel,
+    goal,
+    isPhoneVerified: true, // Thêm is_phone_verified
+  };
     // Ghi log dữ liệu đã nhập
     console.log('Dữ liệu đã nhập:', requestData);
     try {
@@ -227,7 +262,17 @@ const InputProfileScreen = ({ navigation, route }) => {
   // React.useEffect(() => {
   //   console.log("Route params:", route.params);
   // }, [route.params]);
-  
+  const renderDistrictItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.districtItem}
+      onPress={() => {
+        setSelectedDistrict(item);
+        closeDistrictModal();
+      }}
+    >
+      <Text style={styles.districtText}>{item}</Text>
+    </TouchableOpacity>
+  );
   
 
   return (
@@ -454,20 +499,67 @@ const InputProfileScreen = ({ navigation, route }) => {
 
           </View>
         </View>
+       
+
+       
+
+<View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>
+            Tỉnh/Thành phố <Text style={{ color: COLORS.red }}>*</Text>
+          </Text>
+          <Text style={styles.textInput}>Hồ Chí Minh</Text>
+        </View>
+
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
-            Địa chỉ <Text style={{ color: COLORS.red }}>*</Text>
+            Quận/Huyện <Text style={{ color: COLORS.red }}>*</Text>
+          </Text>
+          <TouchableOpacity style={styles.textInput} onPress={openDistrictModal}>
+            <Text>{selectedDistrict}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Modal
+          visible={visibleDistrictModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={closeDistrictModal}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Chọn Quận/Huyện</Text>
+              <FlatList
+                data={districts}
+                renderItem={renderDistrictItem}
+                keyExtractor={(item) => item}
+              />
+              <TouchableOpacity onPress={closeDistrictModal} style={styles.modalCloseButton}>
+                <Text style={styles.modalCloseButtonText}>Đóng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+
+
+
+
+        {/* Địa chỉ cụ thể */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>
+            Địa chỉ cụ thể <Text style={{ color: COLORS.red }}>*</Text>
           </Text>
           <View style={styles.inputRow}>
             <Icon name="location-sharp" size={20} color={COLORS.green} />
             <TextInput
               style={styles.textInput}
-              placeholder="VD: 50 Lê Văn Việt, Hiệp Phú, Quận 9,..."
+              placeholder="VD: 50 Lê Văn Việt, Hiệp Phú"
               placeholderTextColor={COLORS.lightGrey}
               onChangeText={setAddress}
             />
           </View>
         </View>
+
         <ButtonFlex
   title={'Bắt đầu!'}
   stylesButton={{ paddingVertical: 15, elevation: 3, backgroundColor: COLORS.green, borderRadius: 10 }}
@@ -517,4 +609,62 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontFamily: FONTS.semiBold,
   },
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  button: {
+    padding: 10,
+    backgroundColor: '#ddd',
+    borderRadius: 5,
+    marginTop: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '50%',
+    padding: 5,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    alignItems: 'center',
+    height: '50%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalCloseButton: {
+    marginTop: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    backgroundColor: COLORS.green,
+  },
+  modalCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  districtItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  districtText: {
+    fontSize: 16,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
 });
+
+

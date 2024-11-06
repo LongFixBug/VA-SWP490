@@ -17,6 +17,7 @@ const Tab = createBottomTabNavigator();
 import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
+import InputOTPScreen from "./screens/InputOTPScreen";
 import InputProfileScreen from "./screens/InputProfileScreen";
 
 import HomeScreen from "./screens/HomeScreen";
@@ -38,9 +39,11 @@ import PaymentScreen from "./screens/PaymentScreen";
 import MenuScreen from "./screens/MenuScreen";
 import MembershipScreen from "./screens/MembershipScreen";
 import DetailMenuScreen from "./screens/DetailMenuScreen";
+import EditProfileScreen from "./screens/EditProfileScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
+
 
 const toastConfig = {
   success: (props) => (
@@ -127,7 +130,7 @@ const TabRoute = ({ userId }) => {
         }}
       />
       <Tab.Screen
-        name="Tìm kiếm"
+        name="Đơn hàng"
         component={OrderScreen}
         options={{
           tabBarIcon: ({ focused, color, size }) => {
@@ -279,10 +282,11 @@ export default function App() {
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="InputOTP" component={InputOTPScreen} />
 
           <Stack.Screen name="Home" component={TabRoute} />
           <Stack.Screen name="Order" component={OrderScreen} />
-          <Stack.Screen name="OrderDetails" component={OrderDetailScreen} />
+          <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
           <Stack.Screen
             name="SuggestedDishes"
             component={SuggestedDishesScreen}
@@ -301,6 +305,7 @@ export default function App() {
           <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
           <Stack.Screen name="Membership" component={MembershipScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />

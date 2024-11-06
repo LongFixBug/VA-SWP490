@@ -1,120 +1,158 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   StatusBar,
-  ScrollView,
   Image,
+  RefreshControl,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import IconAnt from "react-native-vector-icons/AntDesign";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 
-const dataArticle = [
-  {
-    id: "1",
-    name: "Đậu hũ ki",
-    time: "23",
-    image:
-      "https://cellphones.com.vn/sforum/wp-content/uploads/2023/09/mon-chay-ngon-de-lam-1.jpg",
-    latitude: 10.8441,
-    longitude: 106.78288,
-  },
-  {
-    id: "2",
-    name: "Sườn non",
-    time: "70",
-    image:
-      "https://file.hstatic.net/1000341804/file/canh-chay-ngu-sac_dafc5d8509b64f6c82afc1477065ed66_grande.jpeg",
-    latitude: 10.790032685611157,
-    longitude: 106.68744825401734,
-  },
-  {
-    id: "3",
-    name: "A Mà Kitchen",
-    time: "60",
-    image:
-      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/canh-bong-h%E1%BA%B9-n%E1%BA%A5u-n%E1%BA%A5m.jpg.jpg",
-    latitude: 10.7768469439067,
-    longitude: 106.69026283867206,
-  },
-  {
-    id: "4",
-    name: "King BBQ",
-    time: "50",
-    image:
-      "https://tiki.vn/blog/wp-content/uploads/2023/08/8DLbexQE5KIiDOBbhCUf0Myl39csYt_YRWOInLorMpT-6l-b4bFEwNXhj23bIUfqc9oDSv5f64GuEeMKWtPZIgQe_fm1BeGuTBlZ2GqWo_AMUFNfYo8mFqsVjn7iQe0zzAC_uiAa7dVlxUFLtndk3s.png",
-    latitude: 10.847411218830398,
-    longitude: 106.7762775617879,
-  },
-  {
-    id: "5",
-    name: "Hanuri-Korean Fast Food",
-    time: "70",
-    image:
-      "https://storage.googleapis.com/ops-shopee-files-live/live/shopee-blog/2021/04/mon-kho-chay-2.jpg",
-    latitude: 10.775871102987148,
-    longitude: 106.68727154052584,
-  },
+const ProfileScreen = ({ navigation }) => {
+  const [expandedDecription, setExpandedDecription] = useState({});
+  const [userId, setUserId] = useState(null);
+  const [username, setUsername] = useState("Người dùng");
+  const [userPosts, setUserPosts] = useState([]);
+  const [pendingPosts, setPendingPosts] = useState([]);
+  const [showPendingPosts, setShowPendingPosts] = useState(false);
+  const [pendingPostsCount, setPendingPostsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  {
-    id: "7",
-    name: "Maison Mận-Đỏ",
-    time: "75",
-    image:
-      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/dau-phu-sot-nam-dong-co.jpg",
-    latitude: 10.793057450832194,
-    longitude: 106.69022156701138,
-  },
-  {
-    id: "8",
-    name: "Maison Mận-Đỏ",
-    time: "75",
-    image:
-      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/dau-phu-sot-nam-dong-co.jpg",
-    latitude: 10.793057450832194,
-    longitude: 106.69022156701138,
-  },
-];
-const dataPictureOfArticle = Array.from({ length: 4 }, (_, index) => ({
-  id: index + 1,
-  name: `Item ${index + 1}`,
-}));
-const ProfileScreen = () => {
-  const [expandedDecription, setExpandedDecription] = React.useState({});
+  // Function to fetch user posts
+  const fetchUserPosts = async () => {
+    if (userId) {
+      try {
+        console.log("Fetching posts for userId:", userId);
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/getArticleByAuthorId/${userId}`
+        );
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          // Filter posts by status
+          const acceptedPosts = data.filter((post) => post.status === "accepted");
+          const pendingPosts = data.filter((post) => post.status === "pending");
+
+          setUserPosts(acceptedPosts);
+          setPendingPosts(pendingPosts);
+          setPendingPostsCount(pendingPosts.length);
+        } else {
+          console.log("Invalid data format:", data);
+          setUserPosts([]);
+          setPendingPosts([]);
+          setPendingPostsCount(0);
+        }
+      } catch (error) {
+        console.error("Error fetching user posts:", error);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  };
+
+  // Fetch username from AsyncStorage
+  useEffect(() => {
+    const getUsernameFromStorage = async () => {
+      try {
+        const storedUsername = await AsyncStorage.getItem("username");
+        if (storedUsername) {
+          setUsername(storedUsername);
+        } else {
+          console.log("Không tìm thấy username trong AsyncStorage");
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy username từ AsyncStorage:", error);
+      }
+    };
+
+    getUsernameFromStorage();
+  }, []);
+
+  // Fetch userId from AsyncStorage
+  useEffect(() => {
+    const getUserIdFromStorage = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (storedUserId) {
+          setUserId(storedUserId);
+        } else {
+          console.log("Không tìm thấy User ID trong AsyncStorage.");
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
+      }
+    };
+
+    getUserIdFromStorage();
+  }, []);
+
+  // Fetch user posts when userId is set
+  useEffect(() => {
+    if (userId !== null) {
+      fetchUserPosts();
+    }
+  }, [userId]);
+
   const toggleShowMore = (id) => {
     setExpandedDecription((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
   };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchUserPosts(); // Call fetchUserPosts directly here
+  };
+
   return (
     <>
-      <View
-        style={{
-          marginTop: StatusBar.currentHeight,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: 20,
-          backgroundColor: COLORS.white,
-        }}
-      >
-        <Text
-          style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
-        >
-          Trang cá nhân
-        </Text>
-        <Icon name="settings-outline" size={28} color={COLORS.green} />
-      </View>
+     <View
+  style={{
+    marginTop: StatusBar.currentHeight,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: COLORS.white,
+  }}
+>
+  <Text
+    style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
+  >
+    Trang cá nhân
+  </Text>
+
+  <TouchableOpacity
+    onPress={() => {
+      console.log('Navigating to EditProfile');
+      navigation.navigate('EditProfile');
+    }}
+  >
+    <Icon name="settings-outline" size={28} color={COLORS.green} />
+  </TouchableOpacity>
+</View>
+
+      
       <ScrollView
         style={{ flex: 1, backgroundColor: COLORS.white, padding: 10 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
+        {refreshing && (
+          <Text style={{ textAlign: "center", marginVertical: 10, color: COLORS.green }}>
+            Đang làm mới trang...
+          </Text>
+        )}
         <View style={{ flexDirection: "row" }}>
           <Image
             source={{
@@ -127,63 +165,71 @@ const ProfileScreen = () => {
               marginRight: 10,
             }}
           />
+         
           <View
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            <TouchableOpacity
-              style={{
-                alignItems: "center",
-                width: "30%",
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: FONTS.bold,
-                  fontSize: 15,
-                }}
-              >
-                123
-              </Text>
-              <Text
-                style={{
-                  fontFamily: FONTS.medium,
-                  marginTop: 8,
-                  fontSize: 12,
-                }}
-                numberOfLines={1}
-              >
-                Bài đăng
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                alignItems: "center",
-                width: "35%",
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: FONTS.bold,
-                  fontSize: 15,
-                }}
-              >
-                157
-              </Text>
-              <Text
-                style={{
-                  fontFamily: FONTS.medium,
-                  marginTop: 8,
-                  fontSize: 12,
-                }}
-                numberOfLines={1}
-              >
-                Bài chờ duyệt
-              </Text>
-            </TouchableOpacity>
+  style={{
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  }}
+>
+  {/* Bài đăng Section */}
+  <TouchableOpacity
+    style={{
+      alignItems: "center",
+      width: "30%",
+    }}
+    onPress={() => setShowPendingPosts(false)} // Ensure this shows accepted posts
+  >
+    <Text
+      style={{
+        fontFamily: FONTS.bold,
+        fontSize: 15,
+      }}
+    >
+      {userPosts.length}
+    </Text>
+    <Text
+      style={{
+        fontFamily: FONTS.medium,
+        marginTop: 8,
+        fontSize: 12,
+      }}
+      numberOfLines={1}
+    >
+      Bài đăng
+    </Text>
+  </TouchableOpacity>
+
+  {/* Bài chờ duyệt Section */}
+  <TouchableOpacity
+    style={{
+      alignItems: "center",
+      width: "35%",
+    }}
+    onPress={() => setShowPendingPosts(true)} // Ensure this shows pending posts
+  >
+    <Text
+      style={{
+        fontFamily: FONTS.bold,
+        fontSize: 15,
+      }}
+    >
+      {pendingPostsCount}
+    </Text>
+    <Text
+      style={{
+        fontFamily: FONTS.medium,
+        marginTop: 8,
+        fontSize: 12,
+      }}
+      numberOfLines={1}
+    >
+      Bài chờ duyệt
+    </Text>
+  </TouchableOpacity>
+
+
             <TouchableOpacity style={{ alignItems: "center", width: "35%" }}>
               <Text
                 style={{
@@ -214,7 +260,7 @@ const ProfileScreen = () => {
             marginLeft: 5,
           }}
         >
-          Nguyễn Hải Long
+          {username}
         </Text>
         <View style={{ marginTop: 20 }}>
           <View
@@ -232,170 +278,307 @@ const ProfileScreen = () => {
                 fontSize: 17,
               }}
             >
-              Bài đăng
+              {showPendingPosts ? "Bài chờ duyệt" : "Bài đăng"}
             </Text>
             <Icon name="options" size={24} color={COLORS.grey} />
           </View>
-          {dataArticle.map((item, index) => (
-            <View
-              style={{
-                backgroundColor: COLORS.white,
-                borderWidth: 1,
-                borderColor: COLORS.greyPastel,
-                padding: 10,
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-              key={index}
-            >
-              <View style={{ flexDirection: "row" }}>
-                <Image
-                  source={{
-                    uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
-                  }}
-                  style={{
-                    width: 45,
-                    height: 45,
-                    borderRadius: 50,
-                    marginRight: 10,
-                  }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: FONTS.medium,
-                      fontSize: 14,
-                    }}
-                  >
-                    Nguyễn Hải Long
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: FONTS.medium,
-                      fontSize: 12,
-                      marginTop: 3,
-                      color: COLORS.grey,
-                    }}
-                  >
-                    12:05, 22/10/2024
-                  </Text>
-                </View>
-                <Icon
-                  name="ellipsis-horizontal"
-                  color={COLORS.greySolid}
-                  size={24}
-                />
-              </View>
-              <View style={{ marginTop: 10 }}>
-                <Text
-                  style={{
-                    fontFamily: FONTS.semiBold,
-                    fontSize: 14,
-                    lineHeight: 20,
-                  }}
+          {loading ? (
+            <Text style={{ textAlign: "center", marginVertical: 20 }}>
+              Loading...
+            </Text>
+          ) : showPendingPosts ? (
+            pendingPosts.length === 0 ? (
+              <Text style={{ textAlign: "center", marginVertical: 20 }}>
+                Không có bài viết chờ duyệt
+              </Text>
+            ) : (
+              pendingPosts.map((item) => (
+                <TouchableOpacity
+                  key={item.articleId}
+                  onPress={() =>
+                    navigation.navigate("PostDetailScreen", { post: item })
+                  }
                 >
-                  Lorem Ipsum is simply dummy text of the heck printing and
-                  typesetting industry.
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: FONTS.medium,
-                    fontSize: 13,
-                    lineHeight: 22,
-                    marginTop: 5,
-                  }}
-                  numberOfLines={!expandedDecription[item.id] ? 2 : undefined}
-                >
-                  Simply dummy text of the printing and typesetting industry.
-                  Lorem Ipsum has been the industry's standard dummy text ever
-                  since the 1500s, when an unknown printer took a galley of type
-                  and scrambled it to make a type specimen book.
-                </Text>
-                {/* {item.text.length > 100 && ( */}
-                <TouchableOpacity onPress={() => toggleShowMore(item.id)}>
-                  <Text
+                  <View
                     style={{
-                      fontFamily: FONTS.medium,
-                      color: COLORS.grey,
-                      marginTop: 5,
-                      fontSize: 13,
+                      backgroundColor: COLORS.white,
+                      borderWidth: 1,
+                      borderColor: COLORS.greyPastel,
+                      padding: 10,
+                      borderRadius: 8,
+                      marginBottom: 10,
                     }}
                   >
-                    {expandedDecription[item.id] ? "Ẩn bớt" : "Xem thêm"}
-                  </Text>
+                    <View style={{ flexDirection: "row" }}>
+                      <Image
+                        source={{
+                          uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+                        }}
+                        style={{
+                          width: 45,
+                          height: 45,
+                          borderRadius: 50,
+                          marginRight: 10,
+                        }}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontFamily: FONTS.medium,
+                            fontSize: 14,
+                          }}
+                        >
+                          {username}
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: FONTS.medium,
+                            fontSize: 12,
+                            marginTop: 3,
+                            color: COLORS.grey,
+                          }}
+                        >
+                          {item.createdAt || "12:05, 22/10/2024"}
+                        </Text>
+                      </View>
+                      <Icon
+                        name="ellipsis-horizontal"
+                        color={COLORS.greySolid}
+                        size={24}
+                      />
+                    </View>
+                    <View style={{ marginTop: 10 }}>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.semiBold,
+                          fontSize: 14,
+                          lineHeight: 20,
+                        }}
+                      >
+                        {item.title}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.medium,
+                          fontSize: 13,
+                          lineHeight: 22,
+                          marginTop: 5,
+                        }}
+                        numberOfLines={
+                          !expandedDecription[item.articleId] ? 2 : undefined
+                        }
+                      >
+                        {item.content}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => toggleShowMore(item.articleId)}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: FONTS.medium,
+                            color: COLORS.grey,
+                            marginTop: 5,
+                            fontSize: 13,
+                          }}
+                        >
+                          {expandedDecription[item.articleId] ? "Ẩn bớt" : "Xem thêm"}
+                        </Text>
+                      </TouchableOpacity>
+                      <View style={{ flexDirection: "row", marginTop: 10 }}>
+                        <TouchableOpacity
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            marginRight: 20,
+                          }}
+                        >
+                          <IconAnt name="like2" size={28} color={COLORS.greySolid} />
+                          <Text
+                            style={{
+                              fontFamily: FONTS.semiBold,
+                              fontSize: 16,
+                              color: COLORS.greySolid,
+                              marginLeft: 5,
+                            }}
+                          >
+                            {item.likes || 0}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            marginRight: 20,
+                          }}
+                        >
+                          <Icon
+                            name="chatbubble-outline"
+                            size={27}
+                            color={COLORS.greySolid}
+                          />
+                          <Text
+                            style={{
+                              fontFamily: FONTS.semiBold,
+                              fontSize: 16,
+                              color: COLORS.greySolid,
+                              marginLeft: 5,
+                            }}
+                          >
+                            {item.comments || 0}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
                 </TouchableOpacity>
-                {/* )} */}
-                <ScrollView
-                  horizontal
-                  contentContainerStyle={{
-                    marginTop: 10,
+              ))
+            )
+          ) : userPosts.length === 0 ? (
+            <Text style={{ textAlign: "center", marginVertical: 20 }}>
+              Không có bài viết nào
+            </Text>
+          ) : (
+            userPosts.map((item) => (
+              <TouchableOpacity
+                key={item.articleId}
+                onPress={() =>
+                  navigation.navigate("PostDetailScreen", { post: item })
+                }
+              >
+                <View
+                  style={{
+                    backgroundColor: COLORS.white,
+                    borderWidth: 1,
+                    borderColor: COLORS.greyPastel,
+                    padding: 10,
+                    borderRadius: 8,
+                    marginBottom: 10,
                   }}
                 >
-                  {dataPictureOfArticle.map((item, index) => (
+                  <View style={{ flexDirection: "row" }}>
                     <Image
-                      key={index}
                       source={{
-                        uri: "https://file.hstatic.net/1000341804/file/canh-chay-ngu-sac_dafc5d8509b64f6c82afc1477065ed66_grande.jpeg",
+                        uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
                       }}
                       style={{
-                        width: 200,
-                        height: 150,
-                        resizeMode: "cover",
-                        borderRadius: 8,
-                        marginLeft: index === 0 ? 0 : 10,
+                        width: 45,
+                        height: 45,
+                        borderRadius: 50,
+                        marginRight: 10,
                       }}
-                      onStartShouldSetResponder={() => true}
-                      onMoveShouldSetResponder={() => true}
                     />
-                  ))}
-                </ScrollView>
-                <View style={{ flexDirection: "row", marginTop: 10 }}>
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginRight: 20,
-                    }}
-                  >
-                    <IconAnt name="like2" size={28} color={COLORS.greySolid} />
-                    <Text
-                      style={{
-                        fontFamily: FONTS.semiBold,
-                        fontSize: 16,
-                        color: COLORS.greySolid,
-                        marginLeft: 5,
-                      }}
-                    >
-                      12
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginRight: 20,
-                    }}
-                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.medium,
+                          fontSize: 14,
+                        }}
+                      >
+                        {username}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.medium,
+                          fontSize: 12,
+                          marginTop: 3,
+                          color: COLORS.grey,
+                        }}
+                      >
+                        {item.createdAt || "12:05, 22/10/2024"}
+                      </Text>
+                    </View>
                     <Icon
-                      name="chatbubble-outline"
-                      size={27}
+                      name="ellipsis-horizontal"
                       color={COLORS.greySolid}
+                      size={24}
                     />
+                  </View>
+                  <View style={{ marginTop: 10 }}>
                     <Text
                       style={{
                         fontFamily: FONTS.semiBold,
-                        fontSize: 16,
-                        color: COLORS.greySolid,
-                        marginLeft: 5,
+                        fontSize: 14,
+                        lineHeight: 20,
                       }}
                     >
-                      3
+                      {item.title}
                     </Text>
-                  </TouchableOpacity>
+                    <Text
+                      style={{
+                        fontFamily: FONTS.medium,
+                        fontSize: 13,
+                        lineHeight: 22,
+                        marginTop: 5,
+                      }}
+                      numberOfLines={
+                        !expandedDecription[item.articleId] ? 2 : undefined
+                      }
+                    >
+                      {item.content}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => toggleShowMore(item.articleId)}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: FONTS.medium,
+                          color: COLORS.grey,
+                          marginTop: 5,
+                          fontSize: 13,
+                        }}
+                      >
+                        {expandedDecription[item.articleId] ? "Ẩn bớt" : "Xem thêm"}
+                      </Text>
+                    </TouchableOpacity>
+                    <View style={{ flexDirection: "row", marginTop: 10 }}>
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginRight: 20,
+                        }}
+                      >
+                        <IconAnt name="like2" size={28} color={COLORS.greySolid} />
+                        <Text
+                          style={{
+                            fontFamily: FONTS.semiBold,
+                            fontSize: 16,
+                            color: COLORS.greySolid,
+                            marginLeft: 5,
+                          }}
+                        >
+                          {item.likes || 0}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginRight: 20,
+                        }}
+                      >
+                        <Icon
+                          name="chatbubble-outline"
+                          size={27}
+                          color={COLORS.greySolid}
+                        />
+                        <Text
+                          style={{
+                            fontFamily: FONTS.semiBold,
+                            fontSize: 16,
+                            color: COLORS.greySolid,
+                            marginLeft: 5,
+                          }}
+                        >
+                          {item.comments || 0}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
-              </View>
-            </View>
-          ))}
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
     </>

@@ -17,6 +17,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const { width, height } = Dimensions.get("window");
 
@@ -64,16 +66,162 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [username, setUsername] = useState("");
+  const [tierId, setTierId] = useState(null);
+  const [accumulatedPoints, setAccumulatedPoints] = useState(0);
+  const [tierLabel, setTierLabel] = useState("");
 
-  // Fetch dishes from API
+  const [cartCount, setCartCount] = useState(0);
+
+  const fetchMembershipData = async (id) => {
+    try {
+      console.log(`Đang gọi API với userId: ${id}`);
+      const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`);
+      
+      if (!response.ok) {
+        console.error("HTTP Error:", response.status, response.statusText);
+        return;
+      }
+  
+      const rawResponse = await response.text();
+      console.log("Phản hồi thô từ API:", rawResponse);
+  
+      if (!rawResponse) {
+        console.log("Người dùng chưa có đóng góp, hiển thị tier Bronze");
+        
+        // Gọi API getUserByUserId để lấy thông tin người dùng
+        const userResponse = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
+        
+        if (!userResponse.ok) {
+          console.error("HTTP Error khi gọi API getUserByUserId:", userResponse.status, userResponse.statusText);
+          return;
+        }
+  
+        const userData = await userResponse.json();
+        console.log("Dữ liệu người dùng:", userData);
+  
+        // Cài đặt thông tin người dùng và hiển thị tier là Bronze
+        setUsername(userData.username || "Unknown User");
+        setTierLabel("Bronze");
+        setAccumulatedPoints(0);
+        
+        return;
+      }
+  
+      // Nếu có dữ liệu membership, xử lý như bình thường
+      const data = JSON.parse(rawResponse);
+      console.log("Dữ liệu membership:", data);
+  
+      if (data) {
+        setUsername(data.username || "Unknown User");
+        setTierId(data.tierId);
+        setAccumulatedPoints(data.accumulatedPoints);
+  
+        switch (data.tierId) {
+          case 1:
+            setTierLabel("Silver");
+            break;
+          case 2:
+            setTierLabel("Gold");
+            break;
+          case 3:
+            setTierLabel("Platinum");
+            break;
+          case 4:
+            setTierLabel("Diamond");
+            break;
+          default:
+            setTierLabel("N/A");
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu membership:", error);
+    }
+  };
+  
+  
+  
+
+
+    // Lấy userId từ AsyncStorage
+    useEffect(() => {
+      const getUserIdFromStorage = async () => {
+        try {
+          const storedUserId = await AsyncStorage.getItem("userId");
+          console.log("User ID retrieved from AsyncStorage:", storedUserId);
+          
+          if (storedUserId) {
+            setUserId(storedUserId);
+            fetchUserData(storedUserId);  // Fetch user data with the userId
+            fetchMembershipData(storedUserId);
+          } else {
+            console.log("No User ID found in AsyncStorage.");
+          }
+        } catch (error) {
+          console.error("Error retrieving userId from AsyncStorage:", error);
+        }
+      };
+  
+      getUserIdFromStorage();
+    }, []);
+  const fetchUserData = async (id) => {
+    try {
+      const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
+      
+      if (!response.ok) {
+        console.error("HTTP Error when fetching user data:", response.status, response.statusText);
+        return;
+      }
+  
+      const userData = await response.json();
+      console.log("User data retrieved from API:", userData);
+
+      // Set the username to display in "Xin chào ..."
+      setUsername(userData.username || "Unknown User");
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+  // Fetch rating for each dish
+  const fetchDishRating = async (dishId) => {
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
+      );
+      const jsonData = await response.json();
+      const ratings = jsonData.map((feedback) => feedback.rating);
+      const averageRating = ratings.length
+        ? (
+            ratings.reduce((acc, rating) => acc + rating, 0) / ratings.length
+          ).toFixed(1)
+        : "0.0";
+      return parseFloat(averageRating);
+    } catch (error) {
+      console.error(`Error fetching rating for dish ${dishId}:`, error);
+      return 0;
+    }
+  };
+
+
+
+  // Fetch dishes from API and add rating for each dish
   const fetchDishes = async () => {
     try {
       const response = await fetch(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/nutritionists/alldish"
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/allDish"
       );
       const jsonData = await response.json();
-      // console.log("Fetched data: ", jsonData); // Log the fetched data
-      setDishes(jsonData);
+
+      // Map through dishes to add ratings
+      const dishesWithRatings = await Promise.all(
+        jsonData.map(async (dish) => {
+          const rating = await fetchDishRating(dish.dishId);
+          return { ...dish, averageRating: rating };
+        })
+      );
+
+      setDishes(dishesWithRatings);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dishes:", error);
@@ -99,7 +247,7 @@ const HomeScreen = () => {
   };
 
   const handleSearchSelect = (dish) => {
-    navigation.navigate("DishDetail", { dish });
+    navigation.navigate("DishDetail", { dishId: dish.dishId }); // Truyền dishId thay vì dish
     setSearchResults([]); // Clear suggestions after selection
   };
 
@@ -118,13 +266,57 @@ const HomeScreen = () => {
 
   const renderDishItem = ({ item }) => (
     <TouchableOpacity
-      onPress={() => navigation.navigate("DishDetail", { dish: item })}
+      onPress={() => navigation.navigate("DishDetail", { dishId: item.dishId })} // Truyền dishId thay vì toàn bộ dish
     >
       <View style={styles.dishItem}>
         <Text>{item.name}</Text>
       </View>
     </TouchableOpacity>
   );
+
+  const refreshCartCount = async () => {
+    try {
+      if (userId) {
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${userId}`
+        );
+        const data = await response.json();
+  
+        // Lọc các mục có quantity > 0 và đếm số lượng
+        const validCartItems = data.filter(item => item.quantity > 0);
+        setCartCount(validCartItems.length); // Cập nhật số lượng món ăn có quantity > 0
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu giỏ hàng từ API:", error);
+    }
+  };
+  
+  
+  // useEffect để làm mới số lượng món trong giỏ khi màn hình Home hiển thị
+  useEffect(() => {
+    refreshCartCount();
+  
+    // Đăng ký listener để lắng nghe sự kiện thay đổi
+    const subscription = navigation.addListener("focus", () => {
+      refreshCartCount();
+    });
+  
+    return subscription;
+  }, [navigation, userId]);
+  
+
+  // useEffect để lấy số lượng món ăn khi màn hình Home hiển thị
+  useEffect(() => {
+    refreshCartCount();
+
+    // Đăng ký listener để lắng nghe sự kiện thay đổi trong AsyncStorage
+    const subscription = navigation.addListener("focus", () => {
+      refreshCartCount();
+    });
+
+    // Dọn dẹp khi component bị hủy
+    return subscription;
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
@@ -169,54 +361,50 @@ const HomeScreen = () => {
               fontSize: 18,
             }}
           >
-            Nguyễn hải Long
+            {username}
           </Text>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <View
-            style={{
-              alignItems: "flex-end",
-              marginRight: 8,
-              padding: 5,
-              borderRadius: 5,
-              elevation: 0,
-              // borderWidth:1,
-              // borderColor: COLORS.white,
-              // padding: 5,
-              // borderRadius: 8
-            }}
-          >
-            <Text
+        <TouchableOpacity
+          style={{ flexDirection: "row", alignItems: "center" }}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("Membership")}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
               style={{
-                fontFamily: FONTS.bold,
-                color: COLORS.white,
-                fontSize: 13,
-                alignSelf: "center",
-                borderBottomWidth: 1,
-                borderBottomColor: "white",
-                paddingBottom: 3,
+                alignItems: "flex-end",
+                marginRight: 8,
+                padding: 5,
+                borderRadius: 5,
+                elevation: 0,
               }}
             >
-              <Icon name="star" size={16} color={COLORS.white} /> 1200 điểm
-            </Text>
-            <Text
-              style={{
-                fontFamily: FONTS.bold,
-                color: COLORS.yellow,
-                fontSize: 12,
-              }}
-            >
-              Vàng
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              navigation.navigate("Profile");
-            }}
-          >
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  color: COLORS.white,
+                  fontSize: 13,
+                  alignSelf: "center",
+                  borderBottomWidth: 1,
+                  borderBottomColor: "white",
+                  paddingBottom: 3,
+                }}
+              >
+                <Icon name="star" size={16} color={COLORS.white} /> {accumulatedPoints} điểm
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  color: COLORS.diamond,
+                  fontSize: 12,
+                }}
+              >
+                {tierLabel}
+              </Text>
+            </View>
             <Image
               source={{
-                uri: "https://scontent.fsgn16-1.fna.fbcdn.net/v/t1.15752-9/462576224_1297172808085453_6480875089080788157_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=9f807c&_nc_eui2=AeF3Bmi7Rh5TvsmlJKOcPHQVfsUEm7gb4nR-xQSbuBvidOvFLGSHdqmu2q3ktZ1k9Wd7HVvILoPCfmqrjvOP_5Td&_nc_ohc=E6oaCu5hvIUQ7kNvgGRhlFI&_nc_zt=23&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=A9m1Yp84rxEVKSNUwf8m-mO&oh=03_Q7cD1QGkZBAk6P6wtcAP-obHKGrAvDN1FBbfGRRlPCaixI4gBA&oe=67487978",
+                uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
               }}
               style={{
                 height: 55,
@@ -226,21 +414,9 @@ const HomeScreen = () => {
                 borderColor: COLORS.white,
               }}
             />
-          </Pressable>
-        </View>
+          </View>
+        </TouchableOpacity>
       </View>
-
-      {/* <View style={styles.userInfo}>
-        <Image source={{ uri: userData.avatar }} style={styles.avatar} />
-        <View>
-          <Text style={styles.greeting}>xin chào,</Text>
-          <Text style={styles.username}>{userData.name}</Text>
-        </View>
-        <View style={styles.points}>
-          <Text style={styles.pointNumber}>{userData.points} điểm</Text>
-          <Text style={styles.pointLabel}>{userData.rank}</Text>
-        </View>
-      </View> */}
 
       {/* Feature Icons */}
       <View style={styles.featureIcons}>
@@ -325,7 +501,9 @@ const HomeScreen = () => {
             }}
           >
             <Icon name={"cart-outline"} size={30} color={COLORS.green} />
-            <Text style={styles.bagdeCart}>77</Text>
+            {cartCount > 0 && (
+            <Text style={styles.bagdeCart}>{cartCount}</Text>
+          )}
           </View>
         </TouchableOpacity>
       </View>
@@ -356,14 +534,16 @@ const HomeScreen = () => {
         data={dishes}
         showsVerticalScrollIndicator={false}
         keyExtractor={(item, index) =>
-          item.id ? item.id.toString() : index.toString()
+          item.dishId ? item.dishId.toString() : index.toString()
         }
         numColumns={2}
         columnWrapperStyle={{ justifyContent: "space-between" }}
         renderItem={({ item }) => (
           <TouchableOpacity
-            key={item.id || String}
-            onPress={() => navigation.navigate("DishDetail", { dish: item })}
+            key={item.dishId || String}
+            onPress={() =>
+              navigation.navigate("DishDetail", { dishId: item.dishId })
+            }
           >
             <View style={styles.gridItem}>
               <Image
@@ -388,7 +568,7 @@ const HomeScreen = () => {
                   <View style={{ flexDirection: "row" }}>
                     <Text style={styles.star}>⭐</Text>
                     <Text style={styles.rating}>
-                      {item.average_rating || 0}
+                      {item.averageRating || "0.0"}
                     </Text>
                   </View>
                   <Text style={styles.textDishType}>

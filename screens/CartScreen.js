@@ -1,129 +1,203 @@
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
   Image,
   Text,
-  StatusBar,
   TouchableOpacity,
-  Alert,
-  TextInput,
-  Button,
-  ScrollView,
   FlatList,
-  Pressable,
+  Alert,
 } from "react-native";
-import React from "react";
 import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Header from "../components/Header";
-
-const dataCart = Array.from({ length: 4 }, (_, index) => ({
-  id: index + 1,
-  name: `Item ${index + 1}`,
-}));
-
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage"; 
 const CartScreen = ({ navigation }) => {
+  const [cartItems, setCartItems] = useState([]);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const fetchCartData = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        
+        if (storedUserId) {
+          setUserId(storedUserId);
+          console.log("User ID từ AsyncStorage:", storedUserId);
+  
+          // Gọi API để lấy giỏ hàng theo userId
+          const response = await axios.get(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${storedUserId}`
+          );
+  
+          if (response.status === 200) {
+            const cartData = response.data;
+            
+            // Lọc các mục có quantity > 0 và lấy chi tiết cho từng món ăn từ `GetDishByID` API
+            const detailedCartItems = await Promise.all(
+              cartData
+                .filter(item => item.quantity > 0)  // Chỉ giữ lại các mục có quantity > 0
+                .map(async (item) => {
+                  const dishResponse = await axios.get(
+                    `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${item.dishId}`
+                  );
+                  
+                  return dishResponse.status === 200
+                    ? { ...item, ...dishResponse.data }
+                    : item;
+                })
+            );
+  
+            setCartItems(detailedCartItems);
+            console.log("Dữ liệu chi tiết giỏ hàng:", detailedCartItems);
+          } else {
+            console.log("Lỗi khi lấy dữ liệu giỏ hàng từ API:", response.status);
+          }
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy dữ liệu giỏ hàng từ API:", error);
+      }
+    };
+  
+    fetchCartData();
+  }, []);
+  
+
+  const handleQuantityChange = async (item, increment) => {
+    const newQuantity = increment ? item.quantity + 1 : item.quantity - 1;
+    console.log("New Quantity:", newQuantity);
+  
+    // Kiểm tra không cho phép quantity nhỏ hơn 0
+    if (newQuantity < 0) {
+      return;
+    }
+  
+    try {
+      // Sử dụng phương thức PUT và truyền cartId trong URL
+      const response = await axios.put(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/updateDishQuantityByCartId/${item.cartId}`,
+        newQuantity, // Truyền trực tiếp quantity vào body
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+  
+      if (response.status === 200 || response.status === 201) {
+        // Cập nhật quantity trong state để phản ánh đúng số lượng sau khi lưu
+        if (newQuantity === 0) {
+          setCartItems((prevItems) =>
+            prevItems.filter((cartItem) => cartItem.cartId !== item.cartId)
+          );
+        } else {
+          setCartItems((prevItems) =>
+            prevItems.map((cartItem) =>
+              cartItem.cartId === item.cartId
+                ? { ...cartItem, quantity: newQuantity }
+                : cartItem
+            )
+          );
+        }
+      } else {
+        console.error(`Lỗi khi cập nhật số lượng cho món ${item.dishId}`);
+      }
+    } catch (error) {
+      console.error(
+        `Lỗi khi cập nhật số lượng món ăn: [AxiosError: Request failed with status code ${error.response?.status || 'Unknown'}] - cartId: ${item.cartId}, quantity mới: ${newQuantity}`
+      );
+    }
+  };
+  
+  
+  
+  
+  const handleRemoveItem = async (item) => {
+    try {
+      // Đặt quantity về 0 qua API để xóa món ăn
+      await axios.put(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/updateDishQuantityByCartId/${item.cartId}`, // Đưa cartId vào URL
+        0, // Truyền quantity trực tiếp vào body
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+  
+      // Loại bỏ món ăn khỏi cartItems trong state
+      setCartItems((prevItems) =>
+        prevItems.filter((cartItem) => cartItem.cartId !== item.cartId)
+      );
+    } catch (error) {
+      console.error("Lỗi khi xóa món ăn khỏi giỏ hàng:", error);
+    }
+  };
+  
+  
+  
+  
+  
+
+  const handleContinue = () => {
+    Alert.alert("Thành công", "Giỏ hàng đã được cập nhật!");
+    navigation.navigate("Checkout");
+  };
+  
+
+ 
   return (
     <>
       <Header
         title={"Giỏ hàng"}
         leftIcon={"arrow-back-outline"}
-        rightIcon={"menu"}
         colorBackground={COLORS.white}
         colorText={COLORS.black}
         onPress={() => navigation.goBack()}
-        // onPressRight={() => setShowModalInformation(!showModalInformation)}
       />
       <FlatList
-        data={dataCart}
-        showsVerticalScrollIndicator={false}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item, index }) => (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            //   onPress={()=> navigation.navigate("")}
-            style={styles.listItem}
-          >
-            <Image
-              source={{
-                uri: "https://statics.vincom.com.vn/xu-huong/0-0-0-0-mon-chay-ngon/image2.png",
-              }}
-              style={{
-                width: 110,
-                height: "100%",
-                resizeMode: "cover",
-              }}
-            />
+        data={cartItems}
+        keyExtractor={(item) => item.dishId.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.listItem}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('DishDetail', { dishId: item.dishId })}
+            >
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={{ width: 110, height: "100%", resizeMode: "cover" }}
+              />
+            </TouchableOpacity>
             <View style={{ padding: 5, marginLeft: 5, flex: 1 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text style={styles.textNameDish} numberOfLines={1}>
-                  Đậu hũ nhồi nấm
-                </Text>
-                <Icon name="trash-outline" size={22} color={COLORS.red} />
-              </View>
-              <Text style={styles.textDishType}>Món khai vị</Text>
-              <Text style={styles.textDishPrice}>15.000đ</Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignSelf: "flex-end",
-                  alignItems: "center",
-                  backgroundColor: COLORS.white,
-                  borderRadius: 6,
-                  borderWidth: 1,
-                  borderColor: COLORS.darkGrey,
-                }}
-              >
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                 <TouchableOpacity
-                  style={{
-                    fontSize: 16,
-                    fontFamily: FONTS.semiBold,
-                    paddingHorizontal: 10,
-                  }}
+                  onPress={() => navigation.navigate('DishDetail', { dishId: item.dishId })}
                 >
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      fontFamily: FONTS.semiBold,
-                      color: COLORS.green,
-                    }}
-                  >
-                    -
-                  </Text>
+                  <Text style={styles.textNameDish} numberOfLines={1}>{item.name}</Text>
                 </TouchableOpacity>
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontSize: 16,
-                    fontFamily: FONTS.semiBold,
-                    width: 50,
-                    borderLeftWidth: 1,
-                    borderRightWidth: 1,
-                    borderColor: COLORS.darkGrey,
-                  }}
-                >
-                  12
-                </Text>
-                <TouchableOpacity style={{ paddingHorizontal: 10 }}>
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      fontFamily: FONTS.semiBold,
-                      color: COLORS.green,
-                    }}
-                  >
-                    +
-                  </Text>
+                <Icon
+                  name="trash-outline"
+                  size={22}
+                  color={COLORS.red}
+                  onPress={() => handleRemoveItem(item)}
+                />
+              </View>
+              <Text style={styles.textDishType}>{item.dishType}</Text>
+              <Text style={styles.textDishPrice}>{item.price}đ</Text>
+              <View style={styles.quantityContainer}>
+                <TouchableOpacity onPress={() => handleQuantityChange(item, false)}>
+                  <Text style={styles.quantityButtonText}>-</Text>
+                </TouchableOpacity>
+                <Text style={styles.quantityText}>{item.quantity}</Text>
+                <TouchableOpacity onPress={() => handleQuantityChange(item, true)}>
+                  <Text style={styles.quantityButtonText}>+</Text>
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableOpacity>
+          </View>
         )}
         style={{ backgroundColor: COLORS.white, marginBottom: 77 }}
       />
@@ -131,71 +205,29 @@ const CartScreen = ({ navigation }) => {
         <View style={styles.boxButtonFloatBottom}>
           <TouchableOpacity
             activeOpacity={0.8}
-            // onPress={() => showToastAddToCart()}
-            style={{
-              width: "40%",
-              backgroundColor: COLORS.white,
-              alignItems: "flex-end",
-              justifyContent: "center",
-              marginHorizontal: 20,
-              marginVertical: 10,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: "transparent",
-            }}
+            style={styles.totalAmountContainer}
           >
-            <Text
-              style={{
-                fontFamily: FONTS.semiBold,
-                fontSize: 16,
-                color: COLORS.black,
-              }}
-            >
-              Tổng số tiền:
-            </Text>
-            <Text
-              style={{
-                fontFamily: FONTS.bold,
-                fontSize: 18,
-                color: COLORS.green,
-              }}
-            >
-              247.990đ
+            <Text style={styles.totalAmountText}>Tổng số tiền:</Text>
+            <Text style={styles.totalAmountValue}>
+              {cartItems.reduce((total, item) => total + item.price * item.quantity, 0)}đ
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.navigate("Checkout")}
-            style={{
-              flex: 1,
-              backgroundColor: COLORS.green,
-              alignItems: "center",
-              justifyContent: "center",
-              marginVertical: 10,
-              borderRadius: 10,
-              elevation: 2,
-              marginRight: 10,
-              borderWidth: 1,
-              borderColor: COLORS.green,
-            }}
+            onPress={handleContinue}
+            style={styles.continueButton}
           >
-            <Text
-              style={{
-                fontFamily: FONTS.semiBold,
-                fontSize: 18,
-                color: COLORS.white,
-              }}
-            >
-              Tiếp tục
-            </Text>
+            <Text style={styles.continueButtonText}>Tiếp tục</Text>
           </TouchableOpacity>
         </View>
       </View>
     </>
   );
+  
 };
 
 export default CartScreen;
+
 
 const styles = StyleSheet.create({
   containerButtonFloatBottom: {
@@ -208,7 +240,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     height: 80,
     flexDirection: "row",
-    // justifyContent: "space-between",
     elevation: 20,
     borderTopWidth: 1,
     borderTopColor: COLORS.darkGrey,
@@ -241,5 +272,67 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
+  },
+  quantityContainer: {
+    flexDirection: "row",
+    alignSelf: "flex-end",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.darkGrey,
+  },
+  quantityButtonText: {
+    fontSize: 20,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.green,
+    paddingHorizontal: 10,
+  },
+  quantityText: {
+    textAlign: "center",
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    width: 50,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: COLORS.darkGrey,
+  },
+  totalAmountContainer: {
+    width: "40%",
+    backgroundColor: COLORS.white,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    marginHorizontal: 20,
+    marginVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  totalAmountText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 16,
+    color: COLORS.black,
+  },
+  totalAmountValue: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: COLORS.green,
+  },
+  continueButton: {
+    flex: 1,
+    backgroundColor: COLORS.green,
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 10,
+    borderRadius: 10,
+    elevation: 2,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: COLORS.green,
+  },
+  continueButtonText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 18,
+    color: COLORS.white,
   },
 });

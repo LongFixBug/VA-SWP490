@@ -1,58 +1,230 @@
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
   Image,
   Text,
-  StatusBar,
   TouchableOpacity,
-  Alert,
   TextInput,
-  Button,
   ScrollView,
-  FlatList,
-  Pressable,
+  Alert,
 } from "react-native";
-import React from "react";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
 import Header from "../components/Header";
-import { Dropdown } from "react-native-element-dropdown";
-
-const dataOrder = Array.from({ length: 4 }, (_, index) => ({
-  id: index + 1,
-  name: `Item ${index + 1}`,
-}));
-
-const dataPayment = [
-  {
-    id: "COD",
-    name: "Thanh toán khi nhận hàng",
-  },
-  {
-    id: "QR",
-    name: "Thanh toán qua QR code",
-  },
-];
-
-const dataDiscount = [
-  {
-    id: 1,
-    name: "Thành viên Vàng - giảm 30%",
-  },
-  {
-    id: 2,
-    name: "Thành viên Bạc - giảm 15%",
-  },
-  {
-    id: 3,
-    name: "Thành viên Kim cương - giảm 40%",
-  },
-];
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CheckoutScreen = ({ navigation }) => {
-  const [currentPayment, setCurrentPayment] = React.useState("COD");
-  const [currentDiscount, setCurrentDiscount] = React.useState(null);
+  const [currentPayment, setCurrentPayment] = useState("COD");
+  const [userId, setUserId] = useState(null);
+  const [deliveryInfo, setDeliveryInfo] = useState({});
+  const [cartDetails, setCartDetails] = useState([]);
+  const [detailedCartItems, setDetailedCartItems] = useState([]);
+  const [totalPrice, setTotalPrice] = useState(0);
+  const [discountRate, setDiscountRate] = useState(0);
+  const [finalPrice, setFinalPrice] = useState(0);
+  const [tierInfo, setTierInfo] = useState(null);
+  const [note, setNote] = useState("");
+
+  const dataPayment = [
+    {
+      id: "COD",
+      name: "Thanh toán khi nhận hàng",
+    },
+    {
+      id: "QR",
+      name: "Thanh toán qua QR code",
+    },
+  ];
+
+  useEffect(() => {
+    const getUserIdFromStorage = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (storedUserId) {
+          console.log("User ID retrieved from AsyncStorage:", storedUserId);
+          setUserId(storedUserId);
+          fetchDeliveryInfo(storedUserId);
+          fetchCartDetails(storedUserId);
+          fetchTierInfo(storedUserId);
+        } else {
+          console.log("No User ID found in AsyncStorage");
+        }
+      } catch (error) {
+        console.error("Error fetching userId from AsyncStorage:", error);
+      }
+    };
+    getUserIdFromStorage();
+  }, []);
+
+  const fetchDeliveryInfo = async (id) => {
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
+      );
+      const data = await response.json();
+      console.log("Delivery info:", data);
+      setDeliveryInfo(data);
+    } catch (error) {
+      console.error("Error fetching delivery info:", error);
+    }
+  };
+
+  const fetchCartDetails = async (id) => {
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${id}`
+      );
+      const cartData = await response.json();
+      console.log("Cart details:", cartData);
+  
+      let total = 0;
+      let items = [];
+  
+      for (const item of cartData) {
+        if (item.quantity > 0) { // Bỏ qua các món có quantity = 0
+          const dishResponse = await fetch(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${item.dishId}`
+          );
+          const dishData = await dishResponse.json();
+          console.log("Dish data:", dishData);
+  
+          items.push({ ...dishData, quantity: item.quantity });
+          total += dishData.price * item.quantity;
+        }
+      }
+  
+      setDetailedCartItems(items);
+      setTotalPrice(total);
+      setFinalPrice(total - total * discountRate); // Tính giá cuối cùng sau giảm giá
+    } catch (error) {
+      console.error("Error fetching cart details:", error);
+    }
+  };
+  
+  
+  
+
+  const fetchTierInfo = async (id) => {
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`
+      );
+      const tierData = await response.json();
+      console.log("Tier info:", tierData);
+
+      if (tierData.tierId) {
+        const tierResponse = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membershipTier/${tierData.tierId}`
+        );
+        const tierDetails = await tierResponse.json();
+        console.log("Tier details:", tierDetails);
+
+        setTierInfo(tierDetails);
+        setDiscountRate(tierDetails.discountRate);
+        setFinalPrice(totalPrice - totalPrice * tierDetails.discountRate);
+      }
+    } catch (error) {
+      console.log("Error fetching tier info:", error);
+    }
+  };
+
+  const handleCheckout = async () => {
+    // Filter out items with quantity > 0
+    const validCartItems = detailedCartItems.filter(item => item.quantity > 0);
+  
+    if (validCartItems.length === 0) {
+      Alert.alert("Thông báo", "Giỏ hàng trống.");
+      return;
+    }
+  
+    // Calculate the discount amount
+    const discountAmount = totalPrice * discountRate;
+    // Calculate the final price after applying the discount
+    const adjustedFinalPrice = totalPrice - discountAmount;
+  
+    let orderData = {
+      orderId: 0,
+      userId: parseInt(userId, 10),
+      totalPrice: adjustedFinalPrice, // Use the adjusted final price here
+      deliveryAddress: deliveryInfo.address || "Không có địa chỉ",
+      note: note,
+      deliveryFee: 0,
+      deliveryFailedFee: 0,
+      orderDate: new Date().toISOString(),
+      status: "pending",
+    };
+  
+    const currentTime = new Date().toISOString();
+    if (currentTime) {
+      orderData.completedTime = currentTime;
+    }
+  
+    try {
+      await fetch(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderByCustomer",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(orderData),
+        }
+      );
+  
+      // Fetch the latest order by user ID
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
+      );
+      const orders = await response.json();
+  
+      // Get the latest orderId
+      const latestOrder = orders.reduce((maxOrder, order) =>
+        order.orderId > maxOrder.orderId ? order : maxOrder
+      );
+      const orderId = latestOrder.orderId;
+  
+      console.log("Latest orderId:", orderId);
+  
+      // Send order details for each item in the cart
+      for (const item of validCartItems) {
+        await fetch(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderDetail",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              orderId: orderId,
+              dishId: item.dishId,
+              quantity: item.quantity,
+              price: item.price,
+            }),
+          }
+        );
+      }
+  
+      Alert.alert("Thành công", "Đơn hàng đã được tạo!", [
+        { text: "OK", onPress: () => navigation.navigate("Home") }
+      ]);
+  
+    } catch (error) {
+      console.log("Error creating order details:", error);
+      Alert.alert("Lỗi", "Có lỗi xảy ra khi tạo đơn hàng.", [
+        { text: "OK", onPress: () => navigation.navigate("Home") }
+      ]);
+    }
+  };
+  
+  
+  
+  
+  
+  
+  
+  
 
   return (
     <>
@@ -63,306 +235,109 @@ const CheckoutScreen = ({ navigation }) => {
         colorBackground={COLORS.white}
         colorText={COLORS.black}
         onPress={() => navigation.goBack()}
-        // onPressRight={() => setShowModalInformation(!showModalInformation)}
       />
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{ flex: 1, backgroundColor: COLORS.white, marginBottom: 120 }}
         contentContainerStyle={{ padding: 10 }}
       >
-        <View
-          style={{
-            padding: 10,
-            borderWidth: 1,
-            borderColor: COLORS.greyPastel,
-            borderRadius: 10,
-            flexDirection: "row",
-          }}
-        >
-          <Icon
-            name="location-sharp"
-            size={22}
-            color={COLORS.orange}
-            style={{ marginHorizontal: 5 }}
-          />
+        <View style={styles.deliveryInfoContainer}>
+          <Icon name="location-sharp" size={22} color={COLORS.orange} style={{ marginHorizontal: 5 }} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}>
-              Nguyễn Hải Long
-            </Text>
-            <Text style={{ fontFamily: FONTS.medium, marginTop: 3 }}>
-              (+84) 838439296
-            </Text>
-            <Text
-              style={{ fontFamily: FONTS.medium, marginTop: 3, lineHeight: 22 }}
-            >
-              159 Đường Đỗ Xuân Hợp, Phường Phú Hữu, Thành phố Hồ Chí Minh.
-            </Text>
+            <Text style={styles.textBold}>{"Tên: " + (deliveryInfo.username || "Người dùng")}</Text>
+            <Text style={styles.text}>{"Số điện thoại: " + (deliveryInfo.phoneNumber || "N/A")}</Text>
+            <Text style={styles.text}>{"Địa chỉ: " + (deliveryInfo.address || "Địa chỉ không xác định")}</Text>
           </View>
         </View>
-        <View
-          style={{
-            padding: 10,
-            borderWidth: 1,
-            borderColor: COLORS.greyPastel,
-            borderRadius: 10,
-            marginTop: 10,
-          }}
-        >
-          <Text style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}>
-            Ghi chú (nếu có)
-          </Text>
+
+        {tierInfo && (
+          <View style={styles.tierInfoContainer}>
+            <Text style={styles.textBold}>Bậc thành viên của bạn:</Text>
+            <Text style={styles.text}>
+              {`Bậc ${tierInfo.tierName} - Giảm giá: ${tierInfo.discountRate * 100}%`}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.noteContainer}>
+          <Text style={styles.textBold}>Ghi chú (nếu có)</Text>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Icon
-              name="create-outline"
-              size={22}
-              color={COLORS.green}
-              style={{ marginRight: 5 }}
-            />
+            <Icon name="create-outline" size={22} color={COLORS.green} style={{ marginRight: 5 }} />
             <TextInput
-              style={{
-                //  borderWidth: 2,
-                //  borderColor: COLORS.greyPastel,
-                fontFamily: FONTS.medium,
-                height: 60,
-                flex: 1,
-              }}
+              style={styles.textInput}
               placeholder="Nhập ghi chú"
               multiline
               maxLength={150}
               numberOfLines={2}
-              // onChangeText={(txt) => setRenterNote(txt)}
+              value={note}
+              onChangeText={(text) => setNote(text)}
             />
           </View>
         </View>
-        <View
-          style={{
-            padding: 5,
-            borderWidth: 1,
-            borderColor: COLORS.greyPastel,
-            borderRadius: 10,
-            marginTop: 10,
-          }}
-        >
-          {dataOrder.map((item, index) => (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              //   onPress={()=> navigation.navigate("")}
-              style={styles.listItem}
-              key={index}
-            >
-              <Image
-                source={{
-                  uri: "https://statics.vincom.com.vn/xu-huong/0-0-0-0-mon-chay-ngon/image2.png",
-                }}
-                style={{
-                  width: 110,
-                  height: "100%",
-                  resizeMode: "cover",
-                  borderRadius: 8,
-                }}
-              />
-              <View style={{ padding: 5, marginLeft: 5, flex: 1 }}>
+
+        <View style={styles.cartDetailsContainer}>
+          {detailedCartItems.map((item, index) => (
+            <View key={index} style={styles.listItem}>
+              <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
+              <View style={styles.itemDetails}>
                 <Text style={styles.textNameDish} numberOfLines={1}>
-                  Đậu hũ nhồi nấm
+                  {item.name}
                 </Text>
-                <Text style={styles.textDishType}>Món khai vị</Text>
-                <Text style={styles.textDishPrice}>15.000đ</Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignSelf: "flex-end",
-                    alignItems: "center",
-                    backgroundColor: COLORS.white,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontFamily: FONTS.semiBold,
-                    }}
-                  >
-                    x12
-                  </Text>
+                <Text style={styles.textDishType}>{item.dishType || "Món ăn"}</Text>
+                <Text style={styles.textDishPrice}>{item.price}đ</Text>
+                <View style={styles.quantityContainer}>
+                  <Text style={styles.textBold}>x{item.quantity}</Text>
                 </View>
               </View>
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
-        <View
-          style={{
-            padding: 10,
-            borderWidth: 1,
-            borderColor: COLORS.greyPastel,
-            borderRadius: 10,
-            marginTop: 10,
-          }}
-        >
-          <Text style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}>
-            Giảm giá
-          </Text>
-          <Dropdown
-            style={[styles.dropdown]}
-            containerStyle={{ borderRadius: 10 }}
-            placeholderStyle={styles.placeholderStyle}
-            selectedTextStyle={styles.selectedTextStyle}
-            iconStyle={styles.iconStyle}
-            dropdownPosition={"auto"}
-            fontFamily={FONTS.medium}
-            autoScroll={false}
-            data={dataDiscount}
-            maxHeight={300}
-            labelField="name"
-            valueField="id"
-            placeholder={"Chọn mã giảm giá"}
-            value={currentDiscount}
-            onChange={(item) => {
-              setCurrentDiscount(item.id);
-            }}
-            renderLeftIcon={() => (
-              <Icon
-                style={styles.icon}
-                color={currentDiscount ? COLORS.grey : COLORS.darkGrey}
-                name="caret-forward-outline"
-                size={20}
-              />
-            )}
-          />
-        </View>
-        <View
-          style={{
-            padding: 10,
-            borderWidth: 1,
-            borderColor: COLORS.greyPastel,
-            borderRadius: 10,
-            marginTop: 10,
-          }}
-        >
-          <Text style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}>
-            Phương thức thanh toán
-          </Text>
+
+        <View style={styles.paymentMethodContainer}>
+          <Text style={styles.textBold}>Phương thức thanh toán</Text>
           {dataPayment.map((item, index) => (
             <TouchableOpacity
-              activeOpacity={0.6}
               key={index}
+              activeOpacity={0.6}
               onPress={() => setCurrentPayment(item.id)}
               style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                padding: 10,
-                borderWidth: 1,
-                borderColor:
-                  currentPayment === item.id ? COLORS.green : COLORS.greyPastel,
-                borderRadius: 8,
-                marginTop: 10,
+                ...styles.paymentOption,
+                borderColor: currentPayment === item.id ? COLORS.green : COLORS.greyPastel,
               }}
             >
-              <Text style={{ fontFamily: FONTS.medium }}>{item.name}</Text>
+              <Text style={styles.text}>{item.name}</Text>
               <Icon
-                name={
-                  currentPayment === item.id
-                    ? "radio-button-on"
-                    : "radio-button-off"
-                }
+                name={currentPayment === item.id ? "radio-button-on" : "radio-button-off"}
                 size={20}
                 color={currentPayment === item.id ? COLORS.green : COLORS.grey}
-                style={{ marginRight: 5 }}
               />
             </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
+
       <View style={styles.containerButtonFloatBottom}>
-        <View
-          style={{
-            backgroundColor: COLORS.white,
-            flexDirection: "row",
-            justifyContent: "space-between",
-            paddingVertical: 10,
-            paddingHorizontal: 20,
-            elevation: 20,
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: FONTS.semiBold,
-              fontSize: 15,
-              color: COLORS.black,
-            }}
-          >
-            Số tiền đã giảm:
-          </Text>
-          <Text
-            style={{
-              fontFamily: FONTS.semiBold,
-              fontSize: 15,
-              color: COLORS.green,
-            }}
-          >
-            13.000đ
-          </Text>
-        </View>
-        <View style={styles.boxButtonFloatBottom}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            // onPress={() => showToastAddToCart()}
-            style={{
-              width: "40%",
-              backgroundColor: COLORS.white,
-              alignItems: "flex-end",
-              justifyContent: "center",
-              marginHorizontal: 20,
-              marginVertical: 10,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: "transparent",
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: FONTS.semiBold,
-                fontSize: 16,
-                color: COLORS.black,
-              }}
-            >
-              Tổng thanh toán:
-            </Text>
-            <Text
-              style={{
-                fontFamily: FONTS.bold,
-                fontSize: 18,
-                color: COLORS.green,
-              }}
-            >
-              247.990đ
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate("Payment")}
-            style={{
-              flex: 1,
-              backgroundColor: COLORS.green,
-              alignItems: "center",
-              justifyContent: "center",
-              marginVertical: 10,
-              borderRadius: 10,
-              elevation: 2,
-              marginRight: 10,
-              borderWidth: 1,
-              borderColor: COLORS.green,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: FONTS.semiBold,
-                fontSize: 18,
-                color: COLORS.white,
-              }}
-            >
-              Thanh toán
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.totalContainer}>
+  <Text style={styles.textBold}>Số tiền đã giảm:</Text>
+  <Text style={{ ...styles.textBold, color: COLORS.green }}>
+    {discountRate > 0 ? (totalPrice * discountRate).toFixed(0) + "đ" : "0đ"}
+  </Text>
+</View>
+<View style={styles.boxButtonFloatBottom}>
+  <TouchableOpacity style={styles.totalButton}>
+    <Text style={styles.textBold}>Tổng thanh toán:</Text>
+    <Text style={{ ...styles.textBold, color: COLORS.green }}>
+      {finalPrice.toFixed(0)}đ
+    </Text>
+  </TouchableOpacity>
+  <TouchableOpacity
+    style={styles.checkoutButton}
+    onPress={handleCheckout}
+  >
+    <Text style={styles.textButton}>Thanh toán</Text>
+  </TouchableOpacity>
+</View>
+
       </View>
     </>
   );
@@ -370,31 +345,72 @@ const CheckoutScreen = ({ navigation }) => {
 
 export default CheckoutScreen;
 
+// Keep all the existing styles here.
+
+
 const styles = StyleSheet.create({
-  containerButtonFloatBottom: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    left: 0,
-  },
-  boxButtonFloatBottom: {
-    backgroundColor: COLORS.white,
-    height: 80,
+  deliveryInfoContainer: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
     flexDirection: "row",
-    elevation: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.darkGrey,
+    marginBottom: 10,
+  },
+  tierInfoContainer: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+    marginBottom: 10,
+    backgroundColor: COLORS.lightGrey,
+  },
+  textBold: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 15,
+  },
+  text: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    marginTop: 3,
+  },
+  noteContainer: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  textInput: {
+    fontFamily: FONTS.medium,
+    height: 60,
+    flex: 1,
+  },
+  cartDetailsContainer: {
+    padding: 5,
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   listItem: {
-    flex: 1,
-    margin: 10,
-    backgroundColor: COLORS.white,
-    overflow: "hidden",
     flexDirection: "row",
     marginBottom: 5,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.greyPastel,
     paddingBottom: 10,
+    backgroundColor: COLORS.white,
+  },
+  itemImage: {
+    width: 110,
+    height: "100%",
+    resizeMode: "cover",
+    borderRadius: 8,
+  },
+  itemDetails: {
+    padding: 5,
+    marginLeft: 5,
+    flex: 1,
   },
   textNameDish: {
     color: COLORS.black,
@@ -414,40 +430,75 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
   },
-  dropdown: {
-    height: 50,
-    borderColor: COLORS.darkGrey,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    marginVertical: 10,
-    width: "auto",
-  },
-  icon: {
-    marginRight: 5,
-  },
-  label: {
-    position: "absolute",
+  quantityContainer: {
+    flexDirection: "row",
+    alignSelf: "flex-end",
+    alignItems: "center",
     backgroundColor: COLORS.white,
-    left: 22,
-    top: 8,
-    zIndex: 999,
-    paddingHorizontal: 8,
-    fontSize: 14,
   },
-  placeholderStyle: {
-    fontSize: 14,
-    color: COLORS.lightGrey,
+  paymentMethodContainer: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  paymentOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  containerButtonFloatBottom: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    left: 0,
+  },
+  totalContainer: {
+    backgroundColor: COLORS.white,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    elevation: 20,
+  },
+  boxButtonFloatBottom: {
+    backgroundColor: COLORS.white,
+    height: 80,
+    flexDirection: "row",
+    elevation: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.darkGrey,
+  },
+  totalButton: {
+    width: "40%",
+    backgroundColor: COLORS.white,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    marginHorizontal: 20,
+    marginVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  checkoutButton: {
+    flex: 1,
+    backgroundColor: COLORS.green,
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 10,
+    borderRadius: 10,
+    elevation: 2,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: COLORS.green,
+  },
+  textButton: {
     fontFamily: FONTS.semiBold,
-    fontSize: 13,
-  },
-  selectedTextStyle: {
-    fontSize: 14,
-    color: COLORS.black,
-    fontFamily: FONTS.semiBold,
-  },
-  iconStyle: {
-    width: 20,
-    height: 20,
+    fontSize: 18,
+    color: COLORS.white,
   },
 });

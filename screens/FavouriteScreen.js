@@ -6,76 +6,23 @@ import {
   View,
   Image,
 } from "react-native";
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Header from "../components/Header";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
-const favouriteList = [
+// Define dataTabView to display tab options
+const dataTabView = [
   {
-    id: "1",
-    name: "Đậu hũ ki",
-    time: "23",
-    image:
-      "https://cellphones.com.vn/sforum/wp-content/uploads/2023/09/mon-chay-ngon-de-lam-1.jpg",
-    latitude: 10.8441,
-    longitude: 106.78288,
+    id: 1,
+    name: "Món ăn",
   },
   {
-    id: "2",
-    name: "Sườn non",
-    time: "70",
-    image:
-      "https://file.hstatic.net/1000341804/file/canh-chay-ngu-sac_dafc5d8509b64f6c82afc1477065ed66_grande.jpeg",
-    latitude: 10.790032685611157,
-    longitude: 106.68744825401734,
-  },
-  {
-    id: "3",
-    name: "A Mà Kitchen",
-    time: "60",
-    image:
-      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/canh-bong-h%E1%BA%B9-n%E1%BA%A5u-n%E1%BA%A5m.jpg.jpg",
-    latitude: 10.7768469439067,
-    longitude: 106.69026283867206,
-  },
-  {
-    id: "4",
-    name: "King BBQ",
-    time: "50",
-    image:
-      "https://tiki.vn/blog/wp-content/uploads/2023/08/8DLbexQE5KIiDOBbhCUf0Myl39csYt_YRWOInLorMpT-6l-b4bFEwNXhj23bIUfqc9oDSv5f64GuEeMKWtPZIgQe_fm1BeGuTBlZ2GqWo_AMUFNfYo8mFqsVjn7iQe0zzAC_uiAa7dVlxUFLtndk3s.png",
-    latitude: 10.847411218830398,
-    longitude: 106.7762775617879,
-  },
-  {
-    id: "5",
-    name: "Hanuri-Korean Fast Food",
-    time: "70",
-    image:
-      "https://storage.googleapis.com/ops-shopee-files-live/live/shopee-blog/2021/04/mon-kho-chay-2.jpg",
-    latitude: 10.775871102987148,
-    longitude: 106.68727154052584,
-  },
-
-  {
-    id: "7",
-    name: "Maison Mận-Đỏ",
-    time: "75",
-    image:
-      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/dau-phu-sot-nam-dong-co.jpg",
-    latitude: 10.793057450832194,
-    longitude: 106.69022156701138,
-  },
-  {
-    id: "8",
-    name: "Maison Mận-Đỏ",
-    time: "75",
-    image:
-      "https://cdn.nguyenkimmall.com/images/companies/_1/tin-tuc/kinh-nghiem-meo-hay/n%E1%BA%A5u%20%C4%83n/dau-phu-sot-nam-dong-co.jpg",
-    latitude: 10.793057450832194,
-    longitude: 106.69022156701138,
+    id: 2,
+    name: "Menu",
   },
 ];
 
@@ -101,19 +48,85 @@ const menuList = [
     calo: "4000 kcal",
   },
 ];
-const dataTabView = [
-  {
-    id: 1,
-    name: "Món ăn",
-  },
-  {
-    id: 2,
-    name: "Menu",
-  },
-];
 
 const FavouriteScreen = ({ navigation }) => {
-  const [currentTabView, setCurrentTabView] = React.useState(1);
+  const [currentTabView, setCurrentTabView] = useState(1);
+  const [favoriteDishes, setFavoriteDishes] = useState([]);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const getUserIdFromStorage = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (storedUserId) {
+          setUserId(storedUserId);
+        }
+      } catch (error) {
+        console.error("Error getting userId from AsyncStorage:", error);
+      }
+    };
+
+    getUserIdFromStorage();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        fetchFavoriteDishes(userId);
+      }
+    }, [userId])
+  );
+  const fetchFavoriteDishes = async (userId) => {
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/getAllDishFavoriteByUserId/${userId}`
+      );
+      const favoriteIds = await response.json();
+
+      // Kiểm tra xem có món ăn yêu thích nào không
+      console.log("Danh sách món ăn yêu thích từ API:", favoriteIds);
+
+      const dishes = await Promise.all(
+        favoriteIds.map(async (favorite) => {
+          const dishResponse = await fetch(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${favorite.dishId}`
+          );
+          return await dishResponse.json();
+        })
+      );
+
+      // Lọc bỏ các món ăn không tìm thấy
+      const validDishes = dishes.filter(dish => dish !== null && dish.dishId);
+
+      console.log("Danh sách món ăn yêu thích hợp lệ:", validDishes);
+      setFavoriteDishes(validDishes);
+    } catch (error) {
+      console.error("Error fetching favorite dishes:", error);
+    }
+  };
+
+  const handleDeleteFavorite = async (dishId) => {
+    try {
+      await fetch(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/deleteFavoriteDish",
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            favoriteId: 0,
+            userId: parseInt(userId),
+            dishId: dishId,
+            favoriteDate: new Date().toISOString(),
+          }),
+        }
+      );
+      setFavoriteDishes(favoriteDishes.filter((dish) => dish.dishId !== dishId));
+    } catch (error) {
+      console.error("Error deleting favorite dish:", error);
+    }
+  };
 
   return (
     <View>
@@ -124,7 +137,6 @@ const FavouriteScreen = ({ navigation }) => {
         colorBackground={COLORS.white}
         colorText={COLORS.black}
         onPress={() => navigation.goBack()}
-        // onPressRight={() => setShowModalInformation(!showModalInformation)}
       />
       <View style={{ flexDirection: "row" }}>
         {dataTabView.map((tabView, index) => (
@@ -163,14 +175,13 @@ const FavouriteScreen = ({ navigation }) => {
       {currentTabView === 1 && (
         <FlatList
           showsVerticalScrollIndicator={false}
-          data={favouriteList}
-          renderItem={({ item, index }) => (
+          data={favoriteDishes}
+          renderItem={({ item }) => (
             <TouchableOpacity
               onPress={() => {
-                navigation.navigate("DetailDish");
+                navigation.navigate("DishDetail", { dishId: item.dishId });
               }}
               activeOpacity={0.8}
-              key={index}
               style={{
                 backgroundColor: COLORS.white,
                 padding: 10,
@@ -182,7 +193,7 @@ const FavouriteScreen = ({ navigation }) => {
               }}
             >
               <Image
-                source={{ uri: item.image }}
+                source={{ uri: item.imageUrl }}
                 style={{ height: 100, width: 120, borderRadius: 5 }}
               />
               <View
@@ -207,7 +218,7 @@ const FavouriteScreen = ({ navigation }) => {
                     marginTop: 5,
                   }}
                 >
-                  Món khai vị
+                  {item.dishType}
                 </Text>
                 <Text
                   style={{
@@ -217,18 +228,22 @@ const FavouriteScreen = ({ navigation }) => {
                     marginTop: 5,
                   }}
                 >
-                  15.000đ
+                  {item.price} đ
                 </Text>
               </View>
-              <Icon
-                name="trash-outline"
-                color={COLORS.orange}
-                size={24}
+              <TouchableOpacity
+                onPress={() => handleDeleteFavorite(item.dishId)}
                 style={{ alignSelf: "flex-end" }}
-              />
+              >
+                <Icon
+                  name="trash-outline"
+                  color={COLORS.orange}
+                  size={24}
+                />
+              </TouchableOpacity>
             </TouchableOpacity>
           )}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.dishId.toString()}
           style={{ backgroundColor: COLORS.white, paddingTop: 10 }}
         />
       )}
@@ -238,7 +253,6 @@ const FavouriteScreen = ({ navigation }) => {
           data={menuList}
           renderItem={({ item, index }) => (
             <TouchableOpacity
-              // onPress={() => {navigation.navigate("PostDetail", {post_id: item._id})}}
               activeOpacity={0.8}
               key={index}
               style={{

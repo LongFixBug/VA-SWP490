@@ -1,226 +1,512 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import COLORS from '../constants/color';
-import FONTS from '../constants/font';
+import React, { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Image,
+  ImageBackground,
+  Pressable,
+  FlatList,
+  Dimensions,
+  TouchableOpacity,
+  ScrollView,
+  RefreshControl,
+} from "react-native";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
+import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
+import Icon from "react-native-vector-icons/Ionicons";
+import IconAnt from "react-native-vector-icons/AntDesign";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const windowWidth = Dimensions.get("window").width;
+
+const dataTabView = [
+  {
+    id: 1,
+    name: "Cộng đồng",
+  },
+  {
+    id: 2,
+    name: "Chuyên gia",
+  },
+];
 
 const CommunityScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState('Cộng đồng');
+  const [currentTabView, setCurrentTabView] = useState(1);
+  const [expandedDecription, setExpandedDecription] = useState({});
   const [communityPosts, setCommunityPosts] = useState([]);
   const [expertPosts, setExpertPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false); // Thêm trạng thái làm mới
+  const [username, setUsername] = useState("Người dùng");
 
   // Fetch articles from the API
   const fetchArticles = async () => {
     try {
-      const response = await fetch('https://va-api-2efefb5aee82.herokuapp.com/articles');
-      const data = await response.json();
-
-      // Separate posts based on role
-      const communityData = data.data.filter(post => post.author_role === 'Customer');
-      const expertData = data.data.filter(post => post.author_role === 'Nutritionist');
-
-      setCommunityPosts(communityData);
-      setExpertPosts(expertData);
+      setLoading(true);
+      const communityResponse = await fetch(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/GetArticleByRoleId/3"
+      );
+      const communityData = await communityResponse.json();
+  
+      const expertResponse = await fetch(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/GetArticleByRoleId/5"
+      );
+      const expertData = await expertResponse.json();
+  
+      // Filter posts by status 'accepted'
+      const filteredCommunityPosts = communityData.filter(
+        (post) => post.status === "accepted"
+      );
+      const filteredExpertPosts = expertData.filter(
+        (post) => post.status === "accepted"
+      );
+  
+      setCommunityPosts(filteredCommunityPosts);
+      setExpertPosts(filteredExpertPosts);
       setLoading(false);
+      setRefreshing(false); // End refreshing state
     } catch (error) {
-      console.error('Error fetching articles:', error);
+      console.error("Error fetching articles:", error);
       setLoading(false);
+      setRefreshing(false); // End refreshing state even if there is an error
+    }
+  };
+
+  useEffect(() => {
+    const getUsernameFromStorage = async () => {
+      try {
+        const storedUsername = await AsyncStorage.getItem('username');
+        console.log('Username từ AsyncStorage:', storedUsername); // In log ra console
+  
+        if (storedUsername) {
+          setUsername(storedUsername);
+        } else {
+          console.log('Không tìm thấy username trong AsyncStorage');
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy username từ AsyncStorage:', error);
+      }
+    };
+  
+    getUsernameFromStorage();
+  }, []);
+  
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchArticles();
+  };
+
+ 
+  const getUsernameFromStorage = async () => {
+    try {
+      const storedUserInfo = await AsyncStorage.getItem('userInfo');
+      if (storedUserInfo) {
+        const userInfo = JSON.parse(storedUserInfo);
+        setUsername(userInfo.username || "Người dùng");
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy username từ AsyncStorage:", error);
     }
   };
 
   useEffect(() => {
     fetchArticles();
+    getUsernameFromStorage();
   }, []);
 
-  const renderNewPostSection = () => (
-    <TouchableOpacity style={styles.newPostContainer} onPress={() => navigation.navigate('NewPostScreen')}>
-      <View style={styles.newPostHeader}>
-        <Icon name="person-circle-outline" size={32} color={COLORS.black} />
-        <Text style={styles.username}>lukaku</Text>
-      </View>
-      <Text style={styles.newPostText}>What your content?</Text>
-      <View style={styles.newPostActions}>
-        <Icon name="image-outline" size={24} color={COLORS.grey} />
-        <Icon name="camera-outline" size={24} color={COLORS.grey} />
-      </View>
-    </TouchableOpacity>
-  );
+  const toggleShowMore = (id) => {
+    setExpandedDecription((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
-  const renderPost = ({ item }) => (
-    <TouchableOpacity
-      style={styles.postContainer}
-      onPress={() => navigation.navigate('PostDetailScreen', { article: item })}
+  const renderPost = (item) => (
+    <TouchableOpacity onPress={() => navigation.navigate('PostDetailScreen', { post: item })}>
+    <View
+      style={{
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.greyPastel,
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 10,
+      }}
+      key={item.articleId}
     >
-      <View style={styles.postHeader}>
-        <Icon name="person-circle-outline" size={32} color={COLORS.black} />
-      
-          <Text style={styles.username}>{item.author_role}</Text>
-      </View> 
-      {/* <Text style={styles.roleText}>{item.author_role === 'Customer' ? 'Customer' : 'Nutritionist'}</Text> */}
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.content}>{item.content.substring(0, 50)}...</Text>
-      <View style={styles.interactionBar}>
-        <TouchableOpacity style={styles.iconContainer}>
-          <Icon name="heart-outline" size={20} color={COLORS.grey} />
-          <Text style={styles.iconText}>{item.likes}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.iconContainer}>
-          <Icon name="chatbubble-outline" size={20} color={COLORS.grey} />
-          <Text style={styles.iconText}>{item.comments}</Text>
-        </TouchableOpacity>
+      <View style={{ flexDirection: "row" }}>
+        <Image
+          source={{
+            uri: "https://mighty.tools/mockmind-api/content/human/44.jpg",
+          }}
+          style={{
+            width: 45,
+            height: 45,
+            borderRadius: 50,
+            marginRight: 10,
+          }}
+        />
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontFamily: FONTS.medium,
+              fontSize: 14,
+            }}
+          >
+            {item.authorName}
+          </Text>
+          <Text
+            style={{
+              fontFamily: FONTS.medium,
+              fontSize: 12,
+              marginTop: 3,
+              color: COLORS.grey,
+            }}
+          >
+            {item.createdAt}
+          </Text>
+        </View>
+        <Icon
+          name="ellipsis-horizontal"
+          color={COLORS.greySolid}
+          size={24}
+        />
       </View>
+      <View style={{ marginTop: 10 }}>
+        <Text
+          style={{
+            fontFamily: FONTS.semiBold,
+            fontSize: 14,
+            lineHeight: 20,
+          }}
+        >
+          {item.title}
+        </Text>
+        <Text
+          style={{
+            fontFamily: FONTS.medium,
+            fontSize: 13,
+            lineHeight: 22,
+            marginTop: 5,
+          }}
+          numberOfLines={!expandedDecription[item.articleId] ? 2 : undefined}
+        >
+          {item.content}
+        </Text>
+        <TouchableOpacity onPress={() => toggleShowMore(item.articleId)}>
+          <Text
+            style={{
+              fontFamily: FONTS.medium,
+              color: COLORS.grey,
+              marginTop: 5,
+              fontSize: 13,
+            }}
+          >
+            {expandedDecription[item.articleId] ? "Ẩn bớt" : "Xem thêm"}
+          </Text>
+        </TouchableOpacity>
+        <ScrollView
+          horizontal
+          contentContainerStyle={{
+            marginTop: 10,
+          }}
+        >
+          {item.images &&
+            item.images.map((imageUrl, index) => (
+              <Image
+                key={index}
+                source={{
+                  uri: imageUrl,
+                }}
+                style={{
+                  width: 200,
+                  height: 150,
+                  resizeMode: "cover",
+                  borderRadius: 8,
+                  marginLeft: index === 0 ? 0 : 10,
+                }}
+              />
+            ))}
+        </ScrollView>
+        <View style={{ flexDirection: "row", marginTop: 10 }}>
+        
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginRight: 20,
+            }}
+          >
+            <IconAnt name="like2" size={28} color={COLORS.greySolid} />
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                fontSize: 16,
+                color: COLORS.greySolid,
+                marginLeft: 5,
+              }}
+            >
+              {item.likes || 0}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginRight: 20,
+            }}
+          >
+            <Icon
+              name="chatbubble-outline"
+              size={27}
+              color={COLORS.greySolid}
+            />
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                fontSize: 16,
+                color: COLORS.greySolid,
+                marginLeft: 5,
+              }}
+            >
+              {item.comments || 0}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
     </TouchableOpacity>
   );
-
-  if (loading) {
-    return <ActivityIndicator size="large" color={COLORS.green} style={styles.loading} />;
-  }
 
   return (
-    <View style={styles.container}>
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'Cộng đồng' && styles.activeTab]}
-          onPress={() => setActiveTab('Cộng đồng')}
+    <ScrollView style={{ flex: 1, backgroundColor: COLORS.white }}
+    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      {refreshing && (
+        <Text style={{ textAlign: "center", marginVertical: 10, color: COLORS.green }}>
+          Đang làm mới trang...
+        </Text>
+      )}
+      <View
+        style={{
+          width: "100%",
+          height: "auto",
+        }}
+      >
+        <ImageBackground
+          source={{
+            uri: "https://t4.ftcdn.net/jpg/08/03/08/29/360_F_803082915_4gPN1abhjLZVnIgXCQNNfH1cIo1ZxKLt.jpg",
+          }}
+          style={{
+            width: "100%",
+            height: "auto",
+            resizeMode: "cover",
+          }}
         >
-          <Text style={styles.tabText}>Cộng đồng</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'Chuyên gia' && styles.activeTab]}
-          onPress={() => setActiveTab('Chuyên gia')}
-        >
-          <Text style={styles.tabText}>Chuyên gia</Text>
-        </TouchableOpacity>
+          {/* Header */}
+          <View
+            style={{
+              padding: 20,
+              marginTop: 15,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <TouchableOpacity
+              style={{ flexDirection: "row", alignItems: "center" }}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("Membership")}
+            >
+              <Image
+                source={{
+                  uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+                }}
+                style={{
+                  height: 55,
+                  width: 55,
+                  borderRadius: 50,
+                  borderWidth: 1,
+                  borderColor: COLORS.white,
+                }}
+              />
+              <View
+                style={{
+                  alignItems: "flex-start",
+                  marginRight: 5,
+                  padding: 5,
+                  borderRadius: 5,
+                  elevation: 0,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: FONTS.bold,
+                    color: COLORS.white,
+                    fontSize: 15,
+                    alignSelf: "center",
+                    marginBottom: 5,
+                  }}
+                >
+                  {username}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.bold,
+                    color: COLORS.diamond,
+                    fontSize: 12,
+                    backgroundColor: COLORS.white,
+                    borderRadius: 50,
+                    paddingVertical: 3,
+                    paddingHorizontal: 8,
+                  }}
+                >
+                  Kim cương
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <Pressable>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="people" size={30} color={COLORS.white} />
+              </View>
+            </Pressable>
+          </View>
+
+          {/* New Post */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-around",
+              marginBottom: 110,
+              marginHorizontal: 20,
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate("NewPostScreen")}
+              style={{
+                paddingVertical: 10,
+                paddingHorizontal: 15,
+                backgroundColor: COLORS.white,
+                borderRadius: 15,
+                elevation: 10,
+                flex: 1,
+                position: "relative",
+              }}
+            >
+              <View
+                style={{
+                  position: "absolute",
+                  top: -15,
+                  left: 20,
+                  width: 0,
+                  height: 0,
+                  borderRightWidth: 15,
+                  borderBottomWidth: 15,
+                  borderLeftColor: "transparent",
+                  borderRightColor: "transparent",
+                  borderBottomColor: COLORS.white,
+                }}
+              />
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  color: COLORS.grey,
+                  marginBottom: 10,
+                }}
+              >
+                Hãy viết gì đó...
+              </Text>
+              <View style={{ flexDirection: "row" }}>
+                <Icon1
+                  name="camera-plus-outline"
+                  size={24}
+                  color={COLORS.green}
+                  style={{ marginRight: 3 }}
+                />
+                <Icon1 name="image-outline" size={25} color={COLORS.green} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </ImageBackground>
       </View>
 
-      {/* Only show new post section if in the "Cộng đồng" tab */}
-      {activeTab === 'Cộng đồng' && renderNewPostSection()}
+      {/* Tabs */}
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: COLORS.greyPastel,
+          borderTopLeftRadius: 40,
+          borderTopRightRadius: 40,
+          marginTop: -50,
+          paddingHorizontal: 15,
+          paddingTop: 15,
+          elevation: 5,
+        }}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            marginTop: -50,
+            marginHorizontal: 30,
+            borderRadius: 15,
+            overflow: "hidden",
+            elevation: 3,
+            backgroundColor: COLORS.white,
+            marginBottom: 15,
+          }}
+        >
+          {dataTabView.map((tabView, index) => (
+            <TouchableOpacity
+              key={index}
+              activeOpacity={0.8}
+              onPress={() => setCurrentTabView(tabView.id)}
+              style={{
+                backgroundColor:
+                  currentTabView === tabView.id ? COLORS.green : COLORS.white,
+                alignItems: "center",
+                padding: 20,
+                flex: 1,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: FONTS.semiBold,
+                  color:
+                    currentTabView === tabView.id
+                      ? COLORS.white
+                      : COLORS.greySolid,
+                  fontSize: 16,
+                }}
+              >
+                {tabView.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* List of posts */}
-      <FlatList
-        data={activeTab === 'Cộng đồng' ? communityPosts : expertPosts}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.article_id.toString()}
-        contentContainerStyle={styles.postList}
-      />
-    </View>
+        {/* Display posts */}
+        {loading ? (
+          <Text style={{ textAlign: "center", marginVertical: 20 }}>Loading...</Text>
+        ) : (
+          <View>
+            {currentTabView === 1
+              ? communityPosts.map((post) => renderPost(post))
+              : expertPosts.map((post) => renderPost(post))}
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    padding: 10,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  tabButton: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: COLORS.grey,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 5,
-  },
-  activeTab: {
-    backgroundColor: COLORS.green,
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.white,
-  },
-  postList: {
-    paddingHorizontal: 20,
-  },
-  newPostContainer: {
-    backgroundColor: COLORS.lightGray,
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-  },
-  newPostHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  newPostText: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.grey,
-    marginBottom: 10,
-  },
-  newPostActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  postContainer: {
-    backgroundColor: COLORS.lightGray,
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  username: {
-    marginTop: 5,
-    marginLeft: 5,
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.black,
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.black,
-    marginBottom: 5,
-    marginRight: 5,
-    textAlign: 'center',  // Căn giữa nội dung của text
-  },
-  content: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.grey,
-    marginLeft: 5, // Keep the same margin as the title for alignment
-    marginBottom: 10,
-    marginRight:5,
-  },
-
-  // roleText: {
-  //   fontSize: 12,
-  //   color: COLORS.grey,
-  //   alignSelf: 'flex-end',
-  //   marginTop: -10,
-  //   marginRight: 10,
-  // },
-  interactionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  iconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconText: {
-    marginLeft: 5,
-    fontFamily: FONTS.regular,
-    color: COLORS.grey,
-  },
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
-
 export default CommunityScreen;
+
+const styles = StyleSheet.create({});

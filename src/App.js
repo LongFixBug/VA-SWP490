@@ -13,12 +13,16 @@ import OrdersManagement from "./pages/OrdersManagement";
 import OrderDetail from "./pages/OrderDetail";
 import IngredientManagement from "./pages/IngredientManagement";
 import IngredientDetail from "./pages/IngredientDetail";
+import ArticlesManagement from "./pages/ArticlesManagement";
+import ArticleDetail from "./pages/ArticleDetail";
+import ArticleModerateManagement from "./pages/ArticleModerateManagement";
+import ModeratedArticles from "./pages/ModeratedArticles";
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login />} /> Đường dẫn đến trang Login
+        <Route path="/" element={<Login />} /> 
         <Route path="/admin" element={<AdminPage />} />{" "}
         <Route path="/create-account" element={<CreateAccount />} />
         <Route path="/dashboard" element={<Dashboards />} />
@@ -32,6 +36,10 @@ function App() {
         <Route path="/Ingredient-management" element={<IngredientManagement />} />
         <Route path="/Ingredient-detail/:id" element={<IngredientDetail />} />{" "}
         <Route path="/orders-management" element={<OrdersManagement />} />
+        <Route path="/articles-management" element={<ArticlesManagement />} />
+        <Route path="/article-detail/:id" element={<ArticleDetail />} />{" "}
+        <Route  path="/articleModerate-management" element={<ArticleModerateManagement />} />
+        <Route path="/moderated-articles" element={<ModeratedArticles />} />
       </Routes>
     </Router>
   );

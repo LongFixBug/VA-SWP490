@@ -17,6 +17,11 @@ import ArticlesManagement from "./pages/ArticlesManagement";
 import ArticleDetail from "./pages/ArticleDetail";
 import ArticleModerateManagement from "./pages/ArticleModerateManagement";
 import ModeratedArticles from "./pages/ModeratedArticles";
+import CreateArticle from "./pages/CreateArticle";
+import CreateDish from "./pages/CreateDish";
+import CreateIngredient from "./pages/CreateIngredient";
+import CreateNutritionCriteria from "./pages/CreateNutritionCriteria";
+// import CreateOrder from "./pages/CreateOrder";
 
 function App() {
   return (
@@ -40,6 +45,10 @@ function App() {
         <Route path="/article-detail/:id" element={<ArticleDetail />} />{" "}
         <Route  path="/articleModerate-management" element={<ArticleModerateManagement />} />
         <Route path="/moderated-articles" element={<ModeratedArticles />} />
+        <Route path="/create-article" element={<CreateArticle />} />
+        <Route path="/create-dish" element={<CreateDish />} />
+        <Route path="/create-ingredient" element={<CreateIngredient />} />
+        <Route path="/create-nutritionCriteria" element={<CreateNutritionCriteria />} />
       </Routes>
     </Router>
   );

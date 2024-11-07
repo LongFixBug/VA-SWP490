@@ -1,0 +1,51 @@
+.create-article-container {
+    max-width: 600px;
+    margin: 50px auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.create-article-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.article-input-group {
+    margin-bottom: 15px;
+}
+
+.article-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.article-input-group input,
+.article-input-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.article-create-button {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.article-create-button button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.article-create-button button:hover {
+    background-color: #45a049;
+}

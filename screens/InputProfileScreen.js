@@ -89,52 +89,53 @@ const InputProfileScreen = ({ navigation, route }) => {
   ];
 
   const handleRegister = async () => {
-
-
-     // Kiểm tra nếu cả 3 phần của địa chỉ đều được nhập đầy đủ
-  if (!province || !selectedDistrict || !address.trim()) {
-    Alert.alert("Lỗi", "Vui lòng nhập đầy đủ địa chỉ!");
-    return;
-  }
-
-  const fullAddress = `${province}, ${selectedDistrict}, ${address}`;
-  console.log("Địa chỉ đầy đủ:", fullAddress);
-
-  // Kiểm tra nếu các trường bắt buộc đã được nhập đầy đủ
-  if (!username || !email || !phoneNumber || !dob || !password || !confirmPassword) {
-    setError('Vui lòng nhập đầy đủ thông tin!');
-    return;
-  }
-
-  // Kiểm tra nếu mật khẩu và xác nhận mật khẩu khớp
-  if (password !== confirmPassword) {
-    Alert.alert('Lỗi', 'Mật khẩu và xác nhận mật khẩu không khớp!');
-    return;
-  }
-
-  const formattedPhoneNumber = phoneNumber.startsWith('0') ? phoneNumber : '0' + phoneNumber;
-
-  // Chuẩn bị dữ liệu để gửi tới API
-  const age = moment().diff(dob, 'years');
-  const gender = selectedSexId === '1' ? 'Man' : selectedSexId === '2' ? 'Woman' : 'Other';
-
-  const requestData = {
-    username,
-    password,
-    email,
-    phoneNumber: formattedPhoneNumber,
-    address: fullAddress, // Sử dụng địa chỉ đầy đủ ở đây
-    height: parseFloat(height), // Đảm bảo chiều cao là số
-    weight: parseFloat(weight), // Đảm bảo cân nặng là số
-    age,
-    gender,
-    dietaryPreferenceId: parseInt(selectedPreferencesId), // Thêm dietary_preference_id
-    profession,
-    activityLevel,
-    goal,
-    isPhoneVerified: true, // Thêm is_phone_verified
-  };
-    // Ghi log dữ liệu đã nhập
+    // Check if address is complete
+    if (!province || !selectedDistrict || !address.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ địa chỉ!");
+      return;
+    }
+  
+    const fullAddress = `${province}, ${selectedDistrict}, ${address}`;
+    console.log("Địa chỉ đầy đủ:", fullAddress);
+  
+    // Check required fields
+    if (!username || !email || !phoneNumber || !dob || !password || !confirmPassword) {
+      setError('Vui lòng nhập đầy đủ thông tin!');
+      return;
+    }
+  
+    // Check password confirmation
+    if (password !== confirmPassword) {
+      Alert.alert('Lỗi', 'Mật khẩu và xác nhận mật khẩu không khớp!');
+      return;
+    }
+  
+    const formattedPhoneNumber = phoneNumber.startsWith('0') ? phoneNumber : '0' + phoneNumber;
+  
+    // Prepare data for the API request
+    const age = moment().diff(dob, 'years');
+    const gender = selectedSexId === '1' ? 'Man' : selectedSexId === '2' ? 'Woman' : 'Other';
+    const defaultImageUrl = 'https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740';
+  
+    const requestData = {
+      username,
+      password,
+      email,
+      phoneNumber: formattedPhoneNumber,
+      address: fullAddress,
+      height: parseFloat(height),
+      weight: parseFloat(weight),
+      age,
+      gender,
+      dietaryPreferenceId: parseInt(selectedPreferencesId),
+      profession,
+      activityLevel,
+      goal,
+      isPhoneVerified: true,
+      imageUrl: defaultImageUrl, // Set default image URL here
+    };
+  
+    // Log request data
     console.log('Dữ liệu đã nhập:', requestData);
     try {
       const response = await axios.post(
@@ -144,7 +145,7 @@ const InputProfileScreen = ({ navigation, route }) => {
   
       if (response.status === 200) {
         console.log('Đăng ký thành công:', response.data);
-  
+        // Additional steps after successful registration
         try {
           const userResponse = await axios.get(
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByUsername/${username}`
@@ -152,24 +153,20 @@ const InputProfileScreen = ({ navigation, route }) => {
   
           if (userResponse.status === 200 && userResponse.data) {
             const userId = userResponse.data?.userId || userResponse.data?.[0]?.userId;
-            const fetchedUsername = userResponse.data?.username || userResponse.data?.[0]?.username;
-        
             console.log('Lấy được userId:', userId);
-            console.log('Lấy được username:', fetchedUsername);
-        
-            // Lưu cả userId và username vào AsyncStorage
+  
+            // Store userId in AsyncStorage
             await AsyncStorage.setItem('userId', userId.toString());
-            // await AsyncStorage.setItem('username', fetchedUsername);
-        
+            
             Alert.alert('Thông báo', 'Đăng ký thành công!', [
               { text: 'OK', onPress: () => navigation.navigate('Home') },
             ]);
           } else {
-            console.log('Phản hồi từ getUserByName không hợp lệ hoặc không có userId:', userResponse.data);
+            console.log('Phản hồi từ getUserByName không hợp lệ:', userResponse.data);
             Alert.alert('Lỗi', 'Không thể lấy thông tin người dùng sau khi đăng ký.');
           }
         } catch (getUserError) {
-          console.error('Lỗi chi tiết khi gọi API getUserByName:', getUserError.response ? getUserError.response.data : getUserError.message);
+          console.error('Lỗi khi gọi API getUserByName:', getUserError.message);
           Alert.alert('Lỗi', 'Không thể lấy thông tin user sau khi đăng ký. Vui lòng thử lại sau.');
         }
       } else {
@@ -177,10 +174,11 @@ const InputProfileScreen = ({ navigation, route }) => {
         Alert.alert('Lỗi', 'Đăng ký thất bại. Vui lòng thử lại sau.');
       }
     } catch (registerError) {
-      console.error('Lỗi đăng ký:', registerError.response ? registerError.response.data : registerError.message);
+      console.error('Lỗi đăng ký:', registerError.message);
       Alert.alert('Lỗi', 'Đăng ký thất bại. Vui lòng thử lại sau.');
     }
   };
+  
   
   
   

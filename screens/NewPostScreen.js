@@ -16,53 +16,55 @@ import FONTS from "../constants/font";
 import { ButtonFloatBottom } from "../components/Button";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-
-const images = [
-  "https://foodphoto.vn/wp-content/uploads/2023/10/com-nieu-11.jpg",
-  "https://png.pngtree.com/thumb_back/fh260/background/20230724/pngtree-korean-cooking-is-one-of-the-best-of-all-the-foods-image_10193156.jpg",
-  "https://hitasanti.com/wp-content/uploads/2020/05/hita-vegan-200-mon-an-chay-4.jpg",
-  "https://foodphoto.vn/wp-content/uploads/2023/10/com-nieu-11.jpg",
-];
+import { launchImageLibrary, launchCamera } from "react-native-image-picker";
 
 const NewPostScreen = ({ navigation }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [username, setUsername] = useState("Người dùng");
+  const [images, setImages] = useState([]); // To store selected images
+  const [user, setUser] = useState(null); // Store user data
 
   useEffect(() => {
-    const fetchUsername = async () => {
+    const fetchUserDetails = async () => {
       try {
-        const storedUsername = await AsyncStorage.getItem("username");
-        if (storedUsername) {
-          console.log("Username từ AsyncStorage:", storedUsername);
-          setUsername(storedUsername);
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (storedUserId) {
+          const response = await axios.get(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${storedUserId}`
+          );
+
+          if (response.status === 200) {
+            console.log("Thông tin người dùng:", response.data);
+            setUser(response.data);
+          } else {
+            console.log("Lỗi khi lấy thông tin người dùng:", response.data);
+          }
         } else {
-          console.log("Không tìm thấy username trong AsyncStorage.");
+          console.log("Không tìm thấy userId trong AsyncStorage.");
         }
       } catch (error) {
-        console.error("Lỗi khi lấy username từ AsyncStorage:", error);
+        console.error("Lỗi khi gọi API lấy thông tin người dùng:", error);
       }
     };
 
-    fetchUsername();
+    fetchUserDetails();
   }, []);
 
   const handlePost = async () => {
-    try {
-      const userId = await AsyncStorage.getItem("userId");
-      if (!userId) {
-        Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
-        return;
-      }
+    if (!user) {
+      Alert.alert("Lỗi", "Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
 
+    try {
       const newArticle = {
         articleId: 0,
         title: title,
         content: content,
         status: "pending",
-        authorId: parseInt(userId),
-        authorName: username,
-        articleImages: ["https://picsum.photos/200"], // Giá trị placeholder cho thử nghiệm
+        authorId: user.userId,
+        authorName: user.username,
+        articleImages: images.map((img) => img.uri), // Send image URIs
         likes: 0,
       };
 
@@ -75,18 +77,61 @@ const NewPostScreen = ({ navigation }) => {
 
       if (response.status === 201 || response.status === 200) {
         Alert.alert("Thành công", "Bài viết đã được tạo thành công!");
-        navigation.goBack(); // Quay lại trang trước đó
+        navigation.goBack();
       } else {
         console.log("Response data:", response.data);
         Alert.alert("Lỗi", "Không thể tạo bài viết. Vui lòng thử lại sau.");
       }
     } catch (error) {
       console.error("Lỗi khi tạo bài viết:", error);
-      console.log("Chi tiết lỗi:", error.response ? error.response.data : error.message);
       Alert.alert("Lỗi", "Có lỗi xảy ra khi tạo bài viết. Vui lòng thử lại.");
     }
   };
 
+  const handleChoosePhoto = () => {
+    launchImageLibrary(
+      {
+        mediaType: "photo",
+        selectionLimit: 1, // Allow single selection for now
+      },
+      (response) => {
+        if (response.didCancel) {
+          console.log("User cancelled image picker");
+        } else if (response.errorMessage) {
+          console.error("Image picker error:", response.errorMessage);
+        } else if (response.assets) {
+          const selectedImage = response.assets[0];
+          console.log("Image selected:", selectedImage);
+          setImages([...images, selectedImage]); // Add the selected image to the list
+        }
+      }
+    );
+  };
+
+  const handleTakePhoto = () => {
+    launchCamera(
+      {
+        mediaType: "photo",
+      },
+      (response) => {
+        if (response.didCancel) {
+          console.log("User cancelled camera");
+        } else if (response.errorMessage) {
+          console.error("Camera error:", response.errorMessage);
+        } else if (response.assets) {
+          const takenPhoto = response.assets[0];
+          console.log("Photo taken:", takenPhoto);
+          setImages([...images, takenPhoto]); // Add the captured photo to the list
+        }
+      }
+    );
+  };
+
+  const removeImage = (index) => {
+    const updatedImages = images.filter((_, i) => i !== index);
+    setImages(updatedImages);
+  };
+  
   return (
     <>
       <Header
@@ -116,14 +161,7 @@ const NewPostScreen = ({ navigation }) => {
           <Text style={styles.inputLabel}>Nội dung</Text>
           <View style={styles.inputRow}>
             <TextInput
-              style={[
-                styles.textInput,
-                {
-                  minHeight: 100,
-                  textAlignVertical: "top",
-                  paddingLeft: 0,
-                },
-              ]}
+              style={[styles.textInput, { minHeight: 100, textAlignVertical: "top" }]}
               placeholder="Nhập nội dung..."
               numberOfLines={5}
               multiline
@@ -132,70 +170,27 @@ const NewPostScreen = ({ navigation }) => {
             />
           </View>
         </View>
-        <Text
-          style={{ fontFamily: FONTS.semiBold, fontSize: 15, marginBottom: 15 }}
-        >
-          Hình ảnh ({images.length}/6)
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "flex-start",
-            marginBottom: 20,
-            flexWrap: "wrap",
-          }}
-        >
+        <Text style={styles.inputLabel}>Hình ảnh ({images.length}/6)</Text>
+        <View style={styles.imageContainer}>
           {images.map((image, index) => (
-            <View
-              key={index}
-              style={{
-                marginBottom: 15,
-                width: "30%",
-                height: 90,
-                backgroundColor: COLORS.white,
-                borderRadius: 10,
-                marginRight:
-                  (index + 1) % 3 === 0
-                    ? 0
-                    : "4.3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333%",
-              }}
-            >
-              <View style={{ width: "100%", height: "100%" }}>
-                <Image
-                  source={{ uri: image }}
-                  width={"100%"}
-                  height={"100%"}
-                  style={{ borderRadius: 5 }}
-                />
-                <Icon
-                  name="close-circle"
-                  size={20}
-                  color={COLORS.lightGrey}
-                  style={{
-                    position: "absolute",
-                    right: -10,
-                    top: -10,
-                    backgroundColor: COLORS.white,
-                    borderRadius: 50,
-                  }}
-                />
-              </View>
+            <View key={index} style={styles.imageWrapper}>
+              <Image source={{ uri: image.uri }} style={styles.image} />
+              <TouchableOpacity
+                style={styles.removeIcon}
+                onPress={() => removeImage(index)}
+              >
+                <Icon name="close-circle" size={20} color={COLORS.lightGrey} />
+              </TouchableOpacity>
             </View>
           ))}
           {images.length < 6 && (
-            <TouchableOpacity
-              style={{
-                width: "30%",
-                height: 90,
-                backgroundColor: COLORS.white,
-                borderWidth: 1,
-                borderColor: COLORS.darkGrey,
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 10,
-              }}
-            >
+            <TouchableOpacity style={styles.addImage} onPress={handleChoosePhoto}>
               <Icon name="image" size={32} color={COLORS.darkGrey} />
+            </TouchableOpacity>
+          )}
+          {images.length < 6 && (
+            <TouchableOpacity style={styles.addImage} onPress={handleTakePhoto}>
+              <Icon name="camera" size={32} color={COLORS.darkGrey} />
             </TouchableOpacity>
           )}
         </View>
@@ -218,6 +213,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontFamily: FONTS.semiBold,
     fontSize: 15,
+    marginBottom: 10,
   },
   inputRow: {
     flexDirection: "row",
@@ -231,5 +227,38 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     flex: 1,
+  },
+  imageContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  imageWrapper: {
+    position: "relative",
+    width: 100,
+    height: 100,
+    marginRight: 10,
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 5,
+  },
+  removeIcon: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: COLORS.white,
+    borderRadius: 50,
+  },
+  addImage: {
+    width: 100,
+    height: 100,
+    borderWidth: 1,
+    borderColor: COLORS.darkGrey,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    marginRight: 10,
   },
 });

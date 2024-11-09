@@ -71,6 +71,7 @@ const HomeScreen = () => {
   const [tierId, setTierId] = useState(null);
   const [accumulatedPoints, setAccumulatedPoints] = useState(0);
   const [tierLabel, setTierLabel] = useState("");
+  const [userData, setUserData] = useState(null);
 
   const [cartCount, setCartCount] = useState(0);
 
@@ -165,24 +166,25 @@ const HomeScreen = () => {
   
       getUserIdFromStorage();
     }, []);
-  const fetchUserData = async (id) => {
-    try {
-      const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
-      
-      if (!response.ok) {
-        console.error("HTTP Error when fetching user data:", response.status, response.statusText);
-        return;
+    const fetchUserData = async (id) => {
+      try {
+        const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
+        
+        if (!response.ok) {
+          console.error("HTTP Error when fetching user data:", response.status, response.statusText);
+          return;
+        }
+    
+        const data = await response.json();
+        console.log("User data retrieved from API:", data);
+    
+        setUserData(data); // Set user data to the state variable
+        setUsername(data.username || "Unknown User"); // Set username from data if needed
+      } catch (error) {
+        console.error("Error fetching user data:", error);
       }
-  
-      const userData = await response.json();
-      console.log("User data retrieved from API:", userData);
-
-      // Set the username to display in "Xin chào ..."
-      setUsername(userData.username || "Unknown User");
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-    }
-  };
+    };
+    
   // Fetch rating for each dish
   const fetchDishRating = async (dishId) => {
     try {
@@ -404,7 +406,7 @@ const HomeScreen = () => {
             </View>
             <Image
               source={{
-                uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+                uri: userData?.imageUrl || "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740",
               }}
               style={{
                 height: 55,

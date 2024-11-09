@@ -168,8 +168,10 @@ const HomeScreen = () => {
     }, []);
     const fetchUserData = async (id) => {
       try {
-        const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
-        
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`
+        );
+    
         if (!response.ok) {
           console.error("HTTP Error when fetching user data:", response.status, response.statusText);
           return;
@@ -178,12 +180,46 @@ const HomeScreen = () => {
         const data = await response.json();
         console.log("User data retrieved from API:", data);
     
-        setUserData(data); // Set user data to the state variable
-        setUsername(data.username || "Unknown User"); // Set username from data if needed
+        // Lưu toàn bộ dữ liệu người dùng vào AsyncStorage
+        await AsyncStorage.setItem("userData", JSON.stringify(data));
+    
+        setUserData(data); // Set dữ liệu vào state
+        setUsername(data.username || "Unknown User"); // Đặt tên người dùng từ dữ liệu
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
     };
+    
+    useEffect(() => {
+      const initializeUserData = async () => {
+        try {
+          const storedUserId = await AsyncStorage.getItem("userId");
+          if (storedUserId) {
+            setUserId(storedUserId);
+    
+            // Kiểm tra dữ liệu user đã có sẵn trong AsyncStorage chưa
+            const storedUserData = await AsyncStorage.getItem("userData");
+            if (storedUserData) {
+              const userData = JSON.parse(storedUserData);
+              setUserData(userData);
+              setUsername(userData.username || "Unknown User");
+              console.log("Loaded user data from AsyncStorage:", userData);
+            } else {
+              // Gọi API nếu chưa có dữ liệu trong AsyncStorage
+              await fetchUserData(storedUserId);
+            }
+    
+            await fetchMembershipData(storedUserId); // Lấy thông tin thành viên
+          }
+        } catch (error) {
+          console.error("Error initializing user data:", error);
+        }
+      };
+    
+      initializeUserData();
+
+      
+    }, []);
     
   // Fetch rating for each dish
   const fetchDishRating = async (dishId) => {

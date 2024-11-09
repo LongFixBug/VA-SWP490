@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, FlatList, ScrollView } from 'react-native';
 import COLORS from '../constants/color';
 import FONTS from '../constants/font';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -29,21 +29,35 @@ const PostDetailScreen = ({ route, navigation }) => {
   }, [post.articleId]);
 
   // Hàm xử lý khi người dùng đăng bình luận
-  const handlePostComment = () => {
+  const handlePostComment = async () => {
     if (newComment.trim()) {
-      // Gửi dữ liệu bình luận mới lên server (giả lập)
-      setComments([
-        ...comments,
-        {
-          commentId: comments.length + 1,
-          userName: 'Người dùng',
-          content: newComment,
-          postDate: new Date().toISOString(),
-        },
-      ]);
-      setNewComment('');
+      try {
+        // Gửi bình luận mới lên server
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              content: newComment,
+              userId: post.authorId, // ID người dùng (nếu có)
+            }),
+          }
+        );
+  
+        if (response.ok) {
+          const newCommentData = await response.json();
+          setComments((prevComments) => [...prevComments, newCommentData]);
+          setNewComment(""); // Xóa bình luận vừa nhập
+        }
+      } catch (error) {
+        console.error("Error posting comment:", error);
+      }
     }
   };
+  
 
   // Hàm hiển thị từng bình luận
   const renderComment = ({ item }) => (
@@ -97,15 +111,20 @@ const PostDetailScreen = ({ route, navigation }) => {
             <Text style={styles.postContent}>{post.content}</Text>
 
             {/* Hình ảnh của bài viết */}
-            <View style={styles.imageContainer}>
-              {post.images && post.images.map((imageUrl, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: imageUrl }}
-                  style={styles.postImage}
-                />
-              ))}
-            </View>
+            {post.images && post.images.length > 0 && (
+  <ScrollView horizontal style={styles.imageContainer} showsHorizontalScrollIndicator={false}>
+    {post.images.map((image, index) => (
+      <Image
+        key={index}
+        source={{ uri: image.imageUrl }}
+        style={styles.postImage}
+      />
+    ))}
+  </ScrollView>
+)}
+
+
+
 
             {/* Hành động trên bài viết */}
             <View style={styles.actionsContainer}>
@@ -200,14 +219,17 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     marginTop: 10,
+    flexDirection: "row", // Đảm bảo hình ảnh xếp ngang
   },
   postImage: {
-    width: 200,
-    height: 150,
-    resizeMode: 'cover',
+    width: 120, // Chiều rộng nhỏ hơn
+    height: 100, // Chiều cao nhỏ hơn
+    resizeMode: "cover",
     borderRadius: 8,
-    marginRight: 10,
+    marginRight: 10, // Khoảng cách giữa các ảnh
   },
+  
+  
   actionsContainer: {
     flexDirection: 'row',
     marginTop: 20,

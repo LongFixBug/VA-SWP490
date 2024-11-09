@@ -33,88 +33,74 @@ const dataTabView = [
 ];
 
 const CommunityScreen = ({ navigation }) => {
-  const [currentTabView, setCurrentTabView] = useState(1);
-  const [expandedDecription, setExpandedDecription] = useState({});
-  const [communityPosts, setCommunityPosts] = useState([]);
-  const [expertPosts, setExpertPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false); // Thêm trạng thái làm mới
-  const [username, setUsername] = useState("Người dùng");
+  
+    const [currentTabView, setCurrentTabView] = useState(1);
+    const [expandedDecription, setExpandedDecription] = useState({});
+    const [communityPosts, setCommunityPosts] = useState([]);
+    const [expertPosts, setExpertPosts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [username, setUsername] = useState("Người dùng");
 
   // Fetch articles from the API
+  
+  const fetchUserDetails = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (userId) {
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${userId}`
+        );
+        const data = await response.json();
+        setUsername(data.username || "Người dùng");
+      } else {
+        console.error("User ID not found in AsyncStorage");
+      }
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+    }
+  };
+
   const fetchArticles = async () => {
     try {
       setLoading(true);
       const communityResponse = await fetch(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/GetArticleByRoleId/3"
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/allArticleByRoleId/3"
       );
       const communityData = await communityResponse.json();
-  
+
       const expertResponse = await fetch(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/GetArticleByRoleId/5"
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/allArticleByRoleId/5"
       );
       const expertData = await expertResponse.json();
-  
-      // Filter posts by status 'accepted'
+
       const filteredCommunityPosts = communityData.filter(
         (post) => post.status === "accepted"
       );
       const filteredExpertPosts = expertData.filter(
         (post) => post.status === "accepted"
       );
-  
+
       setCommunityPosts(filteredCommunityPosts);
       setExpertPosts(filteredExpertPosts);
-      setLoading(false);
-      setRefreshing(false); // End refreshing state
     } catch (error) {
       console.error("Error fetching articles:", error);
+    } finally {
       setLoading(false);
-      setRefreshing(false); // End refreshing state even if there is an error
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    const getUsernameFromStorage = async () => {
-      try {
-        const storedUsername = await AsyncStorage.getItem('username');
-        console.log('Username từ AsyncStorage:', storedUsername); // In log ra console
-  
-        if (storedUsername) {
-          setUsername(storedUsername);
-        } else {
-          console.log('Không tìm thấy username trong AsyncStorage');
-        }
-      } catch (error) {
-        console.error('Lỗi khi lấy username từ AsyncStorage:', error);
-      }
-    };
-  
-    getUsernameFromStorage();
+    fetchUserDetails();
+    fetchArticles();
   }, []);
-  
+
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchArticles();
   };
-
- 
-  const getUsernameFromStorage = async () => {
-    try {
-      const storedUserInfo = await AsyncStorage.getItem('userInfo');
-      if (storedUserInfo) {
-        const userInfo = JSON.parse(storedUserInfo);
-        setUsername(userInfo.username || "Người dùng");
-      }
-    } catch (error) {
-      console.error("Lỗi khi lấy username từ AsyncStorage:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchArticles();
-    getUsernameFromStorage();
-  }, []);
 
   const toggleShowMore = (id) => {
     setExpandedDecription((prev) => ({

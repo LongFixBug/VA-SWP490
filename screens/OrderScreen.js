@@ -28,6 +28,7 @@ const OrderScreen = ({ navigation }) => {
   const [currentTabViewOrder, setCurrentTabViewOrder] = useState(0);
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
+  const [userId, setUserId] = useState(null);
 
   const orderStatus = {
     pending: { color: COLORS.orange, text: "Chờ xác nhận" },
@@ -38,28 +39,56 @@ const OrderScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    fetchOrders();
+    // Get userId from AsyncStorage on component mount
+    const getUserId = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (storedUserId) {
+          setUserId(storedUserId);
+          console.log("User ID from AsyncStorage:", storedUserId);
+          fetchOrders(storedUserId); // Pass the userId to fetchOrders function
+        } else {
+          console.error("User ID is not available in AsyncStorage");
+        }
+      } catch (error) {
+        console.error("Error retrieving userId:", error);
+      }
+    };
+    getUserId();
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (userId) => {
     try {
       const response = await fetch(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/57`
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
       );
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error fetching orders:", errorData);
+        return;
+      }
       const data = await response.json();
 
       const ordersWithDetails = await Promise.all(
         data.map(async (order) => {
           const orderDetailResponse = await fetch(
-            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailOrderId/${order.orderId}`
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailByOrderId/${order.orderId}`
           );
+          if (!orderDetailResponse.ok) {
+            console.error("Error fetching order details for orderId:", order.orderId);
+            return { ...order, orderDetails: [] }; // Fallback to an empty array if orderDetails cannot be fetched
+          }
           const orderDetails = await orderDetailResponse.json();
 
           const dishesWithDetails = await Promise.all(
-            orderDetails.map(async (detail) => {
+            (orderDetails || []).map(async (detail) => {
               const dishResponse = await fetch(
                 `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${detail.dishId}`
               );
+              if (!dishResponse.ok) {
+                console.error("Error fetching dish details for dishId:", detail.dishId);
+                return { ...detail, dish: {} }; // Fallback to an empty object if dish details cannot be fetched
+              }
               const dish = await dishResponse.json();
               return { ...detail, dish };
             })
@@ -101,10 +130,13 @@ const OrderScreen = ({ navigation }) => {
     filterOrdersByStatus(currentTabViewOrder, orders);
   }, [currentTabViewOrder, orders]);
 
+  // Automatically refresh orders when the screen is focused
   useFocusEffect(
     useCallback(() => {
-      fetchOrders();
-    }, [currentTabViewOrder])
+      if (userId) {
+        fetchOrders(userId);
+      }
+    }, [userId, currentTabViewOrder])
   );
 
   return (

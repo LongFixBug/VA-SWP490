@@ -47,7 +47,7 @@ const OrderDetailScreen = ({ navigation }) => {
   const fetchOrderDetails = async (orderId) => {
     try {
       const response = await fetch(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailOrderId/${orderId}`
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailByOrderId/${orderId}`
       );
       const data = await response.json();
 

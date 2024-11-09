@@ -79,7 +79,7 @@ const FavouriteScreen = ({ navigation }) => {
   const fetchFavoriteDishes = async (userId) => {
     try {
       const response = await fetch(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/getAllDishFavoriteByUserId/${userId}`
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/allDishFavoriteByUserId/${userId}`
       );
       const favoriteIds = await response.json();
 

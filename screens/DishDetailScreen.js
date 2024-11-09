@@ -27,7 +27,6 @@ const DishDetailScreen = ({ navigation, route }) => {
   const [userId, setUserId] = useState(null);
   const [isFavorited, setIsFavorited] = useState(false);
 
-
   useEffect(() => {
     const getUserIdFromStorage = async () => {
       try {
@@ -35,8 +34,6 @@ const DishDetailScreen = ({ navigation, route }) => {
         if (storedUserId) {
           setUserId(storedUserId);
           console.log("User ID từ AsyncStorage:", storedUserId);
-          
-          // Gọi hàm checkIfFavorite ngay sau khi lấy được userId
           checkIfFavorite(storedUserId);
         } else {
           console.log("Không tìm thấy User ID trong AsyncStorage.");
@@ -45,10 +42,8 @@ const DishDetailScreen = ({ navigation, route }) => {
         console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
       }
     };
-  
     getUserIdFromStorage();
   }, []);
-  
 
   useEffect(() => {
     const fetchDishDetail = async () => {
@@ -56,8 +51,12 @@ const DishDetailScreen = ({ navigation, route }) => {
         const response = await fetch(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${dishId}`
         );
-        const data = await response.json();
-        setDish(data);
+        if (response.ok) {
+          const data = await response.json();
+          setDish(data);
+        } else {
+          console.error("Error fetching dish details:", response.status);
+        }
       } catch (error) {
         console.error("Error fetching dish details:", error);
       } finally {
@@ -70,17 +69,21 @@ const DishDetailScreen = ({ navigation, route }) => {
         const response = await fetch(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
         );
-        const data = await response.json();
-        setFeedbacks(data);
+        if (response.ok) {
+          const data = await response.json();
+          setFeedbacks(data);
 
-        if (data.length > 0) {
-          const totalRating = data.reduce(
-            (acc, feedback) => acc + feedback.rating,
-            0
-          );
-          setAverageRating((totalRating / data.length).toFixed(1));
+          if (data.length > 0) {
+            const totalRating = data.reduce(
+              (acc, feedback) => acc + feedback.rating,
+              0
+            );
+            setAverageRating((totalRating / data.length).toFixed(1));
+          } else {
+            setAverageRating("0.0");
+          }
         } else {
-          setAverageRating("0.0");
+          console.error("Error fetching feedbacks:", response.status);
         }
       } catch (error) {
         console.error("Error fetching feedbacks:", error);
@@ -91,7 +94,6 @@ const DishDetailScreen = ({ navigation, route }) => {
     fetchFeedbacks();
   }, [dishId]);
 
-  // Function to check if the dish is already favorited
   const checkIfFavorite = async (userId) => {
     if (!userId) {
       console.log("User ID is missing.");
@@ -100,21 +102,32 @@ const DishDetailScreen = ({ navigation, route }) => {
   
     try {
       const response = await fetch(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/getAllDishFavoriteByUserId/${userId}`
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/allDishFavoriteByUserId/${userId}`
       );
-      const favorites = await response.json();
   
-      // Ghi log danh sách các món ăn yêu thích
-      console.log("Danh sách các món ăn yêu thích:", favorites);
+      // Ensure the response is OK and handle potential empty responses
+      if (response.ok) {
+        const text = await response.text();
+        if (text) {
+          const favorites = JSON.parse(text);
+          console.log("Danh sách các món ăn yêu thích:", favorites);
   
-      // Kiểm tra xem món ăn hiện tại có trong danh sách yêu thích không
-      const isFavorite = favorites.some((favorite) => favorite.dishId === parseInt(dishId));
-      console.log(`Is dish ${dishId} favorited: `, isFavorite);
-      setIsFavorited(isFavorite);
+          // Check if the current dish is in the favorites list
+          const isFavorite = favorites.some((favorite) => favorite.dishId === parseInt(dishId));
+          console.log(`Is dish ${dishId} favorited: `, isFavorite);
+          setIsFavorited(isFavorite);
+        } else {
+          console.warn("Response was empty, no favorites found.");
+        }
+      } else {
+        console.error("Error fetching favorite dishes:", response.status);
+      }
     } catch (error) {
       console.error("Error checking favorite status:", error);
     }
   };
+  
+
   
   
 

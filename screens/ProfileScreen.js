@@ -3,12 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  Image,
+  ScrollView,
   TouchableOpacity,
-  RefreshControl,
   StatusBar,
-  ActivityIndicator,
+  Image,
+  RefreshControl,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import IconAnt from "react-native-vector-icons/AntDesign";
@@ -27,7 +26,7 @@ const ProfileScreen = ({ navigation }) => {
   const [hasMore, setHasMore] = useState(true);
   const [showPendingPosts, setShowPendingPosts] = useState(false);
 
-  // Lấy thông tin người dùng từ AsyncStorage
+  // Function to fetch user posts
   const fetchUserData = async () => {
     try {
       const storedUserData = await AsyncStorage.getItem("userData");
@@ -106,223 +105,399 @@ const ProfileScreen = ({ navigation }) => {
     fetchUserPosts(1);
   }, []);
 
-  const PostItem = ({ post }) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate("PostDetailScreen", { post })}
-    >
-      <View style={styles.postContainer}>
-        <View style={styles.postHeader}>
-          <Image
-            source={{
-              uri: userData.imageUrl || "https://via.placeholder.com/45",
-            }}
-            style={styles.postAvatar}
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.postAuthor}>
-              {userData.username || "Người dùng"}
-            </Text>
-            <Text style={styles.postDate}>
-              {post.createdAt || "12:05, 22/10/2024"}
-            </Text>
-          </View>
-          <Icon name="ellipsis-horizontal" size={24} color={COLORS.greySolid} />
-        </View>
-
-        <Text style={styles.postTitle}>{post.title}</Text>
-        <Text style={styles.postContent} numberOfLines={2}>
-          {post.content}
-        </Text>
-
-        <FlatList
-          horizontal
-          data={post.images}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item }) => (
-            <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
-          )}
-          showsHorizontalScrollIndicator={false}
-        />
-
-        <View style={styles.interaction}>
-          <TouchableOpacity style={styles.iconButton}>
-            <IconAnt name="like2" size={20} color={COLORS.greySolid} />
-            <Text style={styles.iconText}>{post.likes || 0}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Icon name="chatbubble-outline" size={20} color={COLORS.greySolid} />
-            <Text style={styles.iconText}>{post.comments || 0}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Trang cá nhân</Text>
-        <TouchableOpacity onPress={() => navigation.navigate("EditProfile")}>
+      <View
+        style={{
+          marginTop: StatusBar.currentHeight,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: 20,
+          backgroundColor: COLORS.white,
+        }}
+      >
+        <Text
+          style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
+        >
+          Trang cá nhân
+        </Text>
+        <TouchableOpacity
+          onPress={() => {
+            navigation.navigate("EditProfile");
+          }}
+        >
           <Icon name="settings-outline" size={28} color={COLORS.green} />
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={showPendingPosts ? pendingPosts : userPosts}
-        renderItem={({ item }) => <PostItem post={item} />}
-        keyExtractor={(item) => item.articleId.toString()}
-        ListHeaderComponent={
-          <>
-            {/* Thông tin người dùng */}
-            <View style={styles.userInfo}>
-              <Image
-                source={{
-                  uri: userData.imageUrl || "https://via.placeholder.com/100",
-                }}
-                style={styles.avatar}
-              />
-              <View style={styles.stats}>
-                <TouchableOpacity
-                  style={styles.statItem}
-                  onPress={() => setShowPendingPosts(false)}
-                >
-                  <Text style={styles.statValue}>{userPosts.length}</Text>
-                  <Text style={styles.statLabel}>Bài đăng</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.statItem}
-                  onPress={() => setShowPendingPosts(true)}
-                >
-                  <Text style={styles.statValue}>{pendingPosts.length}</Text>
-                  <Text style={styles.statLabel}>Bài chờ duyệt</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.statItem}>
-                  <Text style={styles.statValue}>{followersCount}</Text>
-                  <Text style={styles.statLabel}>Người theo dõi</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <Text style={styles.username}>
-              {userData.username || "Người dùng"}
-            </Text>
-          </>
-        }
+      {/* Nội dung chính */}
+      <ScrollView
+        style={{ flex: 1, backgroundColor: COLORS.white, padding: 10 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        onEndReached={loadMorePosts}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={loading && <ActivityIndicator size="large" />}
-      />
+      >
+        {refreshing && (
+          <Text
+            style={{
+              textAlign: "center",
+              marginVertical: 10,
+              color: COLORS.green,
+            }}
+          >
+            Đang làm mới trang...
+          </Text>
+        )}
+
+        {/* Thông tin người dùng */}
+        <View style={{ flexDirection: "row", marginBottom: 20 }}>
+          <Image
+            source={{
+              uri: userData.imageUrl || "https://via.placeholder.com/100",
+            }}
+            style={{
+              width: 100,
+              height: 100,
+              borderRadius: 50,
+              marginRight: 10,
+            }}
+          />
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            {/* Bài đăng */}
+            <TouchableOpacity
+              style={{
+                alignItems: "center",
+                width: "30%",
+              }}
+              onPress={() => setShowPendingPosts(false)}
+            >
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+                {userPosts.length}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  marginTop: 8,
+                  fontSize: 12,
+                }}
+              >
+                Bài đăng
+              </Text>
+            </TouchableOpacity>
+
+            {/* Bài chờ duyệt */}
+            <TouchableOpacity
+              style={{
+                alignItems: "center",
+                width: "35%",
+              }}
+              onPress={() => setShowPendingPosts(true)}
+            >
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+                {pendingPosts.length}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  marginTop: 8,
+                  fontSize: 12,
+                }}
+              >
+                Bài chờ duyệt
+              </Text>
+            </TouchableOpacity>
+
+            {/* Đang theo dõi */}
+            <TouchableOpacity
+              style={{
+                alignItems: "center",
+                width: "35%",
+              }}
+            >
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+                {followersCount}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  marginTop: 8,
+                  fontSize: 12,
+                }}
+              >
+                Đang theo dõi
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Text
+          style={{
+            fontFamily: FONTS.semiBold,
+            marginTop: 10,
+            fontSize: 17,
+            marginLeft: 5,
+          }}
+        >
+          {userData.username}
+        </Text>
+
+        {/* Danh sách bài viết */}
+        <View style={{ marginTop: 20 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginHorizontal: 5,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                marginVertical: 10,
+                fontSize: 17,
+              }}
+            >
+              {showPendingPosts ? "Bài chờ duyệt" : "Bài đăng"}
+            </Text>
+            <Icon name="options" size={24} color={COLORS.grey} />
+          </View>
+
+          {/* Danh sách bài */}
+          {loading ? (
+            <Text style={{ textAlign: "center", marginVertical: 20 }}>
+              Đang tải...
+            </Text>
+          ) : showPendingPosts ? (
+            pendingPosts.length === 0 ? (
+              <Text style={{ textAlign: "center", marginVertical: 20 }}>
+                Không có bài viết chờ duyệt
+              </Text>
+            ) : (
+              pendingPosts.map((item, index) => (
+                <TouchableOpacity
+                  key={`${item.articleId}-${index}`} // Kết hợp articleId và index
+                  onPress={() =>
+                    navigation.navigate("PostDetailScreen", { post: item })
+                  }
+                >
+                  <View
+                    style={{
+                      backgroundColor: COLORS.white,
+                      borderWidth: 1,
+                      borderColor: COLORS.greyPastel,
+                      padding: 10,
+                      borderRadius: 8,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row" }}>
+                      <Image
+                        source={{
+                          uri:
+                            userData.imageUrl ||
+                            "https://via.placeholder.com/45",
+                        }}
+                        style={{
+                          width: 45,
+                          height: 45,
+                          borderRadius: 50,
+                          marginRight: 10,
+                        }}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontFamily: FONTS.medium,
+                            fontSize: 14,
+                          }}
+                        >
+                          {userData.username || "Người dùng"}
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: FONTS.medium,
+                            fontSize: 12,
+                            marginTop: 3,
+                            color: COLORS.grey,
+                          }}
+                        >
+                          {item.createdAt || "12:05, 22/10/2024"}
+                        </Text>
+                      </View>
+                      <Icon
+                        name="ellipsis-horizontal"
+                        size={24}
+                        color={COLORS.greySolid}
+                      />
+                    </View>
+                    <View style={{ marginTop: 10 }}>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.semiBold,
+                          fontSize: 14,
+                          lineHeight: 20,
+                        }}
+                      >
+                        {item.title}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.medium,
+                          fontSize: 13,
+                          lineHeight: 22,
+                          marginTop: 5,
+                        }}
+                        numberOfLines={2}
+                      >
+                        {item.content}
+                      </Text>
+                      {/* Hiển thị hình ảnh từ API */}
+                      <ScrollView
+                        horizontal
+                        style={{ marginTop: 10 }}
+                        showsHorizontalScrollIndicator={false}
+                      >
+                        {item.images &&
+                          item.images.map((image, index) => (
+                            <Image
+                              key={`${item.articleId}-${index}`} // Kết hợp articleId và index để đảm bảo duy nhất
+                              source={{ uri: image.imageUrl }}
+                              style={{
+                                width: 100,
+                                height: 100,
+                                borderRadius: 8,
+                                marginRight: 10,
+                              }}
+                            />
+                          ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )
+          ) : userPosts.length === 0 ? (
+            <Text style={{ textAlign: "center", marginVertical: 20 }}>
+              Không có bài viết nào
+            </Text>
+          ) : (
+            userPosts.map((item) => (
+              <TouchableOpacity
+                key={item.articleId}
+                onPress={() =>
+                  navigation.navigate("PostDetailScreen", { post: item })
+                }
+              >
+                <View
+                  style={{
+                    backgroundColor: COLORS.white,
+                    borderWidth: 1,
+                    borderColor: COLORS.greyPastel,
+                    padding: 10,
+                    borderRadius: 8,
+                    marginBottom: 10,
+                  }}
+                >
+                  <View style={{ flexDirection: "row" }}>
+                    <Image
+                      source={{
+                        uri:
+                          userData.imageUrl || "https://via.placeholder.com/45",
+                      }}
+                      style={{
+                        width: 45,
+                        height: 45,
+                        borderRadius: 50,
+                        marginRight: 10,
+                      }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.medium,
+                          fontSize: 14,
+                        }}
+                      >
+                        {userData.username || "Người dùng"}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.medium,
+                          fontSize: 12,
+                          marginTop: 3,
+                          color: COLORS.grey,
+                        }}
+                      >
+                        {item.createdAt || "12:05, 22/10/2024"}
+                      </Text>
+                    </View>
+                    <Icon
+                      name="ellipsis-horizontal"
+                      size={24}
+                      color={COLORS.greySolid}
+                    />
+                  </View>
+                  <View style={{ marginTop: 10 }}>
+                    <Text
+                      style={{
+                        fontFamily: FONTS.semiBold,
+                        fontSize: 14,
+                        lineHeight: 20,
+                      }}
+                    >
+                      {item.title}
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: FONTS.medium,
+                        fontSize: 13,
+                        lineHeight: 22,
+                        marginTop: 5,
+                      }}
+                      numberOfLines={2}
+                    >
+                      {item.content}
+                    </Text>
+                    {/* Hiển thị hình ảnh từ API */}
+                    <ScrollView
+                      horizontal
+                      style={{ marginTop: 10 }}
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      {item.images &&
+                        item.images.map((image, index) => (
+                          <Image
+                            key={index}
+                            source={{ uri: image.imageUrl }}
+                            style={{
+                              width: 100,
+                              height: 100,
+                              borderRadius: 8,
+                              marginRight: 10,
+                            }}
+                          />
+                        ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+      </ScrollView>
     </>
   );
 };
 
-const styles = StyleSheet.create({
-  header: {
-    marginTop: StatusBar.currentHeight,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: COLORS.white,
-  },
-  title: {
-    fontFamily: FONTS.bold,
-    fontSize: 25,
-    color: COLORS.green,
-  },
-  userInfo: {
-    flexDirection: "row",
-    padding: 20,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginRight: 20,
-  },
-  stats: {
-    flexDirection: "row",
-    flex: 1,
-    justifyContent: "space-between",
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statValue: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-  },
-  statLabel: {
-    fontFamily: FONTS.medium,
-    fontSize: 12,
-    marginTop: 5,
-  },
-  username: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 17,
-    marginLeft: 20,
-  },
-  postContainer: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.greyPastel,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  postHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  postAvatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 50,
-    marginRight: 10,
-  },
-  postAuthor: {
-    fontFamily: FONTS.medium,
-    fontSize: 14,
-  },
-  postDate: {
-    fontFamily: FONTS.medium,
-    fontSize: 12,
-    color: COLORS.grey,
-  },
-  postTitle: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 14,
-    marginTop: 10,
-  },
-  postContent: {
-    fontFamily: FONTS.medium,
-    fontSize: 13,
-    marginTop: 5,
-    lineHeight: 22,
-  },
-  postImage: {
-    width: 150,
-    height: 100,
-    marginRight: 10,
-    borderRadius: 8,
-  },
-  interaction: {
-    flexDirection: "row",
-    marginTop: 10,
-  },
-  iconButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 20,
-  },
-  iconText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 16,
-    marginLeft: 5,
-  },
-});
-
 export default ProfileScreen;
+
+const styles = StyleSheet.create({});

@@ -83,23 +83,33 @@ const OrderDetailScreen = ({ navigation }) => {
       >
         {order && (
           <View style={styles.orderInfoContainer}>
-           <View
-    style={{
-      backgroundColor: orderStatus[order.status]?.color,
-      paddingHorizontal: 10,
-      paddingVertical: 10,
-      borderTopLeftRadius: 10,
-      borderTopRightRadius: 10,
-    }}
-  >
-              <Text style={styles.statusText}>{orderStatus[order.status]?.text}</Text>
+            <View
+              style={{
+                backgroundColor: orderStatus[order.status]?.color,
+                paddingHorizontal: 10,
+                paddingVertical: 10,
+                borderTopLeftRadius: 10,
+                borderTopRightRadius: 10,
+              }}
+            >
+              <Text style={styles.statusText}>
+                {orderStatus[order.status]?.text}
+              </Text>
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoTitle}>Thông tin vận chuyển</Text>
-              <Text style={styles.infoText}>Thời gian đặt: {order.orderDate}</Text>
-              <Text style={styles.infoText}>Địa chỉ: {order.deliveryAddress}</Text>
-              <Text style={styles.infoText}>Phí vận chuyển: {order.deliveryFee}đ</Text>
-              <Text style={styles.infoText}>Tổng tiền: {order.totalPrice}đ</Text>
+              <Text style={styles.infoText}>
+                Thời gian đặt: {order.orderDate}
+              </Text>
+              <Text style={styles.infoText}>
+                Địa chỉ: {order.deliveryAddress}
+              </Text>
+              <Text style={styles.infoText}>
+                Phí vận chuyển: {order.deliveryFee}đ
+              </Text>
+              <Text style={styles.infoText}>
+                Tổng tiền: {order.totalPrice}đ
+              </Text>
             </View>
           </View>
         )}
@@ -134,7 +144,9 @@ const OrderDetailScreen = ({ navigation }) => {
                 <Text style={styles.textDishType}>{item.dish.dishType}</Text>
                 <Text style={styles.textDishPrice}>{item.price}đ</Text>
                 <View style={styles.quantityContainer}>
-                  <Text style={styles.textQuantity}>Số lượng: x{item.quantity}</Text>
+                  <Text style={styles.textQuantity}>
+                    Số lượng: x{item.quantity}
+                  </Text>
                   <ButtonFlex
                     title="Đánh giá"
                     stylesButton={styles.buttonStyle}
@@ -146,7 +158,8 @@ const OrderDetailScreen = ({ navigation }) => {
           ))}
           <View style={{ alignItems: "flex-end", padding: 10 }}>
             <Text style={styles.totalText}>
-              Tổng tiền: <Text style={styles.totalPrice}>{order?.totalPrice}đ</Text>
+              Tổng tiền:{" "}
+              <Text style={styles.totalPrice}>{order?.totalPrice}đ</Text>
             </Text>
           </View>
         </View>

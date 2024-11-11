@@ -18,19 +18,35 @@ const LoginScreen = ({ navigation }) => {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.formContainer}>
-        <View style={{height: 200,alignItems: 'center', justifyContent: 'center', marginBottom: 30, marginTop: 30,}}>
+        <View
+          style={{
+            height: 200,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 30,
+            marginTop: 30,
+          }}
+        >
           <Image
             source={require("../assets/VEGETARIANSLOGO1.png")}
             resizeMode="contain"
             style={{ width: 150, height: 160, backgroundColor: COLORS.white }}
           />
-          <Text style={{  fontSize: 25,  color: COLORS.green, fontFamily: FONTS.bold, marginTop: 15,}}>
+          <Text
+            style={{
+              fontSize: 25,
+              color: COLORS.green,
+              fontFamily: FONTS.bold,
+              marginTop: 15,
+            }}
+          >
             ĐĂNG NHẬP
           </Text>
         </View>
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
-            Email hoặc số điện thoại <Text style={{ color: COLORS.red }}>*</Text>
+            Email hoặc số điện thoại{" "}
+            <Text style={{ color: COLORS.red }}>*</Text>
           </Text>
           <View style={styles.inputRow}>
             <Icon name="person" size={18} color={COLORS.green} />
@@ -65,27 +81,24 @@ const LoginScreen = ({ navigation }) => {
         />
         <View style={styles.registerContainer}>
           <Text style={{ fontFamily: FONTS.medium }}>Chưa có tài khoản? </Text>
-          <TouchableOpacity activeOpacity={0.5} onPress={()=>navigation.navigate("Register")}>
+          <TouchableOpacity
+            activeOpacity={0.5}
+            onPress={() => navigation.navigate("Register")}
+          >
             <Text style={{ color: COLORS.green, fontFamily: FONTS.bold }}>
               Đăng ký
             </Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.orText}>hoặc</Text>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.googleButton}
-        >
+        <TouchableOpacity activeOpacity={0.7} style={styles.googleButton}>
           <Image
             source={require("../assets/GoogleLogin.png")}
             style={styles.googleLogo}
           />
           <Text style={{ fontFamily: FONTS.bold }}>Đăng nhập với Google</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.googleButton}
-        >
+        <TouchableOpacity activeOpacity={0.7} style={styles.googleButton}>
           <Image
             source={require("../assets/FacebookLogin.png")}
             style={styles.googleLogo}
@@ -103,7 +116,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.white,
     flex: 1,
-  }, 
+  },
   formContainer: {
     backgroundColor: COLORS.white,
     padding: 30,

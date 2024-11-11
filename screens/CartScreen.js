@@ -13,7 +13,7 @@ import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Header from "../components/Header";
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage"; 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 const CartScreen = ({ navigation }) => {
   const [cartItems, setCartItems] = useState([]);
   const [userId, setUserId] = useState(null);
@@ -22,58 +22,60 @@ const CartScreen = ({ navigation }) => {
     const fetchCartData = async () => {
       try {
         const storedUserId = await AsyncStorage.getItem("userId");
-        
+
         if (storedUserId) {
           setUserId(storedUserId);
           console.log("User ID từ AsyncStorage:", storedUserId);
-  
+
           // Gọi API để lấy giỏ hàng theo userId
           const response = await axios.get(
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${storedUserId}`
           );
-  
+
           if (response.status === 200) {
             const cartData = response.data;
-            
+
             // Lọc các mục có quantity > 0 và lấy chi tiết cho từng món ăn từ `GetDishByID` API
             const detailedCartItems = await Promise.all(
               cartData
-                .filter(item => item.quantity > 0)  // Chỉ giữ lại các mục có quantity > 0
+                .filter((item) => item.quantity > 0) // Chỉ giữ lại các mục có quantity > 0
                 .map(async (item) => {
                   const dishResponse = await axios.get(
                     `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${item.dishId}`
                   );
-                  
+
                   return dishResponse.status === 200
                     ? { ...item, ...dishResponse.data }
                     : item;
                 })
             );
-  
+
             setCartItems(detailedCartItems);
             console.log("Dữ liệu chi tiết giỏ hàng:", detailedCartItems);
           } else {
-            console.log("Lỗi khi lấy dữ liệu giỏ hàng từ API:", response.status);
+            console.log(
+              "Lỗi khi lấy dữ liệu giỏ hàng từ API:",
+              response.status
+            );
           }
         }
       } catch (error) {
         console.error("Lỗi khi lấy dữ liệu giỏ hàng từ API:", error);
       }
     };
-  
+
     fetchCartData();
   }, []);
-  
 
   const handleQuantityChange = async (item, increment) => {
     const newQuantity = increment ? item.quantity + 1 : item.quantity - 1;
     console.log("New Quantity:", newQuantity);
-  
+
     // Kiểm tra không cho phép quantity nhỏ hơn 0
     if (newQuantity < 0) {
       return;
     }
-  
+
     try {
       // Sử dụng phương thức PUT và truyền cartId trong URL
       const response = await axios.put(
@@ -81,11 +83,11 @@ const CartScreen = ({ navigation }) => {
         newQuantity, // Truyền trực tiếp quantity vào body
         {
           headers: {
-            'Content-Type': 'application/json'
-          }
+            "Content-Type": "application/json",
+          },
         }
       );
-  
+
       if (response.status === 200 || response.status === 201) {
         // Cập nhật quantity trong state để phản ánh đúng số lượng sau khi lưu
         if (newQuantity === 0) {
@@ -106,14 +108,13 @@ const CartScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error(
-        `Lỗi khi cập nhật số lượng món ăn: [AxiosError: Request failed with status code ${error.response?.status || 'Unknown'}] - cartId: ${item.cartId}, quantity mới: ${newQuantity}`
+        `Lỗi khi cập nhật số lượng món ăn: [AxiosError: Request failed with status code ${
+          error.response?.status || "Unknown"
+        }] - cartId: ${item.cartId}, quantity mới: ${newQuantity}`
       );
     }
   };
-  
-  
-  
-  
+
   const handleRemoveItem = async (item) => {
     try {
       // Đặt quantity về 0 qua API để xóa món ăn
@@ -122,11 +123,11 @@ const CartScreen = ({ navigation }) => {
         0, // Truyền quantity trực tiếp vào body
         {
           headers: {
-            'Content-Type': 'application/json'
-          }
+            "Content-Type": "application/json",
+          },
         }
       );
-  
+
       // Loại bỏ món ăn khỏi cartItems trong state
       setCartItems((prevItems) =>
         prevItems.filter((cartItem) => cartItem.cartId !== item.cartId)
@@ -135,19 +136,12 @@ const CartScreen = ({ navigation }) => {
       console.error("Lỗi khi xóa món ăn khỏi giỏ hàng:", error);
     }
   };
-  
-  
-  
-  
-  
 
   const handleContinue = () => {
     Alert.alert("Thành công", "Giỏ hàng đã được cập nhật!");
     navigation.navigate("Checkout");
   };
-  
 
- 
   return (
     <>
       <Header
@@ -164,7 +158,9 @@ const CartScreen = ({ navigation }) => {
           <View style={styles.listItem}>
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('DishDetail', { dishId: item.dishId })}
+              onPress={() =>
+                navigation.navigate("DishDetail", { dishId: item.dishId })
+              }
             >
               <Image
                 source={{ uri: item.imageUrl }}
@@ -172,11 +168,20 @@ const CartScreen = ({ navigation }) => {
               />
             </TouchableOpacity>
             <View style={{ padding: 5, marginLeft: 5, flex: 1 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('DishDetail', { dishId: item.dishId })}
+                  onPress={() =>
+                    navigation.navigate("DishDetail", { dishId: item.dishId })
+                  }
                 >
-                  <Text style={styles.textNameDish} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.textNameDish} numberOfLines={1}>
+                    {item.name}
+                  </Text>
                 </TouchableOpacity>
                 <Icon
                   name="trash-outline"
@@ -188,11 +193,15 @@ const CartScreen = ({ navigation }) => {
               <Text style={styles.textDishType}>{item.dishType}</Text>
               <Text style={styles.textDishPrice}>{item.price}đ</Text>
               <View style={styles.quantityContainer}>
-                <TouchableOpacity onPress={() => handleQuantityChange(item, false)}>
+                <TouchableOpacity
+                  onPress={() => handleQuantityChange(item, false)}
+                >
                   <Text style={styles.quantityButtonText}>-</Text>
                 </TouchableOpacity>
                 <Text style={styles.quantityText}>{item.quantity}</Text>
-                <TouchableOpacity onPress={() => handleQuantityChange(item, true)}>
+                <TouchableOpacity
+                  onPress={() => handleQuantityChange(item, true)}
+                >
                   <Text style={styles.quantityButtonText}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -209,7 +218,11 @@ const CartScreen = ({ navigation }) => {
           >
             <Text style={styles.totalAmountText}>Tổng số tiền:</Text>
             <Text style={styles.totalAmountValue}>
-              {cartItems.reduce((total, item) => total + item.price * item.quantity, 0)}đ
+              {cartItems.reduce(
+                (total, item) => total + item.price * item.quantity,
+                0
+              )}
+              đ
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -223,11 +236,9 @@ const CartScreen = ({ navigation }) => {
       </View>
     </>
   );
-  
 };
 
 export default CartScreen;
-
 
 const styles = StyleSheet.create({
   containerButtonFloatBottom: {

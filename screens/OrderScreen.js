@@ -75,7 +75,10 @@ const OrderScreen = ({ navigation }) => {
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailByOrderId/${order.orderId}`
           );
           if (!orderDetailResponse.ok) {
-            console.error("Error fetching order details for orderId:", order.orderId);
+            console.error(
+              "Error fetching order details for orderId:",
+              order.orderId
+            );
             return { ...order, orderDetails: [] }; // Fallback to an empty array if orderDetails cannot be fetched
           }
           const orderDetails = await orderDetailResponse.json();
@@ -86,7 +89,10 @@ const OrderScreen = ({ navigation }) => {
                 `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${detail.dishId}`
               );
               if (!dishResponse.ok) {
-                console.error("Error fetching dish details for dishId:", detail.dishId);
+                console.error(
+                  "Error fetching dish details for dishId:",
+                  detail.dishId
+                );
                 return { ...detail, dish: {} }; // Fallback to an empty object if dish details cannot be fetched
               }
               const dish = await dishResponse.json();
@@ -199,7 +205,9 @@ const OrderScreen = ({ navigation }) => {
                   0
                 )}
               </Text>
-              <Text style={styles.orderTotal}>Tổng tiền: {item.totalPrice}đ</Text>
+              <Text style={styles.orderTotal}>
+                Tổng tiền: {item.totalPrice}đ
+              </Text>
               <Text
                 style={{
                   ...styles.orderStatus,

@@ -87,7 +87,10 @@ const NewPostScreen = ({ navigation }) => {
   // Xử lý đăng bài
   const handlePost = async () => {
     if (!user) {
-      Alert.alert("Lỗi", "Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại.");
+      Alert.alert(
+        "Lỗi",
+        "Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại."
+      );
       return;
     }
 
@@ -118,7 +121,10 @@ const NewPostScreen = ({ navigation }) => {
         likes: 0,
       };
 
-      console.log("Dữ liệu bài viết gửi tới API:", JSON.stringify(newArticle, null, 2));
+      console.log(
+        "Dữ liệu bài viết gửi tới API:",
+        JSON.stringify(newArticle, null, 2)
+      );
 
       // Gửi request tới API backend
       const response = await axios.post(
@@ -158,7 +164,6 @@ const NewPostScreen = ({ navigation }) => {
       }
     );
   };
-  
 
   const handleTakePhoto = () => {
     launchCamera(
@@ -212,7 +217,10 @@ const NewPostScreen = ({ navigation }) => {
           <Text style={styles.inputLabel}>Nội dung</Text>
           <View style={styles.inputRow}>
             <TextInput
-              style={[styles.textInput, { minHeight: 100, textAlignVertical: "top" }]}
+              style={[
+                styles.textInput,
+                { minHeight: 100, textAlignVertical: "top" },
+              ]}
               placeholder="Nhập nội dung..."
               numberOfLines={5}
               multiline
@@ -223,29 +231,31 @@ const NewPostScreen = ({ navigation }) => {
         </View>
         <Text style={styles.inputLabel}>Hình ảnh ({images.length}/6)</Text>
         <View style={styles.imageContainer}>
-  {images.map((image, index) => (
-    <View key={index} style={styles.imageWrapper}>
-      <Image source={{ uri: image.uri }} style={styles.image} />
-      <TouchableOpacity
-        style={styles.removeIcon}
-        onPress={() => removeImage(index)}
-      >
-        <Icon name="close-circle" size={20} color={COLORS.lightGrey} />
-      </TouchableOpacity>
-    </View>
-  ))}
-  {images.length < 6 && (
-    <TouchableOpacity style={styles.addImage} onPress={handleChoosePhoto}>
-      <Icon name="image" size={32} color={COLORS.darkGrey} />
-    </TouchableOpacity>
-  )}
-  {images.length < 6 && (
-    <TouchableOpacity style={styles.addImage} onPress={handleTakePhoto}>
-      <Icon name="camera" size={32} color={COLORS.darkGrey} />
-    </TouchableOpacity>
-  )}
-</View>
-
+          {images.map((image, index) => (
+            <View key={index} style={styles.imageWrapper}>
+              <Image source={{ uri: image.uri }} style={styles.image} />
+              <TouchableOpacity
+                style={styles.removeIcon}
+                onPress={() => removeImage(index)}
+              >
+                <Icon name="close-circle" size={20} color={COLORS.lightGrey} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          {images.length < 6 && (
+            <TouchableOpacity
+              style={styles.addImage}
+              onPress={handleChoosePhoto}
+            >
+              <Icon name="image" size={32} color={COLORS.darkGrey} />
+            </TouchableOpacity>
+          )}
+          {images.length < 6 && (
+            <TouchableOpacity style={styles.addImage} onPress={handleTakePhoto}>
+              <Icon name="camera" size={32} color={COLORS.darkGrey} />
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
       <ButtonFloatBottom
         title={"Đăng bài"}

@@ -96,7 +96,7 @@ const FavouriteScreen = ({ navigation }) => {
       );
 
       // Lọc bỏ các món ăn không tìm thấy
-      const validDishes = dishes.filter(dish => dish !== null && dish.dishId);
+      const validDishes = dishes.filter((dish) => dish !== null && dish.dishId);
 
       console.log("Danh sách món ăn yêu thích hợp lệ:", validDishes);
       setFavoriteDishes(validDishes);
@@ -122,7 +122,9 @@ const FavouriteScreen = ({ navigation }) => {
           }),
         }
       );
-      setFavoriteDishes(favoriteDishes.filter((dish) => dish.dishId !== dishId));
+      setFavoriteDishes(
+        favoriteDishes.filter((dish) => dish.dishId !== dishId)
+      );
     } catch (error) {
       console.error("Error deleting favorite dish:", error);
     }
@@ -235,11 +237,7 @@ const FavouriteScreen = ({ navigation }) => {
                 onPress={() => handleDeleteFavorite(item.dishId)}
                 style={{ alignSelf: "flex-end" }}
               >
-                <Icon
-                  name="trash-outline"
-                  color={COLORS.orange}
-                  size={24}
-                />
+                <Icon name="trash-outline" color={COLORS.orange} size={24} />
               </TouchableOpacity>
             </TouchableOpacity>
           )}

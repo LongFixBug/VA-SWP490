@@ -1,38 +1,46 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, TextInput } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import COLORS from '../constants/color';
-import FONTS from '../constants/font';
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
 
 // Đây là mock data, sau này bạn sẽ thay thế nó bằng dữ liệu từ API
 const foodItems = [
   {
-    id: '1',
-    name: 'Tên món ăn 1',
-    price: '30.000 vnd',
+    id: "1",
+    name: "Tên món ăn 1",
+    price: "30.000 vnd",
     rating: 5.0,
-    comments: '999 bình luận',
+    comments: "999 bình luận",
   },
   {
-    id: '2',
-    name: 'Tên món ăn 2',
-    price: '30.000 vnd',
+    id: "2",
+    name: "Tên món ăn 2",
+    price: "30.000 vnd",
     rating: 4.5,
-    comments: '888 bình luận',
+    comments: "888 bình luận",
   },
   {
-    id: '3',
-    name: 'Tên món ăn 3',
-    price: '40.000 vnd',
+    id: "3",
+    name: "Tên món ăn 3",
+    price: "40.000 vnd",
     rating: 4.8,
-    comments: '765 bình luận',
+    comments: "765 bình luận",
   },
   {
-    id: '4',
-    name: 'Tên món ăn 4',
-    price: '50.000 vnd',
+    id: "4",
+    name: "Tên món ăn 4",
+    price: "50.000 vnd",
     rating: 4.9,
-    comments: '543 bình luận',
+    comments: "543 bình luận",
   },
   // Thêm các món ăn khác ở đây nếu cần
 ];
@@ -43,7 +51,7 @@ const SuggestedDishesScreen = () => {
   const renderFoodItem = ({ item }) => (
     <View style={styles.foodCard}>
       <Image
-        source={{ uri: 'https://via.placeholder.com/100' }} // Placeholder cho hình ảnh món ăn
+        source={{ uri: "https://via.placeholder.com/100" }} // Placeholder cho hình ảnh món ăn
         style={styles.foodImage}
       />
       <View style={styles.foodInfo}>
@@ -105,8 +113,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   backButton: {
@@ -118,8 +126,8 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   searchInput: {
@@ -139,7 +147,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   tagContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 20,
   },
   tag: {
@@ -153,12 +161,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   foodCard: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: COLORS.white,
     borderRadius: 10,
     padding: 10,
     marginBottom: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -171,7 +179,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   foodInfo: {
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   foodName: {
     fontSize: 16,
@@ -183,12 +191,12 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   star: {
     fontSize: 14,
-    color: 'gold',
+    color: "gold",
   },
   rating: {
     fontSize: 14,

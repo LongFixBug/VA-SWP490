@@ -1,25 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, FlatList, ScrollView } from 'react-native';
-import COLORS from '../constants/color';
-import FONTS from '../constants/font';
-import Icon from 'react-native-vector-icons/Ionicons';
-import IconAnt from 'react-native-vector-icons/AntDesign';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  ScrollView,
+} from "react-native";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
+import Icon from "react-native-vector-icons/Ionicons";
+import IconAnt from "react-native-vector-icons/AntDesign";
 
 const PostDetailScreen = ({ route, navigation }) => {
   const { post } = route.params; // Nhận dữ liệu bài viết từ CommunityScreen
   const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment] = useState("");
   const [loadingComments, setLoadingComments] = useState(true);
 
   // Lấy dữ liệu bình luận từ API khi màn hình được mount
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`);
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`
+        );
         const data = await response.json();
         setComments(data);
       } catch (error) {
-        console.error('Error fetching comments:', error);
+        console.error("Error fetching comments:", error);
       } finally {
         setLoadingComments(false);
       }
@@ -46,7 +57,7 @@ const PostDetailScreen = ({ route, navigation }) => {
             }),
           }
         );
-  
+
         if (response.ok) {
           const newCommentData = await response.json();
           setComments((prevComments) => [...prevComments, newCommentData]);
@@ -57,7 +68,6 @@ const PostDetailScreen = ({ route, navigation }) => {
       }
     }
   };
-  
 
   // Hàm hiển thị từng bình luận
   const renderComment = ({ item }) => (
@@ -66,7 +76,9 @@ const PostDetailScreen = ({ route, navigation }) => {
       <View style={styles.commentContent}>
         <Text style={styles.commentUsername}>{item.userName}</Text>
         <Text style={styles.commentText}>{item.content}</Text>
-        <Text style={styles.commentTime}>{new Date(item.postDate).toLocaleString()}</Text>
+        <Text style={styles.commentTime}>
+          {new Date(item.postDate).toLocaleString()}
+        </Text>
       </View>
     </View>
   );
@@ -85,10 +97,14 @@ const PostDetailScreen = ({ route, navigation }) => {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => navigation.goBack()}
-                style={{ flexDirection: 'row', alignItems: 'center' }}
+                style={{ flexDirection: "row", alignItems: "center" }}
               >
                 <View style={styles.backButton}>
-                  <Icon name="arrow-back-outline" size={28} color={COLORS.green} />
+                  <Icon
+                    name="arrow-back-outline"
+                    size={28}
+                    color={COLORS.green}
+                  />
                 </View>
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Chi tiết bài viết</Text>
@@ -97,7 +113,9 @@ const PostDetailScreen = ({ route, navigation }) => {
             {/* Thông tin tác giả và bài viết */}
             <View style={styles.authorInfo}>
               <Image
-                source={{ uri: 'https://mighty.tools/mockmind-api/content/human/44.jpg' }}
+                source={{
+                  uri: "https://mighty.tools/mockmind-api/content/human/44.jpg",
+                }}
                 style={styles.authorImage}
               />
               <View style={{ flex: 1 }}>
@@ -112,19 +130,20 @@ const PostDetailScreen = ({ route, navigation }) => {
 
             {/* Hình ảnh của bài viết */}
             {post.images && post.images.length > 0 && (
-  <ScrollView horizontal style={styles.imageContainer} showsHorizontalScrollIndicator={false}>
-    {post.images.map((image, index) => (
-      <Image
-        key={index}
-        source={{ uri: image.imageUrl }}
-        style={styles.postImage}
-      />
-    ))}
-  </ScrollView>
-)}
-
-
-
+              <ScrollView
+                horizontal
+                style={styles.imageContainer}
+                showsHorizontalScrollIndicator={false}
+              >
+                {post.images.map((image, index) => (
+                  <Image
+                    key={index}
+                    source={{ uri: image.imageUrl }}
+                    style={styles.postImage}
+                  />
+                ))}
+              </ScrollView>
+            )}
 
             {/* Hành động trên bài viết */}
             <View style={styles.actionsContainer}>
@@ -133,7 +152,11 @@ const PostDetailScreen = ({ route, navigation }) => {
                 <Text style={styles.actionText}>{post.likes || 0}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionButton}>
-                <Icon name="chatbubble-outline" size={27} color={COLORS.greySolid} />
+                <Icon
+                  name="chatbubble-outline"
+                  size={27}
+                  color={COLORS.greySolid}
+                />
                 <Text style={styles.actionText}>{comments.length}</Text>
               </TouchableOpacity>
             </View>
@@ -167,16 +190,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: 10,
   },
   backButton: {
     height: 50,
     width: 50,
     marginLeft: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: COLORS.white,
     borderRadius: 10,
   },
@@ -186,8 +209,8 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   authorInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 15,
   },
   authorImage: {
@@ -228,15 +251,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 10, // Khoảng cách giữa các ảnh
   },
-  
-  
+
   actionsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 20,
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginRight: 20,
   },
   actionText: {
@@ -251,7 +273,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   commentContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 15,
   },
   commentContent: {
@@ -272,12 +294,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   commentInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderTopWidth: 1,
     borderTopColor: COLORS.lightGray,
     padding: 10,
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,

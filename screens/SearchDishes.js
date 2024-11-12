@@ -1,26 +1,64 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, TextInput } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import COLORS from '../constants/color';
-import FONTS from '../constants/font';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+} from "react-native";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
+
+const fetchWithAuth = async (url, options = {}) => {
+  const token = await AsyncStorage.getItem("authToken");
+
+  if (!token) {
+    console.error("Không tìm thấy token.");
+    throw new Error("Unauthorized: Missing token");
+  }
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  try {
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+      console.error("Token hết hạn hoặc không hợp lệ.");
+    }
+    return response;
+  } catch (error) {
+    console.error("Error fetching with auth:", error);
+    throw error;
+  }
+};
 
 const SearchDishesScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
-  const { searchQuery } = route.params; 
+  const { searchQuery } = route.params;
   const [filteredDishes, setFilteredDishes] = useState([]);
 
   useEffect(() => {
     const fetchDishes = async () => {
       try {
-        const response = await fetch('https://va-api-2efefb5aee82.herokuapp.com/dishes');
+        const response = await fetch(
+          "https://va-api-2efefb5aee82.herokuapp.com/dishes"
+        );
         const jsonData = await response.json();
         const dishes = jsonData.data;
 
-        const results = dishes.filter(dish => dish.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        const results = dishes.filter((dish) =>
+          dish.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
         setFilteredDishes(results);
       } catch (error) {
-        console.error('Error fetching dishes:', error);
+        console.error("Error fetching dishes:", error);
       }
     };
 
@@ -28,7 +66,9 @@ const SearchDishesScreen = () => {
   }, [searchQuery]);
 
   const renderFoodItem = ({ item }) => (
-    <TouchableOpacity onPress={() => navigation.navigate('DishDetail', { dish: item })}>
+    <TouchableOpacity
+      onPress={() => navigation.navigate("DishDetail", { dish: item })}
+    >
       <View style={styles.foodCard}>
         <Image source={{ uri: item.image_url }} style={styles.foodImage} />
         <View style={styles.foodInfo}>
@@ -37,7 +77,9 @@ const SearchDishesScreen = () => {
           <View style={styles.ratingContainer}>
             <Text style={styles.star}>⭐</Text>
             <Text style={styles.rating}>{item.average_rating || 0}</Text>
-            <Text style={styles.comments}>({item.feedbacks.length} đánh giá)</Text>
+            <Text style={styles.comments}>
+              ({item.feedbacks.length} đánh giá)
+            </Text>
           </View>
         </View>
       </View>
@@ -70,8 +112,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   backButton: {
@@ -83,12 +125,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
   },
   foodCard: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: COLORS.white,
     borderRadius: 10,
     padding: 10,
     marginBottom: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -101,7 +143,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   foodInfo: {
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   foodName: {
     fontSize: 16,
@@ -113,12 +155,12 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   star: {
     fontSize: 14,
-    color: 'gold',
+    color: "gold",
   },
   rating: {
     fontSize: 14,

@@ -3,6 +3,8 @@ import { StyleSheet, View } from "react-native";
 
 import Icon from "react-native-vector-icons/Ionicons";
 import Icon1 from "react-native-vector-icons/SimpleLineIcons";
+import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -43,7 +45,6 @@ import EditProfileScreen from "./screens/EditProfileScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
-
 
 const toastConfig = {
   success: (props) => (
@@ -264,26 +265,43 @@ export default function App() {
     "OpenSans-Bold": require("./assets/fonts/OpenSans-Bold.ttf"),
     "OpenSans-SemiBold": require("./assets/fonts/OpenSans-SemiBold.ttf"),
     "Montserrat-Bold": require("./assets/fonts/Montserrat-Bold.ttf"),
-
     "Montserrat-Medium": require("./assets/fonts/Montserrat-Medium.ttf"),
     "Montserrat-SemiBold": require("./assets/fonts/Montserrat-SemiBold.ttf"),
   });
 
-  if (!fontsLoaded) {
-    return null;
+  const [initialRoute, setInitialRoute] = useState(null);
+
+  // Kiểm tra trạng thái đăng nhập
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const token = await AsyncStorage.getItem("authToken");
+        setInitialRoute(token ? "Home" : "Login");
+      } catch (error) {
+        console.error("Error checking login status:", error);
+        setInitialRoute("Login"); // Điều hướng tới Login trong trường hợp có lỗi
+      }
+    };
+
+    checkLoginStatus();
+  }, []);
+
+  // Chờ load font và xác định route ban đầu
+  if (!fontsLoaded || initialRoute === null) {
+    return null; // Hiển thị màn hình trắng hoặc loading spinner nếu cần
   }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <Stack.Navigator
           screenOptions={{ headerShown: false }}
-          initialRouteName="Login"
+          initialRouteName={initialRoute}
         >
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="InputOTP" component={InputOTPScreen} />
-
           <Stack.Screen name="Home" component={TabRoute} />
           <Stack.Screen name="Order" component={OrderScreen} />
           <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />

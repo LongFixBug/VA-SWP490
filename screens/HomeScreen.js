@@ -17,8 +17,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
 
@@ -75,50 +74,84 @@ const HomeScreen = () => {
 
   const [cartCount, setCartCount] = useState(0);
 
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!token) {
+      console.error("Không tìm thấy token.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
+      }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
+    }
+  };
+
   const fetchMembershipData = async (id) => {
     try {
       console.log(`Đang gọi API với userId: ${id}`);
-      const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`);
-      
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`
+      );
+
       if (!response.ok) {
         console.error("HTTP Error:", response.status, response.statusText);
         return;
       }
-  
+
       const rawResponse = await response.text();
       console.log("Phản hồi thô từ API:", rawResponse);
-  
+
       if (!rawResponse) {
         console.log("Người dùng chưa có đóng góp, hiển thị tier Bronze");
-        
+
         // Gọi API getUserByUserId để lấy thông tin người dùng
-        const userResponse = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
-        
+        const userResponse = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`
+        );
+
         if (!userResponse.ok) {
-          console.error("HTTP Error khi gọi API getUserByUserId:", userResponse.status, userResponse.statusText);
+          console.error(
+            "HTTP Error khi gọi API getUserByUserId:",
+            userResponse.status,
+            userResponse.statusText
+          );
           return;
         }
-  
+
         const userData = await userResponse.json();
         console.log("Dữ liệu người dùng:", userData);
-  
+
         // Cài đặt thông tin người dùng và hiển thị tier là Bronze
         setUsername(userData.username || "Unknown User");
         setTierLabel("Bronze");
         setAccumulatedPoints(0);
-        
+
         return;
       }
-  
+
       // Nếu có dữ liệu membership, xử lý như bình thường
       const data = JSON.parse(rawResponse);
       console.log("Dữ liệu membership:", data);
-  
+
       if (data) {
         setUsername(data.username || "Unknown User");
         setTierId(data.tierId);
         setAccumulatedPoints(data.accumulatedPoints);
-  
+
         switch (data.tierId) {
           case 1:
             setTierLabel("Silver");
@@ -140,55 +173,90 @@ const HomeScreen = () => {
       console.error("Lỗi khi lấy dữ liệu membership:", error);
     }
   };
-  
-  
-  
 
-
-    // Lấy userId từ AsyncStorage
-    useEffect(() => {
-      const getUserIdFromStorage = async () => {
-        try {
-          const storedUserId = await AsyncStorage.getItem("userId");
-          console.log("User ID retrieved from AsyncStorage:", storedUserId);
-          
-          if (storedUserId) {
-            setUserId(storedUserId);
-            fetchUserData(storedUserId);  // Fetch user data with the userId
-            fetchMembershipData(storedUserId);
-          } else {
-            console.log("No User ID found in AsyncStorage.");
-          }
-        } catch (error) {
-          console.error("Error retrieving userId from AsyncStorage:", error);
-        }
-      };
-  
-      getUserIdFromStorage();
-    }, []);
-    const fetchUserData = async (id) => {
+  // Lấy userId từ AsyncStorage
+  useEffect(() => {
+    const getUserIdFromStorage = async () => {
       try {
-        const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`);
-        
-        if (!response.ok) {
-          console.error("HTTP Error when fetching user data:", response.status, response.statusText);
-          return;
+        const storedUserId = await AsyncStorage.getItem("userId");
+        console.log("User ID retrieved from AsyncStorage:", storedUserId);
+
+        if (storedUserId) {
+          setUserId(storedUserId);
+          fetchUserData(storedUserId); // Fetch user data with the userId
+          fetchMembershipData(storedUserId);
+        } else {
+          console.log("No User ID found in AsyncStorage.");
         }
-    
-        const data = await response.json();
-        console.log("User data retrieved from API:", data);
-    
-        setUserData(data); // Set user data to the state variable
-        setUsername(data.username || "Unknown User"); // Set username from data if needed
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        console.error("Error retrieving userId from AsyncStorage:", error);
       }
     };
-    
+
+    getUserIdFromStorage();
+  }, []);
+
+  const fetchUserData = async (id) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`
+      );
+
+      if (!response.ok) {
+        console.error(
+          "HTTP Error when fetching user data:",
+          response.status,
+          response.statusText
+        );
+        return;
+      }
+
+      const data = await response.json();
+      console.log("User data retrieved from API:", data);
+
+      const userData = {
+        userId: data.userId,
+        username: data.username || "Người dùng",
+        email: data.email || "",
+        phoneNumber: data.phoneNumber || "",
+        address: data.address || "",
+        gender: data.gender || "",
+        dietaryPreferenceId: data.dietaryPreferenceId || 1,
+        goal: data.goal || "",
+        activityLevel: data.activityLevel || "",
+        age: data.age || 0,
+        imageUrl: data.imageUrl || "https://via.placeholder.com/100",
+        height: data.height || 0,
+        weight: data.weight || 0,
+        profession: data.profession || "",
+        isPhoneVerified: data.isPhoneVerified || false,
+      };
+      await AsyncStorage.setItem("userData", JSON.stringify(userData));
+      console.log("User data saved to AsyncStorage:", userData);
+
+      console.log("User data saved to AsyncStorage successfully!");
+
+      setUserData(data); // Đặt dữ liệu người dùng vào state nếu cần
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+  const debugAsyncStorage = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const data = await AsyncStorage.multiGet(keys);
+      console.log("AsyncStorage Data:", data);
+    } catch (error) {
+      console.error("Error debugging AsyncStorage:", error);
+    }
+  };
+
+  debugAsyncStorage();
+
   // Fetch rating for each dish
   const fetchDishRating = async (dishId) => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
       );
       const jsonData = await response.json();
@@ -205,12 +273,10 @@ const HomeScreen = () => {
     }
   };
 
-
-
   // Fetch dishes from API and add rating for each dish
   const fetchDishes = async () => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/allDish"
       );
       const jsonData = await response.json();
@@ -279,33 +345,31 @@ const HomeScreen = () => {
   const refreshCartCount = async () => {
     try {
       if (userId) {
-        const response = await fetch(
+        const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${userId}`
         );
         const data = await response.json();
-  
+
         // Lọc các mục có quantity > 0 và đếm số lượng
-        const validCartItems = data.filter(item => item.quantity > 0);
+        const validCartItems = data.filter((item) => item.quantity > 0);
         setCartCount(validCartItems.length); // Cập nhật số lượng món ăn có quantity > 0
       }
     } catch (error) {
       console.error("Lỗi khi lấy dữ liệu giỏ hàng từ API:", error);
     }
   };
-  
-  
+
   // useEffect để làm mới số lượng món trong giỏ khi màn hình Home hiển thị
   useEffect(() => {
     refreshCartCount();
-  
+
     // Đăng ký listener để lắng nghe sự kiện thay đổi
     const subscription = navigation.addListener("focus", () => {
       refreshCartCount();
     });
-  
+
     return subscription;
   }, [navigation, userId]);
-  
 
   // useEffect để lấy số lượng món ăn khi màn hình Home hiển thị
   useEffect(() => {
@@ -392,7 +456,8 @@ const HomeScreen = () => {
                   paddingBottom: 3,
                 }}
               >
-                <Icon name="star" size={16} color={COLORS.white} /> {accumulatedPoints} điểm
+                <Icon name="star" size={16} color={COLORS.white} />{" "}
+                {accumulatedPoints} điểm
               </Text>
               <Text
                 style={{
@@ -406,7 +471,9 @@ const HomeScreen = () => {
             </View>
             <Image
               source={{
-                uri: userData?.imageUrl || "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740",
+                uri:
+                  userData?.imageUrl ||
+                  "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740",
               }}
               style={{
                 height: 55,
@@ -503,9 +570,7 @@ const HomeScreen = () => {
             }}
           >
             <Icon name={"cart-outline"} size={30} color={COLORS.green} />
-            {cartCount > 0 && (
-            <Text style={styles.bagdeCart}>{cartCount}</Text>
-          )}
+            {cartCount > 0 && <Text style={styles.bagdeCart}>{cartCount}</Text>}
           </View>
         </TouchableOpacity>
       </View>

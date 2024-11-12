@@ -37,6 +37,7 @@ const dataNoti = [
       "Đơn hàng sắp được giao đến bạn, vui lòng kiểm tra điện thoại thường xuyên, Đơn hàng sắp được giao đến bạn, vui lòng kiểm tra điện thoại thường xuyên",
   },
 ];
+
 function NotificationScreen() {
   return (
     <View style={styles.container}>

@@ -13,6 +13,7 @@ import React, { useEffect, useState } from "react";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AllDishScreen = ({ navigation, route }) => {
   const fromSearch = route.params?.fromSearch;
@@ -22,50 +23,88 @@ const AllDishScreen = ({ navigation, route }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [ratings, setRatings] = useState({});
 
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    return fetch(url, { ...options, headers });
+  };
+
   useEffect(() => {
     const fetchDishes = async () => {
       try {
-        const response = await fetch(
+        const response = await fetchWithAuth(
           "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/alldish"
         );
         const jsonData = await response.json();
+
+        // Thêm dummy dish nếu cần
         if (jsonData.length % 2 !== 0) {
           jsonData.push({ dishId: "dummy" });
         }
+
         setAllDishes(jsonData);
         setFilteredDishes(jsonData);
 
-        // Lấy rating trung bình cho từng món
-        jsonData.forEach((dish) => {
-          if (dish.dishId !== "dummy") {
-            fetchDishRating(dish.dishId);
-          }
-        });
+        // Lấy toàn bộ rating cho tất cả món ăn
+        const dishIds = jsonData
+          .filter((dish) => dish.dishId !== "dummy")
+          .map((dish) => dish.dishId);
+
+        if (dishIds.length > 0) {
+          fetchAllDishRatings(dishIds);
+        }
       } catch (error) {
         console.error("Error fetching dishes:", error);
       }
     };
+
     fetchDishes();
   }, []);
 
   // Hàm lấy đánh giá trung bình cho từng món
-  const fetchDishRating = async (dishId) => {
+  const fetchAllDishRatings = async (dishIds) => {
     try {
-      const response = await fetch(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
-      );
-      const feedbackData = await response.json();
-      const averageRating =
-        feedbackData.length > 0
-          ? feedbackData.reduce((sum, feedback) => sum + feedback.rating, 0) /
-            feedbackData.length
-          : 0;
-      setRatings((prevRatings) => ({
-        ...prevRatings,
-        [dishId]: averageRating,
-      }));
+      // Gọi API song song cho tất cả dishId
+      const ratingPromises = dishIds.map(async (dishId) => {
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
+        );
+
+        if (!response.ok) {
+          console.error(
+            `Error fetching rating for dishId ${dishId}:`,
+            response.status
+          );
+          return { dishId, averageRating: 0 }; // Giá trị mặc định nếu lỗi
+        }
+
+        const feedbackData = await response.json();
+        const averageRating =
+          feedbackData.length > 0
+            ? feedbackData.reduce((sum, feedback) => sum + feedback.rating, 0) /
+              feedbackData.length
+            : 0;
+
+        return { dishId, averageRating };
+      });
+
+      // Chờ tất cả các API hoàn thành
+      const ratingsData = await Promise.all(ratingPromises);
+
+      // Chuyển đổi dữ liệu trả về thành object { dishId: rating }
+      const ratingsMap = ratingsData.reduce((acc, item) => {
+        acc[item.dishId] = item.averageRating;
+        return acc;
+      }, {});
+
+      setRatings(ratingsMap);
     } catch (error) {
-      console.error(`Error fetching rating for dishId ${dishId}:`, error);
+      console.error("Error fetching all dish ratings:", error);
     }
   };
 
@@ -73,25 +112,31 @@ const AllDishScreen = ({ navigation, route }) => {
     setCurrentDishType(typeId);
 
     if (typeId === 0) {
+      // Hiển thị tất cả món ăn
       setFilteredDishes(allDishes);
     } else {
       const selectedType = dataDishType.find((type) => type.id === typeId);
       try {
-        const response = await fetch(
+        const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/getDishByDishType/${selectedType.dishType}`
         );
+
         const jsonData = await response.json();
+
         if (jsonData.length % 2 !== 0) {
           jsonData.push({ dishId: "dummy" });
         }
+
         setFilteredDishes(jsonData);
 
-        // Lấy rating cho từng món ăn trong loại món được chọn
-        jsonData.forEach((dish) => {
-          if (dish.dishId !== "dummy") {
-            fetchDishRating(dish.dishId);
-          }
-        });
+        // Lấy danh sách dishId và fetch ratings
+        const dishIds = jsonData
+          .filter((dish) => dish.dishId !== "dummy")
+          .map((dish) => dish.dishId);
+
+        if (dishIds.length > 0) {
+          fetchAllDishRatings(dishIds);
+        }
       } catch (error) {
         console.error("Error fetching filtered dishes:", error);
       }
@@ -235,9 +280,10 @@ const AllDishScreen = ({ navigation, route }) => {
           ) : (
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() =>
-                navigation.navigate("DishDetail", { dishId: item.dishId })
-              }
+              onPress={() => {
+                console.log("Dish ID được truyền:", item.dishId);
+                navigation.navigate("DishDetail", { dishId: item.dishId });
+              }}
               style={styles.gridItem}
             >
               <Image

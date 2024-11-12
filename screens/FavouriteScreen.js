@@ -54,6 +54,32 @@ const FavouriteScreen = ({ navigation }) => {
   const [favoriteDishes, setFavoriteDishes] = useState([]);
   const [userId, setUserId] = useState(null);
 
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!token) {
+      console.error("Không tìm thấy token.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
+      }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const getUserIdFromStorage = async () => {
       try {
@@ -78,7 +104,7 @@ const FavouriteScreen = ({ navigation }) => {
   );
   const fetchFavoriteDishes = async (userId) => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/allDishFavoriteByUserId/${userId}`
       );
       const favoriteIds = await response.json();
@@ -88,7 +114,7 @@ const FavouriteScreen = ({ navigation }) => {
 
       const dishes = await Promise.all(
         favoriteIds.map(async (favorite) => {
-          const dishResponse = await fetch(
+          const dishResponse = await fetchWithAuth(
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${favorite.dishId}`
           );
           return await dishResponse.json();
@@ -96,7 +122,7 @@ const FavouriteScreen = ({ navigation }) => {
       );
 
       // Lọc bỏ các món ăn không tìm thấy
-      const validDishes = dishes.filter(dish => dish !== null && dish.dishId);
+      const validDishes = dishes.filter((dish) => dish !== null && dish.dishId);
 
       console.log("Danh sách món ăn yêu thích hợp lệ:", validDishes);
       setFavoriteDishes(validDishes);
@@ -107,7 +133,7 @@ const FavouriteScreen = ({ navigation }) => {
 
   const handleDeleteFavorite = async (dishId) => {
     try {
-      await fetch(
+      await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/deleteFavoriteDish",
         {
           method: "DELETE",
@@ -122,7 +148,9 @@ const FavouriteScreen = ({ navigation }) => {
           }),
         }
       );
-      setFavoriteDishes(favoriteDishes.filter((dish) => dish.dishId !== dishId));
+      setFavoriteDishes(
+        favoriteDishes.filter((dish) => dish.dishId !== dishId)
+      );
     } catch (error) {
       console.error("Error deleting favorite dish:", error);
     }
@@ -235,11 +263,7 @@ const FavouriteScreen = ({ navigation }) => {
                 onPress={() => handleDeleteFavorite(item.dishId)}
                 style={{ alignSelf: "flex-end" }}
               >
-                <Icon
-                  name="trash-outline"
-                  color={COLORS.orange}
-                  size={24}
-                />
+                <Icon name="trash-outline" color={COLORS.orange} size={24} />
               </TouchableOpacity>
             </TouchableOpacity>
           )}

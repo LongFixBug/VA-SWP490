@@ -2,146 +2,175 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
   Image,
+  ScrollView,
   RefreshControl,
+  TouchableOpacity,
+  StyleSheet,
+  StatusBar,
 } from "react-native";
-import Icon from "react-native-vector-icons/Ionicons";
-import IconAnt from "react-native-vector-icons/AntDesign";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
+import Icon from "react-native-vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ProfileScreen = ({ navigation }) => {
-  const [expandedDecription, setExpandedDecription] = useState({});
-  const [userId, setUserId] = useState(null);
-  const [username, setUsername] = useState("Người dùng");
+  const [userData, setUserData] = useState({});
   const [userPosts, setUserPosts] = useState([]);
   const [pendingPosts, setPendingPosts] = useState([]);
-  const [showPendingPosts, setShowPendingPosts] = useState(false);
-  const [pendingPostsCount, setPendingPostsCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showPendingPosts, setShowPendingPosts] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
 
-  // Function to fetch user posts
-  const fetchUserPosts = async () => {
-    if (userId) {
-      try {
-        console.log("Fetching posts for userId:", userId);
-        const response = await fetch(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/getArticleByAuthorId/${userId}`
-        );
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          // Filter posts by status
-          const acceptedPosts = data.filter((post) => post.status === "accepted");
-          const pendingPosts = data.filter((post) => post.status === "pending");
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
 
-          setUserPosts(acceptedPosts);
-          setPendingPosts(pendingPosts);
-          setPendingPostsCount(pendingPosts.length);
-        } else {
-          console.log("Invalid data format:", data);
-          setUserPosts([]);
-          setPendingPosts([]);
-          setPendingPostsCount(0);
-        }
-      } catch (error) {
-        console.error("Error fetching user posts:", error);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+    if (!token) {
+      console.error("Token không tồn tại.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
       }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
     }
   };
 
-  // Fetch username from AsyncStorage
   useEffect(() => {
-    const getUsernameFromStorage = async () => {
-      try {
-        const storedUsername = await AsyncStorage.getItem("username");
-        if (storedUsername) {
-          setUsername(storedUsername);
-        } else {
-          console.log("Không tìm thấy username trong AsyncStorage");
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy username từ AsyncStorage:", error);
-      }
+    const fetchData = async () => {
+      await fetchUserDetails();
     };
-
-    getUsernameFromStorage();
+    fetchData();
   }, []);
 
-  // Fetch userId from AsyncStorage
   useEffect(() => {
-    const getUserIdFromStorage = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem("userId");
-        if (storedUserId) {
-          setUserId(storedUserId);
-        } else {
-          console.log("Không tìm thấy User ID trong AsyncStorage.");
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
-      }
-    };
-
-    getUserIdFromStorage();
-  }, []);
-
-  // Fetch user posts when userId is set
-  useEffect(() => {
-    if (userId !== null) {
+    if (userData.userId) {
       fetchUserPosts();
     }
-  }, [userId]);
+  }, [userData]);
 
-  const toggleShowMore = (id) => {
-    setExpandedDecription((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+  const fetchUserDetails = async () => {
+    try {
+      const storedUserData = await AsyncStorage.getItem("userData");
+      if (storedUserData) {
+        const parsedUserData = JSON.parse(storedUserData);
+        setUserData(parsedUserData);
+
+        // Lấy thông tin followers
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/follows/allFollowerByUserId/${parsedUserData.userId}`
+        );
+
+        if (!response.ok) {
+          throw new Error("Không thể tải thông tin followers.");
+        }
+
+        const followersData = await response.json();
+        setFollowersCount(followersData.length || 0); // Cập nhật số lượng followers
+        return parsedUserData; // Trả về dữ liệu để sử dụng tiếp
+      } else {
+        throw new Error("Không tìm thấy thông tin người dùng trong lưu trữ.");
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải thông tin người dùng:", error);
+      throw error;
+    }
   };
 
-  const onRefresh = () => {
+  const fetchUserPosts = async () => {
+    try {
+      if (!userData || !userData.userId) {
+        console.warn("userId chưa được khởi tạo.");
+        return;
+      }
+
+      setLoading(true);
+
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/getArticleByAuthorId/${userData.userId}`
+      );
+      const articles = await response.json();
+
+      const processPosts = async (posts) => {
+        return await Promise.all(
+          posts.map(async (post) => {
+            const imageResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${post.articleId}`
+            );
+            const images = await imageResponse.json();
+
+            return {
+              ...post,
+              images: images.filter((img) => img.imageUrl),
+            };
+          })
+        );
+      };
+
+      const processedPosts = await processPosts(articles);
+      const accepted = processedPosts.filter(
+        (post) => post.status === "accepted"
+      );
+      const pending = processedPosts.filter(
+        (post) => post.status === "pending"
+      );
+
+      setUserPosts(accepted);
+      setPendingPosts(pending);
+    } catch (error) {
+      console.error("Lỗi khi tải bài viết:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchUserPosts(); // Call fetchUserPosts directly here
+    await fetchUserPosts();
+    setRefreshing(false);
   };
 
   return (
     <>
-     <View
-  style={{
-    marginTop: StatusBar.currentHeight,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: COLORS.white,
-  }}
->
-  <Text
-    style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
-  >
-    Trang cá nhân
-  </Text>
+      {/* Header */}
+      <View
+        style={{
+          marginTop: StatusBar.currentHeight,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: 20,
+          backgroundColor: COLORS.white,
+        }}
+      >
+        <Text
+          style={{ fontFamily: FONTS.bold, fontSize: 25, color: COLORS.green }}
+        >
+          Trang cá nhân
+        </Text>
+        <TouchableOpacity
+          onPress={() => {
+            navigation.navigate("EditProfile");
+          }}
+        >
+          <Icon name="settings-outline" size={28} color={COLORS.green} />
+        </TouchableOpacity>
+      </View>
 
-  <TouchableOpacity
-    onPress={() => {
-      console.log('Navigating to EditProfile');
-      navigation.navigate('EditProfile');
-    }}
-  >
-    <Icon name="settings-outline" size={28} color={COLORS.green} />
-  </TouchableOpacity>
-</View>
-
-      
+      {/* Nội dung chính */}
       <ScrollView
         style={{ flex: 1, backgroundColor: COLORS.white, padding: 10 }}
         refreshControl={
@@ -149,14 +178,22 @@ const ProfileScreen = ({ navigation }) => {
         }
       >
         {refreshing && (
-          <Text style={{ textAlign: "center", marginVertical: 10, color: COLORS.green }}>
+          <Text
+            style={{
+              textAlign: "center",
+              marginVertical: 10,
+              color: COLORS.green,
+            }}
+          >
             Đang làm mới trang...
           </Text>
         )}
-        <View style={{ flexDirection: "row" }}>
+
+        {/* Thông tin người dùng */}
+        <View style={{ flexDirection: "row", marginBottom: 20 }}>
           <Image
             source={{
-              uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+              uri: userData.imageUrl || "https://via.placeholder.com/100",
             }}
             style={{
               width: 100,
@@ -165,79 +202,23 @@ const ProfileScreen = ({ navigation }) => {
               marginRight: 10,
             }}
           />
-         
           <View
-  style={{
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-  }}
->
-  {/* Bài đăng Section */}
-  <TouchableOpacity
-    style={{
-      alignItems: "center",
-      width: "30%",
-    }}
-    onPress={() => setShowPendingPosts(false)} // Ensure this shows accepted posts
-  >
-    <Text
-      style={{
-        fontFamily: FONTS.bold,
-        fontSize: 15,
-      }}
-    >
-      {userPosts.length}
-    </Text>
-    <Text
-      style={{
-        fontFamily: FONTS.medium,
-        marginTop: 8,
-        fontSize: 12,
-      }}
-      numberOfLines={1}
-    >
-      Bài đăng
-    </Text>
-  </TouchableOpacity>
-
-  {/* Bài chờ duyệt Section */}
-  <TouchableOpacity
-    style={{
-      alignItems: "center",
-      width: "35%",
-    }}
-    onPress={() => setShowPendingPosts(true)} // Ensure this shows pending posts
-  >
-    <Text
-      style={{
-        fontFamily: FONTS.bold,
-        fontSize: 15,
-      }}
-    >
-      {pendingPostsCount}
-    </Text>
-    <Text
-      style={{
-        fontFamily: FONTS.medium,
-        marginTop: 8,
-        fontSize: 12,
-      }}
-      numberOfLines={1}
-    >
-      Bài chờ duyệt
-    </Text>
-  </TouchableOpacity>
-
-
-            <TouchableOpacity style={{ alignItems: "center", width: "35%" }}>
-              <Text
-                style={{
-                  fontFamily: FONTS.bold,
-                  fontSize: 15,
-                }}
-              >
-                123
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            {/* Bài đăng */}
+            <TouchableOpacity
+              style={{
+                alignItems: "center",
+                width: "30%",
+              }}
+              onPress={() => setShowPendingPosts(false)}
+            >
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+                {userPosts.length}
               </Text>
               <Text
                 style={{
@@ -245,13 +226,56 @@ const ProfileScreen = ({ navigation }) => {
                   marginTop: 8,
                   fontSize: 12,
                 }}
-                numberOfLines={1}
+              >
+                Bài đăng
+              </Text>
+            </TouchableOpacity>
+
+            {/* Bài chờ duyệt */}
+            <TouchableOpacity
+              style={{
+                alignItems: "center",
+                width: "35%",
+              }}
+              onPress={() => setShowPendingPosts(true)}
+            >
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+                {pendingPosts.length}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  marginTop: 8,
+                  fontSize: 12,
+                }}
+              >
+                Bài chờ duyệt
+              </Text>
+            </TouchableOpacity>
+
+            {/* Đang theo dõi */}
+            <TouchableOpacity
+              style={{
+                alignItems: "center",
+                width: "35%",
+              }}
+            >
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+                {followersCount}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  marginTop: 8,
+                  fontSize: 12,
+                }}
               >
                 Đang theo dõi
               </Text>
             </TouchableOpacity>
           </View>
         </View>
+
         <Text
           style={{
             fontFamily: FONTS.semiBold,
@@ -260,8 +284,10 @@ const ProfileScreen = ({ navigation }) => {
             marginLeft: 5,
           }}
         >
-          {username}
+          {userData.username}
         </Text>
+
+        {/* Danh sách bài viết */}
         <View style={{ marginTop: 20 }}>
           <View
             style={{
@@ -282,9 +308,11 @@ const ProfileScreen = ({ navigation }) => {
             </Text>
             <Icon name="options" size={24} color={COLORS.grey} />
           </View>
+
+          {/* Hiển thị danh sách bài */}
           {loading ? (
             <Text style={{ textAlign: "center", marginVertical: 20 }}>
-              Loading...
+              Đang tải...
             </Text>
           ) : showPendingPosts ? (
             pendingPosts.length === 0 ? (
@@ -292,9 +320,9 @@ const ProfileScreen = ({ navigation }) => {
                 Không có bài viết chờ duyệt
               </Text>
             ) : (
-              pendingPosts.map((item) => (
+              pendingPosts.map((item, index) => (
                 <TouchableOpacity
-                  key={item.articleId}
+                  key={`${item.articleId}-${index}`}
                   onPress={() =>
                     navigation.navigate("PostDetailScreen", { post: item })
                   }
@@ -312,7 +340,9 @@ const ProfileScreen = ({ navigation }) => {
                     <View style={{ flexDirection: "row" }}>
                       <Image
                         source={{
-                          uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+                          uri:
+                            userData.imageUrl ||
+                            "https://via.placeholder.com/45",
                         }}
                         style={{
                           width: 45,
@@ -328,7 +358,7 @@ const ProfileScreen = ({ navigation }) => {
                             fontSize: 14,
                           }}
                         >
-                          {username}
+                          {userData.username || "Người dùng"}
                         </Text>
                         <Text
                           style={{
@@ -343,8 +373,8 @@ const ProfileScreen = ({ navigation }) => {
                       </View>
                       <Icon
                         name="ellipsis-horizontal"
-                        color={COLORS.greySolid}
                         size={24}
+                        color={COLORS.greySolid}
                       />
                     </View>
                     <View style={{ marginTop: 10 }}>
@@ -364,70 +394,43 @@ const ProfileScreen = ({ navigation }) => {
                           lineHeight: 22,
                           marginTop: 5,
                         }}
-                        numberOfLines={
-                          !expandedDecription[item.articleId] ? 2 : undefined
-                        }
+                        numberOfLines={2}
                       >
                         {item.content}
                       </Text>
-                      <TouchableOpacity
-                        onPress={() => toggleShowMore(item.articleId)}
+                      <ScrollView
+                        horizontal
+                        style={{ marginTop: 10 }}
+                        showsHorizontalScrollIndicator={false}
                       >
-                        <Text
-                          style={{
-                            fontFamily: FONTS.medium,
-                            color: COLORS.grey,
-                            marginTop: 5,
-                            fontSize: 13,
-                          }}
-                        >
-                          {expandedDecription[item.articleId] ? "Ẩn bớt" : "Xem thêm"}
-                        </Text>
-                      </TouchableOpacity>
-                      <View style={{ flexDirection: "row", marginTop: 10 }}>
-                        <TouchableOpacity
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            marginRight: 20,
-                          }}
-                        >
-                          <IconAnt name="like2" size={28} color={COLORS.greySolid} />
+                        {Array.isArray(item.articleImages) &&
+                        item.articleImages.length > 0 ? (
+                          item.articleImages.map((image, idx) => (
+                            <Image
+                              key={idx}
+                              source={{
+                                uri: image || "https://via.placeholder.com/100",
+                              }} // Fallback nếu `image` null
+                              style={{
+                                width: 100,
+                                height: 100,
+                                borderRadius: 8,
+                                marginRight: 10,
+                              }}
+                            />
+                          ))
+                        ) : (
                           <Text
                             style={{
-                              fontFamily: FONTS.semiBold,
-                              fontSize: 16,
-                              color: COLORS.greySolid,
-                              marginLeft: 5,
+                              fontFamily: FONTS.medium,
+                              fontSize: 12,
+                              color: COLORS.grey,
                             }}
                           >
-                            {item.likes || 0}
+                            Không có ảnh
                           </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            marginRight: 20,
-                          }}
-                        >
-                          <Icon
-                            name="chatbubble-outline"
-                            size={27}
-                            color={COLORS.greySolid}
-                          />
-                          <Text
-                            style={{
-                              fontFamily: FONTS.semiBold,
-                              fontSize: 16,
-                              color: COLORS.greySolid,
-                              marginLeft: 5,
-                            }}
-                          >
-                            {item.comments || 0}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
+                        )}
+                      </ScrollView>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -438,11 +441,16 @@ const ProfileScreen = ({ navigation }) => {
               Không có bài viết nào
             </Text>
           ) : (
-            userPosts.map((item) => (
+            userPosts.map((item, index) => (
               <TouchableOpacity
-                key={item.articleId}
+                key={`${item.articleId}-${index}`}
                 onPress={() =>
-                  navigation.navigate("PostDetailScreen", { post: item })
+                  navigation.navigate("PostDetailScreen", {
+                    post: {
+                      ...item,
+                      articleImages: item.articleImages || [], // Nếu null, dùng mảng rỗng làm fallback
+                    },
+                  })
                 }
               >
                 <View
@@ -458,7 +466,8 @@ const ProfileScreen = ({ navigation }) => {
                   <View style={{ flexDirection: "row" }}>
                     <Image
                       source={{
-                        uri: "https://scontent.fsgn5-15.fna.fbcdn.net/v/t39.30808-1/460162027_3425082664458663_2472010034202593960_n.jpg?stp=dst-jpg_s200x200&_nc_cat=111&ccb=1-7&_nc_sid=0ecb9b&_nc_ohc=nznu1u04tbYQ7kNvgECV6Ea&_nc_zt=24&_nc_ht=scontent.fsgn5-15.fna&_nc_gid=AbagoHe_7rxClBPMY59F8Lj&oh=00_AYAqoVPN5ajKA3cj0SlcEoWZxG5-MSCuq-a5Fs8ZFmEsBQ&oe=671E8B22",
+                        uri:
+                          userData.imageUrl || "https://via.placeholder.com/45",
                       }}
                       style={{
                         width: 45,
@@ -474,7 +483,7 @@ const ProfileScreen = ({ navigation }) => {
                           fontSize: 14,
                         }}
                       >
-                        {username}
+                        {userData.username || "Người dùng"}
                       </Text>
                       <Text
                         style={{
@@ -489,8 +498,8 @@ const ProfileScreen = ({ navigation }) => {
                     </View>
                     <Icon
                       name="ellipsis-horizontal"
-                      color={COLORS.greySolid}
                       size={24}
+                      color={COLORS.greySolid}
                     />
                   </View>
                   <View style={{ marginTop: 10 }}>
@@ -510,70 +519,41 @@ const ProfileScreen = ({ navigation }) => {
                         lineHeight: 22,
                         marginTop: 5,
                       }}
-                      numberOfLines={
-                        !expandedDecription[item.articleId] ? 2 : undefined
-                      }
+                      numberOfLines={2}
                     >
                       {item.content}
                     </Text>
-                    <TouchableOpacity
-                      onPress={() => toggleShowMore(item.articleId)}
+                    <ScrollView
+                      horizontal
+                      style={{ marginTop: 10 }}
+                      showsHorizontalScrollIndicator={false}
                     >
-                      <Text
-                        style={{
-                          fontFamily: FONTS.medium,
-                          color: COLORS.grey,
-                          marginTop: 5,
-                          fontSize: 13,
-                        }}
-                      >
-                        {expandedDecription[item.articleId] ? "Ẩn bớt" : "Xem thêm"}
-                      </Text>
-                    </TouchableOpacity>
-                    <View style={{ flexDirection: "row", marginTop: 10 }}>
-                      <TouchableOpacity
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          marginRight: 20,
-                        }}
-                      >
-                        <IconAnt name="like2" size={28} color={COLORS.greySolid} />
+                      {Array.isArray(item.articleImages) &&
+                      item.articleImages.length > 0 ? (
+                        item.articleImages.map((image, idx) => (
+                          <Image
+                            key={idx}
+                            source={{ uri: image }}
+                            style={{
+                              width: 100,
+                              height: 100,
+                              borderRadius: 8,
+                              marginRight: 10,
+                            }}
+                          />
+                        ))
+                      ) : (
                         <Text
                           style={{
-                            fontFamily: FONTS.semiBold,
-                            fontSize: 16,
-                            color: COLORS.greySolid,
-                            marginLeft: 5,
+                            fontFamily: FONTS.medium,
+                            fontSize: 12,
+                            color: COLORS.grey,
                           }}
                         >
-                          {item.likes || 0}
+                          Không có ảnh
                         </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          marginRight: 20,
-                        }}
-                      >
-                        <Icon
-                          name="chatbubble-outline"
-                          size={27}
-                          color={COLORS.greySolid}
-                        />
-                        <Text
-                          style={{
-                            fontFamily: FONTS.semiBold,
-                            fontSize: 16,
-                            color: COLORS.greySolid,
-                            marginLeft: 5,
-                          }}
-                        >
-                          {item.comments || 0}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                      )}
+                    </ScrollView>
                   </View>
                 </View>
               </TouchableOpacity>

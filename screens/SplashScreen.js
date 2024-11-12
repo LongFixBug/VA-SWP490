@@ -1,19 +1,25 @@
-import { StyleSheet, View, Image, Dimensions, TouchableOpacity } from 'react-native';
-import React from 'react';
-import COLORS from '../constants/color';
+import {
+  StyleSheet,
+  View,
+  Image,
+  Dimensions,
+  TouchableOpacity,
+} from "react-native";
+import React from "react";
+import COLORS from "../constants/color";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 const SplashScreen = ({ navigation }) => {
   const goToHome = () => {
     // Chuyển sang HomeScreen khi bấm vào
-    navigation.replace('Home');
+    navigation.replace("Home");
   };
 
   return (
     <TouchableOpacity style={styles.container} onPress={goToHome}>
       <Image
-        source={require('../assets/VegetarianAssistantBackground.png')}
+        source={require("../assets/VegetarianAssistantBackground.png")}
         resizeMode="cover"
         style={styles.backgroundImage}
       />
@@ -29,7 +35,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   backgroundImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
 });

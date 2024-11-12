@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1072504996654",
+    "project_id": "vegetariansassistant",
+    "storage_bucket": "vegetariansassistant.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1072504996654:android:34616e4faef20ffa4930bf",
+        "android_client_info": {
+          "package_name": "com.capstone.vegetariansassistant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6hkAOo_IbbfT4ykc0hp1ZMYo3DvB6hxg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

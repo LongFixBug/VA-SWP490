@@ -1,25 +1,70 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
-import COLORS from '../constants/color';
-import FONTS from '../constants/font';
-import Icon from 'react-native-vector-icons/Ionicons';
-import IconAnt from 'react-native-vector-icons/AntDesign';
+import {
+  StyleSheet,
+  View,
+  Image,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Modal,
+  FlatList,
+} from "react-native";
+import React, { useState, useEffect } from "react";
+import COLORS from "../constants/color";
+import FONTS from "../constants/font";
+import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
+import Icon from "react-native-vector-icons/Ionicons";
+import IconAnt from "react-native-vector-icons/AntDesign";
+import Header from "../components/Header";
+import ImageViewer from "react-native-image-zoom-viewer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const PostDetailScreen = ({ route, navigation }) => {
-  const { post } = route.params; // Nhận dữ liệu bài viết từ CommunityScreen
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
+const DetailArticleScreen = ({ navigation, route }) => {
+  const { post } = route.params; // Dữ liệu bài viết được truyền vào từ route
+  const [imageView, setImageView] = useState(false);
+  const [selectedpictureOfArticle, setSelectedpictureOfArticle] = useState(0);
+  const [comments, setComments] = useState([]); // Bình luận
+  const [newComment, setNewComment] = useState(""); // Nội dung bình luận mới
   const [loadingComments, setLoadingComments] = useState(true);
+
+  // Hàm fetch dữ liệu với xác thực
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!token) {
+      console.error("Không tìm thấy token.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
+      }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
+    }
+  };
 
   // Lấy dữ liệu bình luận từ API khi màn hình được mount
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const response = await fetch(`https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`);
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`
+        );
         const data = await response.json();
         setComments(data);
       } catch (error) {
-        console.error('Error fetching comments:', error);
+        console.error("Error fetching comments:", error);
       } finally {
         setLoadingComments(false);
       }
@@ -28,102 +73,253 @@ const PostDetailScreen = ({ route, navigation }) => {
     fetchComments();
   }, [post.articleId]);
 
-  // Hàm xử lý khi người dùng đăng bình luận
-  const handlePostComment = () => {
+  const handlePostComment = async () => {
     if (newComment.trim()) {
-      // Gửi dữ liệu bình luận mới lên server (giả lập)
-      setComments([
-        ...comments,
-        {
-          commentId: comments.length + 1,
-          userName: 'Người dùng',
-          content: newComment,
-          postDate: new Date().toISOString(),
-        },
-      ]);
-      setNewComment('');
+      try {
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              content: newComment,
+              userId: post.authorId,
+              articleId: post.articleId,
+            }),
+          }
+        );
+
+        if (response.ok || response.status === 201) {
+          const storedUserData = await AsyncStorage.getItem("userData");
+          const { username } = JSON.parse(storedUserData) || {
+            username: "Ẩn danh",
+          };
+
+          const newCommentData = {
+            content: newComment,
+            userId: post.authorId,
+            articleId: post.articleId,
+            userName: username,
+          };
+
+          setComments((prevComments) => [newCommentData, ...prevComments]);
+          setNewComment("");
+        } else {
+          const errorText = await response.text();
+          console.error("Failed to post comment:", errorText);
+        }
+      } catch (error) {
+        console.error("Error posting comment:", error);
+      }
     }
   };
 
   // Hàm hiển thị từng bình luận
-  const renderComment = ({ item }) => (
-    <View style={styles.commentContainer}>
-      <Icon name="person-circle-outline" size={32} color={COLORS.black} />
-      <View style={styles.commentContent}>
-        <Text style={styles.commentUsername}>{item.userName}</Text>
-        <Text style={styles.commentText}>{item.content}</Text>
-        <Text style={styles.commentTime}>{new Date(item.postDate).toLocaleString()}</Text>
-      </View>
-    </View>
-  );
-
   return (
-    <View style={styles.container}>
-      {/* FlatList để hiển thị toàn bộ nội dung và bình luận */}
-      <FlatList
-        data={comments}
-        keyExtractor={(item) => item.commentId.toString()}
-        renderItem={renderComment}
-        ListHeaderComponent={
-          <View>
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => navigation.goBack()}
-                style={{ flexDirection: 'row', alignItems: 'center' }}
+    <>
+      <Header
+        title={"Chi tiết bài viết"}
+        leftIcon={"close"}
+        colorBackground={COLORS.white}
+        colorText={COLORS.black}
+        onPress={() => navigation.goBack()}
+      />
+      <ScrollView
+        style={{ flex: 1, backgroundColor: COLORS.white }}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 20 }} // Thêm paddingBottom
+      >
+        {/* Thông tin bài viết */}
+        <View style={{ backgroundColor: COLORS.white, padding: 10 }}>
+          {/* Tác giả */}
+          <View style={{ flexDirection: "row" }}>
+            <Image
+              source={{
+                uri: post.authorImageUrl || "https://via.placeholder.com/45",
+              }}
+              style={{
+                width: 45,
+                height: 45,
+                borderRadius: 50,
+                marginRight: 10,
+              }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 14 }}>
+                {post.authorName || "Ẩn danh"}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  fontSize: 12,
+                  marginTop: 3,
+                  color: COLORS.grey,
+                }}
               >
-                <View style={styles.backButton}>
-                  <Icon name="arrow-back-outline" size={28} color={COLORS.green} />
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>Chi tiết bài viết</Text>
+                {post.createdAt}
+              </Text>
             </View>
+          </View>
 
-            {/* Thông tin tác giả và bài viết */}
-            <View style={styles.authorInfo}>
-              <Image
-                source={{ uri: 'https://mighty.tools/mockmind-api/content/human/44.jpg' }}
-                style={styles.authorImage}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.authorName}>{post.authorName}</Text>
-                <Text style={styles.postDate}>{post.createdAt}</Text>
+          {/* Nội dung bài viết */}
+          <View style={{ marginTop: 10 }}>
+            <Text style={{ fontFamily: FONTS.semiBold, fontSize: 15 }}>
+              {post.title}
+            </Text>
+            <Text
+              style={{
+                fontFamily: FONTS.medium,
+                fontSize: 14,
+                lineHeight: 22,
+                marginTop: 5,
+              }}
+            >
+              {post.content}
+            </Text>
+
+            {/* Hình ảnh */}
+            <ScrollView horizontal style={{ marginTop: 10 }}>
+              {post.images &&
+                post.images.map((image, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                      setImageView(true);
+                      setSelectedpictureOfArticle(index);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: image.imageUrl }}
+                      style={{
+                        width: 200,
+                        height: 150,
+                        borderRadius: 8,
+                        marginLeft: index === 0 ? 0 : 10,
+                      }}
+                    />
+                  </TouchableOpacity>
+                ))}
+            </ScrollView>
+
+            {/* Like và Comment */}
+            <View style={{ flexDirection: "row", marginTop: 10 }}>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginRight: 20,
+                }}
+              >
+                <IconAnt name="like1" size={28} color={COLORS.green} />
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    fontSize: 16,
+                    color: COLORS.green,
+                    marginLeft: 5,
+                  }}
+                >
+                  {post.likes || 0}
+                </Text>
+              </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Icon name="chatbubble-outline" size={27} color={COLORS.grey} />
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    fontSize: 16,
+                    color: COLORS.grey,
+                    marginLeft: 5,
+                  }}
+                >
+                  {comments.length}
+                </Text>
               </View>
             </View>
-
-            {/* Nội dung bài viết */}
-            <Text style={styles.postTitle}>{post.title}</Text>
-            <Text style={styles.postContent}>{post.content}</Text>
-
-            {/* Hình ảnh của bài viết */}
-            <View style={styles.imageContainer}>
-              {post.images && post.images.map((imageUrl, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: imageUrl }}
-                  style={styles.postImage}
-                />
-              ))}
-            </View>
-
-            {/* Hành động trên bài viết */}
-            <View style={styles.actionsContainer}>
-              <TouchableOpacity style={styles.actionButton}>
-                <IconAnt name="like2" size={28} color={COLORS.greySolid} />
-                <Text style={styles.actionText}>{post.likes || 0}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
-                <Icon name="chatbubble-outline" size={27} color={COLORS.greySolid} />
-                <Text style={styles.actionText}>{comments.length}</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.commentSectionTitle}>Bình luận</Text>
           </View>
-        }
-      />
+        </View>
 
-      {/* Nhập bình luận mới */}
+        {/* Danh sách bình luận */}
+        <View style={{ marginTop: 15 }}>
+          <Text
+            style={{
+              fontFamily: FONTS.semiBold,
+              fontSize: 17,
+              marginTop: 15,
+              marginBottom: 10,
+            }}
+          >
+            Bình luận
+          </Text>
+          {comments.length === 0 ? (
+            <Text
+              style={{
+                fontFamily: FONTS.medium,
+                fontSize: 14,
+                textAlign: "center",
+                color: COLORS.grey,
+                marginBottom: 20, // Khoảng cách với phần input
+              }}
+            >
+              Không có bình luận nào
+            </Text>
+          ) : (
+            comments.map((item, index) => (
+              <View
+                key={index}
+                style={{
+                  marginTop: 15,
+                  flexDirection: "row",
+                  marginBottom: index === comments.length - 1 ? 20 : 0, // Thêm marginBottom cho bình luận cuối
+                }}
+              >
+                <Image
+                  source={{
+                    uri: "https://i.sstatic.net/l60Hf.png",
+                  }}
+                  style={{
+                    height: 35,
+                    width: 35,
+                    borderRadius: 50,
+                  }}
+                />
+                <View
+                  style={{
+                    marginLeft: 8,
+                    height: "auto",
+                    flex: 1,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: FONTS.semiBold,
+                      marginBottom: 5,
+                      color: COLORS.greySolid,
+                    }}
+                  >
+                    {item.userName}
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: COLORS.darkGrey,
+                      padding: 10,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text style={{ fontFamily: FONTS.medium, lineHeight: 20 }}>
+                      {item.content}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Input bình luận */}
       <View style={styles.commentInputContainer}>
         <TextInput
           style={styles.commentInput}
@@ -135,130 +331,43 @@ const PostDetailScreen = ({ route, navigation }) => {
           <Icon name="send-outline" size={24} color={COLORS.green} />
         </TouchableOpacity>
       </View>
-    </View>
+
+      {/* Modal xem ảnh */}
+      <Modal visible={imageView} transparent>
+        <ImageViewer
+          imageUrls={post.images.map((img) => ({ url: img.imageUrl }))}
+          index={selectedpictureOfArticle}
+          onSwipeDown={() => setImageView(false)}
+        />
+      </Modal>
+    </>
   );
 };
 
-export default PostDetailScreen;
+export default DetailArticleScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
-    paddingHorizontal: 15,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 10,
+    position: "absolute",
+    top: 35,
+    left: 20,
+    zIndex: 9999,
   },
-  backButton: {
-    height: 50,
-    width: 50,
-    marginLeft: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: 10,
-  },
-  headerTitle: {
+  closeText: {
+    color: COLORS.white,
     fontSize: 18,
-    fontFamily: FONTS.semiBold,
-    marginLeft: 10,
-  },
-  authorInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  authorImage: {
-    width: 45,
-    height: 45,
-    borderRadius: 50,
-    marginRight: 10,
-  },
-  authorName: {
     fontFamily: FONTS.medium,
-    fontSize: 14,
-  },
-  postDate: {
-    fontFamily: FONTS.medium,
-    fontSize: 12,
-    color: COLORS.grey,
-    marginTop: 3,
-  },
-  postTitle: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 18,
-    marginBottom: 10,
-  },
-  postContent: {
-    fontFamily: FONTS.regular,
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  imageContainer: {
-    marginTop: 10,
-  },
-  postImage: {
-    width: 200,
-    height: 150,
-    resizeMode: 'cover',
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    marginTop: 20,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  actionText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 16,
-    color: COLORS.greySolid,
-    marginLeft: 5,
-  },
-  commentSectionTitle: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    marginTop: 20,
-  },
-  commentContainer: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  commentContent: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  commentUsername: {
-    fontSize: 14,
-    fontFamily: FONTS.medium,
-  },
-  commentText: {
-    fontSize: 14,
-    color: COLORS.grey,
-  },
-  commentTime: {
-    fontSize: 12,
-    color: COLORS.lightGray,
-    marginTop: 5,
   },
   commentInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderTopWidth: 1,
     borderTopColor: COLORS.lightGray,
     padding: 10,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: COLORS.white,
   },
   commentInput: {

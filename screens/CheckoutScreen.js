@@ -28,6 +28,32 @@ const CheckoutScreen = ({ navigation }) => {
   const [note, setNote] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
 
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!token) {
+      console.error("Không tìm thấy token.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
+      }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
+    }
+  };
+
   const parseAddress = (fullAddress) => {
     if (!fullAddress) return { province: "", district: "", address: "" };
     const parts = fullAddress.split(", ");
@@ -37,22 +63,12 @@ const CheckoutScreen = ({ navigation }) => {
       address: parts[2] || "",
     };
   };
-  
-  
-  // Sử dụng hàm parseAddress để tách chuỗi thành các phần riêng biệt
+
   const { province, district, address } = parseAddress(deliveryInfo.address);
-  
-  
 
   const dataPayment = [
-    {
-      id: "COD",
-      name: "Thanh toán khi nhận hàng",
-    },
-    {
-      id: "QR",
-      name: "Thanh toán qua QR code",
-    },
+    { id: "COD", name: "Thanh toán khi nhận hàng" },
+    { id: "QR", name: "Thanh toán qua QR code" },
   ];
 
   useEffect(() => {
@@ -61,7 +77,7 @@ const CheckoutScreen = ({ navigation }) => {
         const storedUserId = await AsyncStorage.getItem("userId");
         if (storedUserId) {
           setUserId(storedUserId);
-          await fetchDeliveryInfo(storedUserId); // Đảm bảo fetchDeliveryInfo chạy xong trước
+          await fetchDeliveryInfo(storedUserId);
           await fetchCartDetails(storedUserId);
           await fetchTierInfo(storedUserId);
         } else {
@@ -71,72 +87,65 @@ const CheckoutScreen = ({ navigation }) => {
         console.error("Lỗi khi lấy userId từ AsyncStorage:", error);
       }
     };
-    
-    const fetchDeliveryInfo = async (id) => {
-      try {
-        const response = await fetch(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
-        );
-        const data = await response.json();
-        console.log("Delivery info:", data);
-        setDeliveryInfo(data);
-        fetchDeliveryFee(); // Gọi fetchDeliveryFee ở đây sau khi cập nhật deliveryInfo
-      } catch (error) {
-        console.error("Error fetching delivery info:", error);
-      }
-    };
-    
     getUserIdFromStorage();
   }, []);
-  
 
-
+  const fetchDeliveryInfo = async (id) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
+      );
+      const data = await response.json();
+      console.log("Delivery info:", data);
+      setDeliveryInfo(data);
+      fetchDeliveryFee(data); // Tính phí giao hàng sau khi nhận được thông tin
+    } catch (error) {
+      console.error("Error fetching delivery info:", error);
+    }
+  };
 
   const fetchCartDetails = async (id) => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${id}`
       );
       const cartData = await response.json();
       console.log("Cart details:", cartData);
-  
+
       let total = 0;
       let items = [];
-  
+
       for (const item of cartData) {
-        if (item.quantity > 0) { // Bỏ qua các món có quantity = 0
-          const dishResponse = await fetch(
+        if (item.quantity > 0) {
+          const dishResponse = await fetchWithAuth(
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${item.dishId}`
           );
           const dishData = await dishResponse.json();
           console.log("Dish data:", dishData);
-  
+
           items.push({ ...dishData, quantity: item.quantity });
           total += dishData.price * item.quantity;
         }
       }
-  
+
       setDetailedCartItems(items);
       setTotalPrice(total);
-      setFinalPrice(total - total * discountRate); // Tính giá cuối cùng sau giảm giá
+      setFinalPrice(total - total * discountRate); // Tính tổng sau chiết khấu
     } catch (error) {
       console.error("Error fetching cart details:", error);
     }
   };
-  
-  
-  
 
   const fetchTierInfo = async (id) => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`
       );
       const tierData = await response.json();
       console.log("Tier info:", tierData);
 
       if (tierData.tierId) {
-        const tierResponse = await fetch(
+        const tierResponse = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membershipTier/${tierData.tierId}`
         );
         const tierDetails = await tierResponse.json();
@@ -151,94 +160,6 @@ const CheckoutScreen = ({ navigation }) => {
     }
   };
 
-  const handleCheckout = async () => {
-    // Lọc các món có quantity > 0
-    const validCartItems = detailedCartItems.filter(item => item.quantity > 0);
-  
-    if (validCartItems.length === 0) {
-      Alert.alert("Thông báo", "Giỏ hàng trống.");
-      return;
-    }
-  
-   
-  
-    let orderData = {
-      orderId: 0,
-      userId: parseInt(userId, 10),
-      totalPrice: finalPrice, // Sử dụng finalPrice đã được tính từ useEffect
-      deliveryAddress: deliveryInfo.address || "Không có địa chỉ",
-      note: note,
-      deliveryFee: deliveryFee,
-      deliveryFailedFee: 0,
-      orderDate: new Date().toISOString(),
-      status: "pending",
-    };
-  
-    const currentTime = new Date().toISOString();
-    if (currentTime) {
-      orderData.completedTime = currentTime;
-    }
-    console.log("Order Data:", orderData);
-  
-    try {
-      await fetch(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderByCustomer",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(orderData),
-        }
-      );
-  
-      // Lấy đơn hàng mới nhất theo user ID
-      const response = await fetch(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
-      );
-      const orders = await response.json();
-  
-      // Lấy orderId mới nhất
-      const latestOrder = orders.reduce((maxOrder, order) =>
-        order.orderId > maxOrder.orderId ? order : maxOrder
-      );
-      const orderId = latestOrder.orderId;
-  
-      console.log("Latest orderId:", orderId);
-  
-      // Gửi chi tiết đơn hàng cho từng món trong giỏ hàng
-      for (const item of validCartItems) {
-        await fetch(
-          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderDetail",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              orderId: orderId,
-              dishId: item.dishId,
-              quantity: item.quantity,
-              price: item.price,
-            }),
-          }
-        );
-      }
-  
-      Alert.alert("Thành công", "Đơn hàng đã được tạo!", [
-        { text: "OK", onPress: () => navigation.navigate("Home") }
-      ]);
-  
-    } catch (error) {
-      console.log("Error creating order details:", error);
-      Alert.alert("Lỗi", "Có lỗi xảy ra khi tạo đơn hàng.", [
-        { text: "OK", onPress: () => navigation.navigate("Home") }
-      ]);
-    }
-  };
-  
-  
-
   const fetchDeliveryFee = async () => {
     try {
       const queryParams = new URLSearchParams({
@@ -247,47 +168,70 @@ const CheckoutScreen = ({ navigation }) => {
         province: deliveryInfo.province || "Hồ Chí Minh",
         district: deliveryInfo.district || "Quận 12",
         address: deliveryInfo.address || "338/10 Đ. Lê Thị Riêng",
-        weight: 1000, // hoặc thiết lập trọng lượng động
-        value: totalPrice, // giá trị đơn hàng
+        weight: 1000,
+        value: totalPrice,
       }).toString();
-  
-      const response = await fetch(`https://services.giaohangtietkiem.vn/services/shipment/fee?${queryParams}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'token': '35j4uHBQNjODAEOrWBlA23Sscp3TicIQ0k4mN2', // Sử dụng token mới
-        },
-      });
-  
+
+      const response = await fetchWithAuth(
+        `https://services.giaohangtietkiem.vn/services/shipment/fee?${queryParams}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            token: "35j4uHBQNjODAEOrWBlA23Sscp3TicIQ0k4mN2",
+          },
+        }
+      );
+
       const data = await response.json();
       console.log("Dữ liệu phí giao hàng:", data);
-      
-      // Kiểm tra xem 'data' có chứa 'fee' hay không
+
       if (data && data.fee) {
         setDeliveryFee(data.fee.fee);
-        setFinalPrice((totalPrice - totalPrice * discountRate) + data.fee.fee);
+        setFinalPrice(totalPrice - totalPrice * discountRate + data.fee.fee);
       } else {
-        console.error("Không tìm thấy dữ liệu 'fee' trong phản hồi:", data);
-        Alert.alert("Lỗi", "Không thể lấy phí giao hàng. Vui lòng thử lại sau.");
+        Alert.alert("Lỗi", "Không thể lấy phí giao hàng.");
       }
     } catch (error) {
       console.error("Lỗi khi lấy phí giao hàng:", error);
     }
   };
-  
+
+  const handleCheckout = async () => {
+    const validCartItems = detailedCartItems.filter(
+      (item) => item.quantity > 0
+    );
+
+    if (validCartItems.length === 0) {
+      Alert.alert("Thông báo", "Giỏ hàng trống.");
+      return;
+    }
+
+    const orderData = {
+      userId,
+      totalPrice: finalPrice,
+      deliveryAddress: deliveryInfo.address || "Không có địa chỉ",
+      note,
+      deliveryFee,
+      cartDetails: validCartItems,
+    };
+
+    try {
+      console.log("Lưu thông tin đơn hàng vào AsyncStorage:", orderData); // Ghi log để kiểm tra
+      await AsyncStorage.setItem("pendingOrder", JSON.stringify(orderData));
+      console.log("Chuyển sang trang PaymentScreen với giá:", finalPrice); // Ghi log
+      navigation.navigate("Payment", { finalPrice });
+    } catch (error) {
+      console.error("Lỗi khi lưu đơn hàng vào AsyncStorage:", error);
+      Alert.alert("Lỗi", "Không thể lưu thông tin đơn hàng.");
+    }
+  };
+
   useEffect(() => {
     const discountAmount = totalPrice * discountRate;
-    const adjustedFinalPrice = (totalPrice - discountAmount) + deliveryFee;
+    const adjustedFinalPrice = totalPrice - discountAmount + deliveryFee;
     setFinalPrice(adjustedFinalPrice);
   }, [totalPrice, discountRate, deliveryFee]);
-  
-
-  
-  
-  
-  
-  
-  
 
   return (
     <>
@@ -305,33 +249,49 @@ const CheckoutScreen = ({ navigation }) => {
         contentContainerStyle={{ padding: 10 }}
       >
         <View style={styles.deliveryInfoContainer}>
-          <Icon name="location-sharp" size={22} color={COLORS.orange} style={{ marginHorizontal: 5 }} />
+          <Icon
+            name="location-sharp"
+            size={22}
+            color={COLORS.orange}
+            style={{ marginHorizontal: 5 }}
+          />
           <View style={{ flex: 1 }}>
-            <Text style={styles.textBold}>{"Tên: " + (deliveryInfo.username || "Người dùng")}</Text>
-            <Text style={styles.text}>{"Số điện thoại: " + (deliveryInfo.phoneNumber || "N/A")}</Text>
-            <Text style={styles.text}>{"Địa chỉ: " + (deliveryInfo.address || "Địa chỉ không xác định")}</Text>
+            <Text style={styles.textBold}>
+              Tên: {deliveryInfo.username || "Người dùng"}
+            </Text>
+            <Text style={styles.text}>
+              Số điện thoại: {deliveryInfo.phoneNumber || "N/A"}
+            </Text>
+            <Text style={styles.text}>
+              Địa chỉ: {deliveryInfo.address || "Không xác định"}
+            </Text>
           </View>
         </View>
 
         {tierInfo && (
           <View style={styles.tierInfoContainer}>
-            <Text style={styles.textBold}>Bậc thành viên của bạn:</Text>
+            <Text style={styles.textBold}>Bậc thành viên:</Text>
             <Text style={styles.text}>
-              {`Bậc ${tierInfo.tierName} - Giảm giá: ${tierInfo.discountRate * 100}%`}
+              {`Bậc ${tierInfo.tierName} - Giảm giá: ${
+                tierInfo.discountRate * 100
+              }%`}
             </Text>
           </View>
         )}
 
         <View style={styles.noteContainer}>
-          <Text style={styles.textBold}>Ghi chú (nếu có)</Text>
+          <Text style={styles.textBold}>Ghi chú</Text>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Icon name="create-outline" size={22} color={COLORS.green} style={{ marginRight: 5 }} />
+            <Icon
+              name="create-outline"
+              size={22}
+              color={COLORS.green}
+              style={{ marginRight: 5 }}
+            />
             <TextInput
               style={styles.textInput}
               placeholder="Nhập ghi chú"
               multiline
-              maxLength={150}
-              numberOfLines={2}
               value={note}
               onChangeText={(text) => setNote(text)}
             />
@@ -343,10 +303,10 @@ const CheckoutScreen = ({ navigation }) => {
             <View key={index} style={styles.listItem}>
               <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
               <View style={styles.itemDetails}>
-                <Text style={styles.textNameDish} numberOfLines={1}>
-                  {item.name}
+                <Text style={styles.textNameDish}>{item.name}</Text>
+                <Text style={styles.textDishType}>
+                  {item.dishType || "Món ăn"}
                 </Text>
-                <Text style={styles.textDishType}>{item.dishType || "Món ăn"}</Text>
                 <Text style={styles.textDishPrice}>{item.price}đ</Text>
                 <View style={styles.quantityContainer}>
                   <Text style={styles.textBold}>x{item.quantity}</Text>
@@ -358,19 +318,23 @@ const CheckoutScreen = ({ navigation }) => {
 
         <View style={styles.paymentMethodContainer}>
           <Text style={styles.textBold}>Phương thức thanh toán</Text>
-          {dataPayment.map((item, index) => (
+          {dataPayment.map((item) => (
             <TouchableOpacity
-              key={index}
-              activeOpacity={0.6}
+              key={item.id}
               onPress={() => setCurrentPayment(item.id)}
               style={{
                 ...styles.paymentOption,
-                borderColor: currentPayment === item.id ? COLORS.green : COLORS.greyPastel,
+                borderColor:
+                  currentPayment === item.id ? COLORS.green : COLORS.greyPastel,
               }}
             >
               <Text style={styles.text}>{item.name}</Text>
               <Icon
-                name={currentPayment === item.id ? "radio-button-on" : "radio-button-off"}
+                name={
+                  currentPayment === item.id
+                    ? "radio-button-on"
+                    : "radio-button-off"
+                }
                 size={20}
                 color={currentPayment === item.id ? COLORS.green : COLORS.grey}
               />
@@ -380,36 +344,34 @@ const CheckoutScreen = ({ navigation }) => {
       </ScrollView>
 
       <View style={styles.containerButtonFloatBottom}>
-      <View style={styles.totalContainer}>
-  <Text style={styles.textBold}>Số tiền đã giảm:</Text>
-  <Text style={{ ...styles.textBold, color: COLORS.green }}>
-    {discountRate > 0 ? (totalPrice * discountRate).toFixed(0) + "đ" : "0đ"}
-  </Text>
-</View>
-<View style={styles.boxButtonFloatBottom}>
-  <TouchableOpacity style={styles.totalButton}>
-    <Text style={styles.textBold}>Tổng thanh toán:</Text>
-    <Text style={{ ...styles.textBold, color: COLORS.green }}>
-      {finalPrice.toFixed(0)}đ
-    </Text>
-  </TouchableOpacity>
-  <TouchableOpacity
-    style={styles.checkoutButton}
-    onPress={handleCheckout}
-  >
-    <Text style={styles.textButton}>Thanh toán</Text>
-  </TouchableOpacity>
-</View>
-
+        <View style={styles.totalContainer}>
+          <Text style={styles.textBold}>Số tiền đã giảm:</Text>
+          <Text style={{ ...styles.textBold, color: COLORS.green }}>
+            {discountRate > 0
+              ? (totalPrice * discountRate).toFixed(0) + "đ"
+              : "0đ"}
+          </Text>
+        </View>
+        <View style={styles.boxButtonFloatBottom}>
+          <TouchableOpacity style={styles.totalButton}>
+            <Text style={styles.textBold}>Tổng thanh toán:</Text>
+            <Text style={{ ...styles.textBold, color: COLORS.green }}>
+              {finalPrice.toFixed(0)}đ
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.checkoutButton}
+            onPress={handleCheckout}
+          >
+            <Text style={styles.textButton}>Thanh toán</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </>
   );
 };
 
 export default CheckoutScreen;
-
-// Keep all the existing styles here.
-
 
 const styles = StyleSheet.create({
   deliveryInfoContainer: {

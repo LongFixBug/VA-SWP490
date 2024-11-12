@@ -27,6 +27,32 @@ const OrderDetailScreen = ({ navigation }) => {
     cancelled: { color: COLORS.red, text: "đã hủy" },
   };
 
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!token) {
+      console.error("Không tìm thấy token.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
+      }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const getOrderFromStorage = async () => {
       try {
@@ -46,14 +72,14 @@ const OrderDetailScreen = ({ navigation }) => {
 
   const fetchOrderDetails = async (orderId) => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailByOrderId/${orderId}`
       );
       const data = await response.json();
 
       const dishesWithDetails = await Promise.all(
         data.map(async (detail) => {
-          const dishResponse = await fetch(
+          const dishResponse = await fetchWithAuth(
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${detail.dishId}`
           );
           const dish = await dishResponse.json();
@@ -83,23 +109,33 @@ const OrderDetailScreen = ({ navigation }) => {
       >
         {order && (
           <View style={styles.orderInfoContainer}>
-           <View
-    style={{
-      backgroundColor: orderStatus[order.status]?.color,
-      paddingHorizontal: 10,
-      paddingVertical: 10,
-      borderTopLeftRadius: 10,
-      borderTopRightRadius: 10,
-    }}
-  >
-              <Text style={styles.statusText}>{orderStatus[order.status]?.text}</Text>
+            <View
+              style={{
+                backgroundColor: orderStatus[order.status]?.color,
+                paddingHorizontal: 10,
+                paddingVertical: 10,
+                borderTopLeftRadius: 10,
+                borderTopRightRadius: 10,
+              }}
+            >
+              <Text style={styles.statusText}>
+                {orderStatus[order.status]?.text}
+              </Text>
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoTitle}>Thông tin vận chuyển</Text>
-              <Text style={styles.infoText}>Thời gian đặt: {order.orderDate}</Text>
-              <Text style={styles.infoText}>Địa chỉ: {order.deliveryAddress}</Text>
-              <Text style={styles.infoText}>Phí vận chuyển: {order.deliveryFee}đ</Text>
-              <Text style={styles.infoText}>Tổng tiền: {order.totalPrice}đ</Text>
+              <Text style={styles.infoText}>
+                Thời gian đặt: {order.orderDate}
+              </Text>
+              <Text style={styles.infoText}>
+                Địa chỉ: {order.deliveryAddress}
+              </Text>
+              <Text style={styles.infoText}>
+                Phí vận chuyển: {order.deliveryFee}đ
+              </Text>
+              <Text style={styles.infoText}>
+                Tổng tiền: {order.totalPrice}đ
+              </Text>
             </View>
           </View>
         )}
@@ -134,7 +170,9 @@ const OrderDetailScreen = ({ navigation }) => {
                 <Text style={styles.textDishType}>{item.dish.dishType}</Text>
                 <Text style={styles.textDishPrice}>{item.price}đ</Text>
                 <View style={styles.quantityContainer}>
-                  <Text style={styles.textQuantity}>Số lượng: x{item.quantity}</Text>
+                  <Text style={styles.textQuantity}>
+                    Số lượng: x{item.quantity}
+                  </Text>
                   <ButtonFlex
                     title="Đánh giá"
                     stylesButton={styles.buttonStyle}
@@ -146,7 +184,8 @@ const OrderDetailScreen = ({ navigation }) => {
           ))}
           <View style={{ alignItems: "flex-end", padding: 10 }}>
             <Text style={styles.totalText}>
-              Tổng tiền: <Text style={styles.totalPrice}>{order?.totalPrice}đ</Text>
+              Tổng tiền:{" "}
+              <Text style={styles.totalPrice}>{order?.totalPrice}đ</Text>
             </Text>
           </View>
         </View>

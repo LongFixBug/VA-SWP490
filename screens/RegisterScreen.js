@@ -19,7 +19,7 @@ import { sendOTP } from "../utils/otpService";
 
 const RegisterScreen = ({ navigation }) => {
   const [phone, setPhone] = React.useState("");
-  
+
   // const [email, setEmail] = React.useState("");
   const [noti, setNoti] = React.useState();
   const [isModalVisible, setModalVisible] = React.useState(false);
@@ -120,9 +120,7 @@ const RegisterScreen = ({ navigation }) => {
           />
         </View>
       </View>
-      
 
-      
       {noti && (
         <Text
           style={{

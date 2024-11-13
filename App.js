@@ -42,6 +42,7 @@ import MenuScreen from "./screens/MenuScreen";
 import MembershipScreen from "./screens/MembershipScreen";
 import DetailMenuScreen from "./screens/DetailMenuScreen";
 import EditProfileScreen from "./screens/EditProfileScreen";
+import WebViewScreen from "./screens/WebViewScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
@@ -318,12 +319,23 @@ export default function App() {
           <Stack.Screen name="Favourite" component={FavouriteScreen} />
           <Stack.Screen name="AllDishes" component={AllDishScreen} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
-          <Stack.Screen name="Payment" component={PaymentScreen} />
+          {/* <Stack.Screen name="Payment" component={PaymentScreen} /> */}
           <Stack.Screen name="Menu" component={MenuScreen} />
           <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
           <Stack.Screen name="Membership" component={MembershipScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+
+          <Stack.Screen
+            name="Payment"
+            component={PaymentScreen}
+            options={{ title: "Thanh Toán" }}
+          />
+          <Stack.Screen
+            name="WebViewScreen"
+            component={WebViewScreen}
+            options={{ title: "Thanh Toán QR" }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />

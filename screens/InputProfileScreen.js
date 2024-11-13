@@ -10,7 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { Menu, Provider } from "react-native-paper";
-import DateTimePicker from "@react-native-community/datetimepicker";
+// import DateTimePicker from "@react-native-community/datetimepicker";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -574,28 +574,7 @@ const InputProfileScreen = ({ navigation, route }) => {
             />
           </Menu>
         </View>
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>
-            Ngày sinh <Text style={{ color: COLORS.red }}>*</Text>
-          </Text>
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            style={styles.inputRow}
-          >
-            <Icon name="calendar" size={20} color={COLORS.green} />
-            <Text style={styles.textInput}>
-              {moment(dob).format("DD/MM/YYYY")}
-            </Text>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={dob}
-              mode="date"
-              display="default"
-              onChange={onDateChange}
-            />
-          )}
-        </View>
+
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
             Giới tính <Text style={{ color: COLORS.red }}>*</Text>

@@ -109,7 +109,8 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.vegetariansassistant"
+    namespace "com.capstone.vegetariansassistant"
+
     defaultConfig {
         applicationId 'com.capstone.vegetariansassistant'
         minSdkVersion rootProject.ext.minSdkVersion

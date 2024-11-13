@@ -359,6 +359,80 @@ const HomeScreen = () => {
     }
   };
 
+  // Fetch recommended dishes from API
+
+  const fetchRecommendedDishes = async () => {
+    try {
+      if (!userId) {
+        console.error("User ID is not available");
+        return;
+      }
+
+      // Gọi API recommend dishes
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendDishes/${userId}`
+      );
+      const recommendData = await response.json();
+
+      // Log tất cả dishId và dishName từ API recommend để kiểm tra
+      console.log("Dữ liệu từ API recommendDishes:");
+      recommendData.forEach((dish) => {
+        console.log(`dishId: ${dish.dishId}, dishName: ${dish.dishName}`);
+      });
+
+      // Xử lý từng món ăn: lấy thông tin chi tiết và rating
+      const detailedDishes = await Promise.all(
+        recommendData.map(async (recommendDish) => {
+          const { dishId, dishName } = recommendDish;
+
+          // Gọi API GetDishByID để lấy chi tiết món ăn
+          const detailResponse = await fetchWithAuth(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${dishId}`
+          );
+          const dishDetail = await detailResponse.json();
+
+          // Gọi API feedback để lấy rating
+          const feedbackResponse = await fetchWithAuth(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
+          );
+          const feedbackData = await feedbackResponse.json();
+
+          // Tính trung bình rating
+          const ratings = feedbackData.map((feedback) => feedback.rating);
+          const averageRating =
+            ratings.length > 0
+              ? (
+                  ratings.reduce((acc, curr) => acc + curr, 0) / ratings.length
+                ).toFixed(1)
+              : "0.0";
+
+          // Kết hợp dữ liệu từ tất cả các API
+          return {
+            dishId,
+            dishName, // Lấy từ API recommendDishes
+            dishType: dishDetail.dishType || "Loại món ăn", // Lấy từ GetDishByID
+            price: dishDetail.price || 0, // Lấy từ GetDishByID
+            imageUrl: dishDetail.imageUrl || "https://via.placeholder.com/150", // Lấy từ GetDishByID
+            averageRating, // Tính từ API feedback
+          };
+        })
+      );
+
+      setDishes(detailedDishes); // Cập nhật state với dữ liệu đầy đủ
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching recommended dishes:", error);
+      setLoading(false);
+    }
+  };
+
+  // Sử dụng useEffect để gọi fetchRecommendedDishes
+  useEffect(() => {
+    if (userId) {
+      fetchRecommendedDishes();
+    }
+  }, [userId]);
+
   // useEffect để làm mới số lượng món trong giỏ khi màn hình Home hiển thị
   useEffect(() => {
     refreshCartCount();
@@ -596,58 +670,72 @@ const HomeScreen = () => {
           <Text style={styles.viewAll}>Xem tất cả</Text>
         </TouchableOpacity>
       </View>
-
-      <FlatList
-        data={dishes}
-        showsVerticalScrollIndicator={false}
-        keyExtractor={(item, index) =>
-          item.dishId ? item.dishId.toString() : index.toString()
-        }
-        numColumns={2}
-        columnWrapperStyle={{ justifyContent: "space-between" }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            key={item.dishId || String}
-            onPress={() =>
-              navigation.navigate("DishDetail", { dishId: item.dishId })
-            }
-          >
-            <View style={styles.gridItem}>
-              <Image
-                source={{ uri: item.imageUrl }}
-                style={{
-                  width: "100%",
-                  height: 100,
-                  resizeMode: "cover",
-                }}
-              />
-              <View style={{ padding: 5 }}>
-                <AnimatedText text={item.name} />
-                <Text style={styles.textDishType}>
-                  {item.dishType || "Món ăn"}
-                </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
+      {loading ? (
+        <Text
+          style={{ color: COLORS.white, textAlign: "center", marginTop: 20 }}
+        >
+          Đang tải dữ liệu...
+        </Text>
+      ) : (
+        <FlatList
+          data={dishes}
+          keyExtractor={(item, index) =>
+            item.dishId ? item.dishId.toString() : index.toString()
+          }
+          numColumns={2}
+          columnWrapperStyle={{ justifyContent: "space-between" }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("DishDetail", { dishId: item.dishId })
+              }
+            >
+              <View style={styles.gridItem}>
+                <Image
+                  source={{
+                    uri: item.imageUrl || "https://via.placeholder.com/150",
                   }}
-                >
-                  <View style={{ flexDirection: "row" }}>
-                    <Text style={styles.star}>⭐</Text>
-                    <Text style={styles.rating}>
-                      {item.averageRating || "0.0"}
+                  style={{
+                    width: "100%",
+                    height: 100,
+                    resizeMode: "cover",
+                  }}
+                />
+                <View style={{ padding: 5 }}>
+                  {/* Tên món ăn */}
+                  <AnimatedText text={item.dishName || "Tên món"} />
+
+                  {/* Loại món ăn */}
+                  <Text style={styles.textDishType}>
+                    {item.dishType || "Loại món ăn"}
+                  </Text>
+
+                  {/* Rating và Giá */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row" }}>
+                      <Text style={styles.star}>⭐</Text>
+                      <Text style={styles.rating}>
+                        {item.averageRating || "0.0"}
+                      </Text>
+                    </View>
+                    <Text style={styles.textDishType}>
+                      {item.price
+                        ? `${item.price.toLocaleString()} đ`
+                        : "0.000 đ"}
                     </Text>
                   </View>
-                  <Text style={styles.textDishType}>
-                    {item.price ? `${item.price} đ` : ".000 đ"}
-                  </Text>
                 </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
-        contentContainerStyle={{ flexGrow: 1 }}
-      />
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={{ flexGrow: 1 }}
+        />
+      )}
     </View>
   );
 };

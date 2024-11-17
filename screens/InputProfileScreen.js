@@ -32,6 +32,7 @@ const InputProfileScreen = ({ navigation, route }) => {
 
   const [dob, setDob] = useState(new Date());
   const age = moment().diff(dob, "years");
+  const [dobInput, setDobInput] = useState("");
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -100,22 +101,35 @@ const InputProfileScreen = ({ navigation, route }) => {
     "Thành phố Thủ Đức",
   ];
 
+  const validateDOB = (input) => {
+    const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+    return regex.test(input);
+  };
+
+  const handleDobChange = (input) => {
+    setDobInput(input);
+    if (!validateDOB(input)) {
+      setErrorDoB("Ngày sinh không hợp lệ (định dạng: dd/mm/yyyy).");
+    } else {
+      setErrorDoB("");
+    }
+  };
+
   const handleRegister = async () => {
-    // Check if address is complete
+    // Kiểm tra địa chỉ
     if (!province || !selectedDistrict || !address.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ địa chỉ!");
       return;
     }
 
     const fullAddress = `${province}, ${selectedDistrict}, ${address}`;
-    console.log("Địa chỉ đầy đủ:", fullAddress);
 
-    // Check required fields
+    // Kiểm tra các trường bắt buộc
     if (
       !username ||
       !email ||
       !phoneNumber ||
-      !dob ||
+      !dobInput ||
       !password ||
       !confirmPassword
     ) {
@@ -123,28 +137,40 @@ const InputProfileScreen = ({ navigation, route }) => {
       return;
     }
 
-    // Check password confirmation
+    // Kiểm tra định dạng ngày sinh
+    if (!validateDOB(dobInput)) {
+      Alert.alert("Lỗi", "Ngày sinh không hợp lệ (định dạng: dd/mm/yyyy).");
+      return;
+    }
+
+    // Kiểm tra mật khẩu khớp
     if (password !== confirmPassword) {
       Alert.alert("Lỗi", "Mật khẩu và xác nhận mật khẩu không khớp!");
       return;
     }
 
+    // Định dạng lại số điện thoại
     const formattedPhoneNumber = phoneNumber.startsWith("0")
       ? phoneNumber
       : "0" + phoneNumber;
 
-    // Prepare data for the API request
-    const age = moment().diff(dob, "years");
+    // Chuyển đổi ngày sinh sang dạng Date
+    const formattedDob = moment(dobInput, "DD/MM/YYYY").toDate();
+    const age = moment().diff(moment(dobInput, "DD/MM/YYYY"), "years");
+
     const gender =
       selectedSexId === "1" ? "Man" : selectedSexId === "2" ? "Woman" : "Other";
-    const defaultImageUrl =
-      "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740";
 
+    const defaultImageUrl =
+      "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg";
+
+    // Dữ liệu gửi lên API
     const requestData = {
       username,
       password,
       email,
       phoneNumber: formattedPhoneNumber,
+      dob: formattedDob,
       address: fullAddress,
       height: parseFloat(height),
       weight: parseFloat(weight),
@@ -155,60 +181,102 @@ const InputProfileScreen = ({ navigation, route }) => {
       activityLevel,
       goal,
       isPhoneVerified: true,
-      imageUrl: defaultImageUrl, // Set default image URL here
+      imageUrl: defaultImageUrl,
     };
 
-    // Log request data
-    console.log("Dữ liệu đã nhập:", requestData);
     try {
-      const response = await axios.post(
+      // Gọi API đăng ký
+      const registerResponse = await axios.post(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/RegisterCustomer",
         requestData
       );
 
-      if (response.status === 200) {
-        console.log("Đăng ký thành công:", response.data);
-        // Additional steps after successful registration
+      if (registerResponse.status === 200) {
+        console.log("Đăng ký thành công:", registerResponse.data);
+
+        // Tự động đăng nhập sau khi đăng ký thành công
         try {
-          const userResponse = await axios.get(
-            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByUsername/${username}`
+          const loginResponse = await axios.post(
+            "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/login",
+            {
+              phoneNumber: formattedPhoneNumber,
+              password,
+            }
           );
 
-          if (userResponse.status === 200 && userResponse.data) {
-            const userId =
-              userResponse.data?.userId || userResponse.data?.[0]?.userId;
-            console.log("Lấy được userId:", userId);
+          if (loginResponse.status === 200) {
+            const { token, user } = loginResponse.data;
 
-            // Store userId in AsyncStorage
-            await AsyncStorage.setItem("userId", userId.toString());
-
-            Alert.alert("Thông báo", "Đăng ký thành công!", [
-              { text: "OK", onPress: () => navigation.navigate("Home") },
+            // Lưu JWT và thông tin user vào AsyncStorage
+            await AsyncStorage.multiSet([
+              ["authToken", token],
+              ["userId", String(user.userId)],
+              ["username", user.username],
             ]);
+
+            console.log("Đăng nhập thành công:", user);
+
+            // Gọi API matchCriteria để xác định tiêu chí dinh dưỡng
+            try {
+              const matchCriteriaResponse = await axios.post(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/matchCriteria/${user.userId}`,
+                {},
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+
+              if (matchCriteriaResponse.status === 200) {
+                console.log("Xác định tiêu chí dinh dưỡng thành công.");
+
+                Alert.alert(
+                  "Thành công",
+                  "Đăng ký và thiết lập tiêu chí thành công!",
+                  [{ text: "OK", onPress: () => navigation.navigate("Home") }]
+                );
+              } else {
+                console.error("Không thể xác định tiêu chí dinh dưỡng.");
+                Alert.alert(
+                  "Lỗi",
+                  "Không thể xác định tiêu chí dinh dưỡng. Vui lòng thử lại."
+                );
+              }
+            } catch (matchCriteriaError) {
+              console.error(
+                "Lỗi khi gọi API matchCriteria:",
+                matchCriteriaError.message
+              );
+              Alert.alert(
+                "Lỗi",
+                "Không thể xác định tiêu chí dinh dưỡng. Vui lòng thử lại."
+              );
+            }
           } else {
-            console.log(
-              "Phản hồi từ getUserByName không hợp lệ:",
-              userResponse.data
-            );
+            console.error("Đăng nhập thất bại sau khi đăng ký");
             Alert.alert(
               "Lỗi",
-              "Không thể lấy thông tin người dùng sau khi đăng ký."
+              "Đăng nhập tự động thất bại. Vui lòng thử đăng nhập lại."
             );
           }
-        } catch (getUserError) {
-          console.error("Lỗi khi gọi API getUserByName:", getUserError.message);
+        } catch (loginError) {
+          console.error("Lỗi khi đăng nhập:", loginError.message);
           Alert.alert(
             "Lỗi",
-            "Không thể lấy thông tin user sau khi đăng ký. Vui lòng thử lại sau."
+            "Đăng nhập tự động thất bại. Vui lòng thử đăng nhập lại."
           );
         }
       } else {
-        console.log("Phản hồi không thành công:", response.data);
-        Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại sau.");
+        console.error(
+          "Phản hồi không thành công từ API đăng ký:",
+          registerResponse.data
+        );
+        Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại.");
       }
     } catch (registerError) {
-      console.error("Lỗi đăng ký:", registerError.message);
-      Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại sau.");
+      console.error("Lỗi khi đăng ký:", registerError.message);
+      Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại.");
     }
   };
 
@@ -573,6 +641,24 @@ const InputProfileScreen = ({ navigation, route }) => {
               title="Giữ nguyên"
             />
           </Menu>
+        </View>
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>
+            Ngày sinh (dd/mm/yyyy) <Text style={{ color: COLORS.red }}>*</Text>
+          </Text>
+          <View style={styles.inputRow}>
+            <Icon name="calendar" size={20} color={COLORS.green} />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Nhập ngày sinh (dd/mm/yyyy)"
+              placeholderTextColor={COLORS.lightGrey}
+              value={dobInput}
+              onChangeText={handleDobChange}
+            />
+          </View>
+          {errorDoB ? (
+            <Text style={styles.errorDoBText}>{errorDoB}</Text>
+          ) : null}
         </View>
 
         <View style={styles.inputContainer}>

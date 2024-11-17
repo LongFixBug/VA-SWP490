@@ -21,6 +21,7 @@ const LoginScreen = ({ navigation }) => {
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Hàm kiểm tra dữ liệu lưu trong AsyncStorage
   const checkStoredData = async () => {
@@ -157,11 +158,21 @@ const LoginScreen = ({ navigation }) => {
             <Icon name="key" size={18} color={COLORS.green} />
             <TextInput
               style={styles.textInput}
-              secureTextEntry={true}
+              secureTextEntry={!showPassword} // Hiển thị/mở mật khẩu
               placeholder="************"
               value={password}
               onChangeText={setPassword}
             />
+            {/* Icon con mắt */}
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)} // Đổi trạng thái hiển thị mật khẩu
+            >
+              <Icon
+                name={showPassword ? "eye-off" : "eye"} // Đổi icon dựa trên trạng thái
+                size={20}
+                color={COLORS.green}
+              />
+            </TouchableOpacity>
           </View>
         </View>
         <ButtonFlex
@@ -186,21 +197,6 @@ const LoginScreen = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.orText}>hoặc</Text>
-        <TouchableOpacity activeOpacity={0.7} style={styles.googleButton}>
-          <Image
-            source={require("../assets/GoogleLogin.png")}
-            style={styles.googleLogo}
-          />
-          <Text style={{ fontFamily: FONTS.bold }}>Đăng nhập với Google</Text>
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7} style={styles.googleButton}>
-          <Image
-            source={require("../assets/FacebookLogin.png")}
-            style={styles.googleLogo}
-          />
-          <Text style={{ fontFamily: FONTS.bold }}>Đăng nhập với Facebook</Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );

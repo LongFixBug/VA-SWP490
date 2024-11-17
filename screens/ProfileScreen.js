@@ -163,7 +163,7 @@ const ProfileScreen = ({ navigation }) => {
         </Text>
         <TouchableOpacity
           onPress={() => {
-            navigation.navigate("EditProfile");
+            navigation.navigate("Setting");
           }}
         >
           <Icon name="settings-outline" size={28} color={COLORS.green} />
@@ -193,7 +193,9 @@ const ProfileScreen = ({ navigation }) => {
         <View style={{ flexDirection: "row", marginBottom: 20 }}>
           <Image
             source={{
-              uri: userData.imageUrl || "https://via.placeholder.com/100",
+              uri:
+                userData?.imageUrl ||
+                "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740",
             }}
             style={{
               width: 100,

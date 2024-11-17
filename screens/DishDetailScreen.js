@@ -454,7 +454,10 @@ const DishDetailScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.navigate("Cart")}
+            onPress={async () => {
+              await handleAddToCart(); // Gọi API thêm vào giỏ hàng
+              navigation.navigate("Cart"); // Điều hướng sang trang giỏ hàng
+            }}
             style={styles.orderButton}
           >
             <Text style={styles.orderButtonText}>Đặt hàng</Text>

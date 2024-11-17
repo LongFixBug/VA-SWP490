@@ -25,7 +25,7 @@ import InputProfileScreen from "./screens/InputProfileScreen";
 import HomeScreen from "./screens/HomeScreen";
 import OrderScreen from "./screens/OrderScreen";
 import CommunityScreen from "./screens/CommunityScreen";
-import NotificationScreen from "./screens/NotificationScreen";
+import NotificationSettingScreen from "./screens/NotificationSettingScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import OrderDetailScreen from "./screens/OrderDetailScreen";
 import AllDishScreen from "./screens/AllDishScreen";
@@ -43,9 +43,14 @@ import MembershipScreen from "./screens/MembershipScreen";
 import DetailMenuScreen from "./screens/DetailMenuScreen";
 import EditProfileScreen from "./screens/EditProfileScreen";
 import WebViewScreen from "./screens/WebViewScreen";
+import SettingScreen from "./screens/SettingScreen";
+import NotificationScreen from "./screens/NotificationScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
+import { UserProvider } from "./context/UserContext";
+import ContactUsScreen from "./screens/ContactUsScreen";
+import FollowerScreen from "./screens/FollowerScreen";
 
 const toastConfig = {
   success: (props) => (
@@ -294,50 +299,62 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
-        <Stack.Navigator
-          screenOptions={{ headerShown: false }}
-          initialRouteName={initialRoute}
-        >
-          <Stack.Screen name="Splash" component={SplashScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="InputOTP" component={InputOTPScreen} />
-          <Stack.Screen name="Home" component={TabRoute} />
-          <Stack.Screen name="Order" component={OrderScreen} />
-          <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-          <Stack.Screen
-            name="SuggestedDishes"
-            component={SuggestedDishesScreen}
-          />
-          <Stack.Screen name="InputProfile" component={InputProfileScreen} />
-          <Stack.Screen name="DishDetail" component={DishDetailScreen} />
-          <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
-          <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
-          <Stack.Screen name="SearchDishes" component={SearchDishesScreen} />
-          <Stack.Screen name="Cart" component={CartScreen} />
-          <Stack.Screen name="Favourite" component={FavouriteScreen} />
-          <Stack.Screen name="AllDishes" component={AllDishScreen} />
-          <Stack.Screen name="Checkout" component={CheckoutScreen} />
-          {/* <Stack.Screen name="Payment" component={PaymentScreen} /> */}
-          <Stack.Screen name="Menu" component={MenuScreen} />
-          <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
-          <Stack.Screen name="Membership" component={MembershipScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <UserProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            screenOptions={{ headerShown: false }}
+            initialRouteName={initialRoute}
+          >
+            <Stack.Screen name="Splash" component={SplashScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="InputOTP" component={InputOTPScreen} />
+            <Stack.Screen name="Home" component={TabRoute} />
+            <Stack.Screen name="Order" component={OrderScreen} />
+            <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+            <Stack.Screen
+              name="SuggestedDishes"
+              component={SuggestedDishesScreen}
+            />
+            <Stack.Screen name="InputProfile" component={InputProfileScreen} />
+            <Stack.Screen name="DishDetail" component={DishDetailScreen} />
+            <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
+            <Stack.Screen
+              name="PostDetailScreen"
+              component={PostDetailScreen}
+            />
+            <Stack.Screen name="SearchDishes" component={SearchDishesScreen} />
+            <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="Favourite" component={FavouriteScreen} />
+            <Stack.Screen name="AllDishes" component={AllDishScreen} />
+            <Stack.Screen name="Checkout" component={CheckoutScreen} />
+            {/* <Stack.Screen name="Payment" component={PaymentScreen} /> */}
+            <Stack.Screen name="Menu" component={MenuScreen} />
+            <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
+            <Stack.Screen name="Membership" component={MembershipScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="Setting" component={SettingScreen} />
+            <Stack.Screen name="ContactUs" component={ContactUsScreen} />
+            <Stack.Screen
+              name="NotificationSetting"
+              component={NotificationSettingScreen}
+            />
+            <Stack.Screen name="Follow" component={FollowerScreen} />
 
-          <Stack.Screen
-            name="Payment"
-            component={PaymentScreen}
-            options={{ title: "Thanh Toán" }}
-          />
-          <Stack.Screen
-            name="WebViewScreen"
-            component={WebViewScreen}
-            options={{ title: "Thanh Toán QR" }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
+            <Stack.Screen
+              name="Payment"
+              component={PaymentScreen}
+              options={{ title: "Thanh Toán" }}
+            />
+            <Stack.Screen
+              name="WebViewScreen"
+              component={WebViewScreen}
+              options={{ title: "Thanh Toán QR" }}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </UserProvider>
       <Toast config={toastConfig} />
     </GestureHandlerRootView>
   );

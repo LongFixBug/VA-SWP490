@@ -202,7 +202,7 @@ const AllDishScreen = ({ navigation, route }) => {
             value={searchQuery}
             onChangeText={handleSearch}
             placeholder="Tìm kiếm món ăn..."
-            autoFocus={fromSearch === true}
+            autoFocus={fromSearch === true} // Bật tự động focus nếu được chuyển từ trang Home
             style={{
               fontFamily: FONTS.medium,
               fontSize: 19,

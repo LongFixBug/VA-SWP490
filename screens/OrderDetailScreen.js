@@ -19,12 +19,20 @@ const OrderDetailScreen = ({ navigation }) => {
   const [order, setOrder] = useState(null);
   const [orderDetails, setOrderDetails] = useState([]);
 
+  // const orderStatus = {
+  //   pending: { color: COLORS.orange, text: "đang chờ xác nhận" },
+  //   in_progress: { color: COLORS.blue, text: "đang xử lí" },
+  //   delivered: { color: COLORS.diamond, text: "đang giao hàng" },
+  //   completed: { color: COLORS.green, text: "đã giao thành công" },
+  //   cancelled: { color: COLORS.red, text: "đã hủy" },
+  // };
+
   const orderStatus = {
-    pending: { color: COLORS.orange, text: "đang chờ xác nhận" },
-    in_progress: { color: COLORS.blue, text: "đang xử lí" },
-    delivered: { color: COLORS.diamond, text: "đang giao hàng" },
-    completed: { color: COLORS.green, text: "đã giao thành công" },
-    cancelled: { color: COLORS.red, text: "đã hủy" },
+    pending: { color: COLORS.diamond, text: "Chờ xác nhận" },
+    processing: { color: COLORS.orange, text: "Đang xử lí" },
+    delivering: { color: COLORS.blue, text: "Đang giao hàng" },
+    delivered: { color: COLORS.green, text: "Đã giao" },
+    cancel: { color: COLORS.red, text: "Đã hủy" },
   };
 
   const fetchWithAuth = async (url, options = {}) => {

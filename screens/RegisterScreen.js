@@ -28,46 +28,78 @@ const RegisterScreen = ({ navigation }) => {
   const [otpCode, setOtpCode] = React.useState("");
 
   const handleSendOTP = async () => {
-    const otp = await sendOTP(phone);
-    if (otp) {
-      setOtpSent(true);
-      navigation.navigate("InputOTP", { phone: phone, otp: otp });
+    let formattedPhone = phone;
+
+    // Tự động thêm số 0 nếu chưa có
+    if (phone[0] !== "0") {
+      formattedPhone = "0" + phone;
     }
-    // const otp = "123456";
-    // navigation.navigate("InputOTP", { phone: phone, otp: otp });
+
+    console.log("Số điện thoại sau khi định dạng:", formattedPhone); // Log số điện thoại sau khi thêm 0
+
+    if (!formattedPhone || formattedPhone.length !== 10) {
+      setNoti("Không đúng định dạng!");
+      return;
+    }
+
+    console.log("Số điện thoại đang xử lý:", formattedPhone); // Log số điện thoại trước khi kiểm tra
+    const checkResult = await checkPhoneExisted(formattedPhone);
+
+    // Loại bỏ dấu ngoặc kép khỏi kết quả trả về
+    const cleanResult = checkResult.replace(/['"]+/g, ""); // Xóa dấu ngoặc kép
+
+    console.log("Kết quả API trả về sau khi làm sạch:", cleanResult); // Log kết quả sau khi làm sạch
+
+    if (cleanResult === "Phone number already exists") {
+      setNoti(
+        "Số điện thoại đã tồn tại. Vui lòng nhập số khác, hoặc chuyển sang đăng nhập với số điện thoại này!"
+      );
+      return;
+    } else if (cleanResult === "Phone number does not exist") {
+      console.log("Số điện thoại hợp lệ. Gửi OTP."); // Log trạng thái hợp lệ
+      const otp = await sendOTP(formattedPhone);
+      if (otp) {
+        setOtpSent(true);
+        navigation.navigate("InputOTP", { phone: formattedPhone, otp: otp });
+      }
+    } else {
+      setNoti("Có lỗi xảy ra khi kiểm tra số điện thoại!");
+    }
   };
 
-  // const [confirm, setConfirm] = React.useState(null);
-  // const [code, setCode] = React.useState('');
+  const checkPhoneExisted = async (phone) => {
+    let formattedPhone = phone;
 
-  // function onAuthStateChanged(user) {
-  //   if (user) {
-  //     // Some Android devices can automatically process the verification code (OTP) message, and the user would NOT need to enter the code.
-  //     // Actually, if he/she tries to enter it, he/she will get an error message because the code was already used in the background.
-  //     // In this function, make sure you hide the component(s) for entering the code and/or navigate away from this screen.
-  //     // It is also recommended to display a message to the user informing him/her that he/she has successfully logged in.
-  //     console.log("User: ", user)
-  //   }
-  // }
+    // Tự động thêm số 0 nếu chưa có
+    if (phone[0] !== "0") {
+      formattedPhone = "0" + phone;
+    }
 
-  // React.useEffect(() => {
-  //   const subscriber = auth().onAuthStateChanged(onAuthStateChanged);
-  //   return subscriber;
-  // }, []);
+    console.log("Số điện thoại truyền vào API:", formattedPhone); // Log số điện thoại sau khi thêm 0
 
-  // async function signInWithPhoneNumber(phoneNumber) {
-  //   const confirmation = await auth().signInWithPhoneNumber(phoneNumber);
-  //   setConfirm(confirmation);
-  //   console.log("Đã gửi OTP")
-  // }
+    try {
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/CheckPhoneExisted/${formattedPhone}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
 
-  // async function confirmCode(code) {
-  //   try {
-  //     await confirm.confirm(code);
-  //   } catch (error) {
-  //     console.log('Invalid code.');
-  //   }
-  // }
+      if (!response.ok) {
+        throw new Error("Có lỗi xảy ra khi gọi API");
+      }
+
+      const data = await response.text();
+      console.log("Kết quả API trả về:", data); // Log kết quả trả về từ API
+      return data;
+    } catch (error) {
+      console.error("Lỗi API:", error); // Log lỗi nếu có
+      return null;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.formContainer}>
@@ -143,13 +175,7 @@ const RegisterScreen = ({ navigation }) => {
           borderRadius: 10,
         }}
         stylesText={{ fontSize: 14 }}
-        onPress={() =>
-          !phone
-            ? setNoti("Vui lòng nhập số điện thoại! ")
-            : phone.length === 9
-            ? handleSendOTP()
-            : setNoti("Không đúng định dạng!")
-        }
+        onPress={handleSendOTP}
       />
       <View style={styles.registerContainer}>
         <Text style={{ fontFamily: FONTS.medium }}>Quay lại đăng nhập? </Text>
@@ -162,32 +188,6 @@ const RegisterScreen = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* <Modal visible={isModalVisible}>
-        <OTPVerification
-          onVisible={isModalVisible}
-          identifier={"+84" + phone}
-          onCompletion={(data) => {
-            console.log(data); // Get your response of success/failure.
-            if (data) {
-              const newData = JSON.parse(data);
-              if (newData.type === "success") {
-                setModalVisible(false);
-                navigation.navigate("Register", { phone: phone });
-              } else if (newData.type === "error") {
-                Alert.alert("Thông báo", "OTP không đúng.");
-              } else if (newData.closeByUser) {
-                navigation.goBack();
-              }
-            } else {
-              Alert.alert("Thông báo", "Có lỗi xảy ra!");
-            }
-          }}
-          widgetId={"336c6e617452343132343333"} // Get widgetId from MSG91 OTP Widget Configuration
-          authToken={"411800TuqEAgy4b5WN657a0b32P1"}
-          // Get authToken from MSG91 OTP Tokens
-        />
-      </Modal> */}
     </SafeAreaView>
   );
 };
@@ -195,10 +195,6 @@ const RegisterScreen = ({ navigation }) => {
 export default RegisterScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: COLORS.white,
-    flex: 1,
-  },
   formContainer: {
     backgroundColor: COLORS.white,
     padding: 30,
@@ -230,29 +226,5 @@ const styles = StyleSheet.create({
     marginTop: 15,
     alignItems: "center",
     justifyContent: "center",
-  },
-  orText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 14,
-    color: COLORS.grey,
-    alignSelf: "center",
-    marginVertical: 25,
-  },
-  googleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-    padding: 10,
-    width: "100%",
-    backgroundColor: COLORS.greyPastel,
-    elevation: 3,
-    borderRadius: 10,
-  },
-  googleLogo: {
-    height: 30,
-    width: 30,
-    borderRadius: 50,
-    marginRight: 10,
   },
 });

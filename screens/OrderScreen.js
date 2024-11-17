@@ -31,11 +31,11 @@ const OrderScreen = ({ navigation }) => {
   const [userId, setUserId] = useState(null);
 
   const orderStatus = {
-    pending: { color: COLORS.orange, text: "Chờ xác nhận" },
-    in_progress: { color: COLORS.blue, text: "Đang xử lí" },
-    shipping: { color: COLORS.green, text: "Đang giao hàng" },
-    completed: { color: COLORS.green, text: "Đã giao" },
-    cancelled: { color: COLORS.red, text: "Đã hủy" },
+    pending: { color: COLORS.diamond, text: "Chờ xác nhận" },
+    processing: { color: COLORS.orange, text: "Đang xử lí" },
+    delivering: { color: COLORS.blue, text: "Đang giao hàng" },
+    delivered: { color: COLORS.green, text: "Đã giao" },
+    cancel: { color: COLORS.red, text: "Đã hủy" },
   };
 
   const fetchWithAuth = async (url, options = {}) => {

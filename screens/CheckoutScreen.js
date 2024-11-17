@@ -27,6 +27,8 @@ const CheckoutScreen = ({ navigation }) => {
   const [tierInfo, setTierInfo] = useState(null);
   const [note, setNote] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [loading, setLoading] = useState(false); // Ensure setLoading exist
+  const [orderId, setOrderId] = useState(null); // Initialize orderId stat
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -232,6 +234,199 @@ const CheckoutScreen = ({ navigation }) => {
     const adjustedFinalPrice = totalPrice - discountAmount + deliveryFee;
     setFinalPrice(adjustedFinalPrice);
   }, [totalPrice, discountRate, deliveryFee]);
+
+  //chẹck
+
+  const fetchLatestOrderId = async (userId) => {
+    try {
+      console.log("[DEBUG] Gọi API lấy danh sách đơn hàng...");
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[DEBUG] Lỗi từ API getOrderByUserId:", errorText);
+        throw new Error("Không thể lấy danh sách đơn hàng.");
+      }
+
+      const orders = await response.json();
+      console.log("[DEBUG] Danh sách đơn hàng nhận được:", orders);
+
+      if (orders.length === 0) {
+        console.log("[DEBUG] Không có đơn hàng nào.");
+        return null;
+      }
+
+      // Tìm orderId mới nhất
+      const latestOrder = orders.reduce((maxOrder, order) =>
+        order.orderId > maxOrder.orderId ? order : maxOrder
+      );
+
+      console.log("[DEBUG] Order mới nhất:", latestOrder);
+      return latestOrder.orderId;
+    } catch (error) {
+      console.error("Lỗi khi lấy orderId mới nhất:", error.message);
+      Alert.alert("Lỗi", error.message || "Không thể lấy thông tin đơn hàng.");
+      return null;
+    }
+  };
+
+  //check
+
+  const fetchOrderDetailsAndUpdateStatus = async (latestOrderId) => {
+    try {
+      console.log("[DEBUG] Kiểm tra trạng thái đơn hàng:", latestOrderId);
+
+      // Gọi API kiểm tra thanh toán
+      const paymentDetailResponse = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${latestOrderId}`
+      );
+
+      if (!paymentDetailResponse.ok) {
+        throw new Error("Không thể kiểm tra trạng thái thanh toán.");
+      }
+
+      const paymentDetails = await paymentDetailResponse.json();
+      console.log("[DEBUG] Kết quả thanh toán:", paymentDetails);
+
+      // Đảm bảo dữ liệu là một mảng và lấy phần tử đầu tiên
+      const paymentDetail = paymentDetails[0];
+      if (paymentDetail?.paymentStatus === "completed") {
+        console.log("[DEBUG] Thanh toán đã hoàn tất, cập nhật trạng thái...");
+
+        // Gọi API cập nhật trạng thái
+        const updateResponse = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}`,
+          {
+            method: "PUT",
+            body: JSON.stringify("pending"),
+          }
+        );
+
+        if (updateResponse.ok) {
+          console.log(
+            "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công."
+          );
+          Alert.alert("Thông báo", "Trạng thái đơn hàng đã được cập nhật.");
+        } else {
+          const errorText = await updateResponse.text();
+          console.error(
+            "[DEBUG] Lỗi khi cập nhật trạng thái đơn hàng:",
+            errorText
+          );
+          throw new Error("Không thể cập nhật trạng thái đơn hàng.");
+        }
+      } else {
+        console.log("[DEBUG] Trạng thái thanh toán chưa hoàn tất.");
+      }
+    } catch (error) {
+      console.error(
+        "[DEBUG] Lỗi khi kiểm tra và cập nhật trạng thái:",
+        error.message
+      );
+      Alert.alert(
+        "Lỗi",
+        error.message || "Có lỗi xảy ra trong quá trình xử lý đơn hàng."
+      );
+    }
+  };
+
+  const checkAndUpdateOrderStatus = async (orderId) => {
+    try {
+      console.log(`[DEBUG] Kiểm tra trạng thái đơn hàng: ${orderId}`);
+
+      // Gọi API lấy thông tin thanh toán
+      const paymentDetailResponse = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${orderId}`
+      );
+
+      if (!paymentDetailResponse.ok) {
+        console.error("[DEBUG] Lỗi khi gọi API lấy thông tin thanh toán.");
+        throw new Error("Không thể kiểm tra trạng thái thanh toán.");
+      }
+
+      const paymentDetails = await paymentDetailResponse.json();
+      console.log("[DEBUG] Kết quả thanh toán:", paymentDetails);
+
+      // Đảm bảo dữ liệu là mảng và lấy phần tử đầu tiên
+      const paymentDetail = paymentDetails[0];
+      if (paymentDetail?.paymentStatus === "completed") {
+        console.log("[DEBUG] Thanh toán đã hoàn tất, cập nhật trạng thái...");
+
+        // Gọi API cập nhật trạng thái đơn hàng
+        const updateResponse = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${orderId}`,
+          {
+            method: "PUT",
+            body: JSON.stringify("pending"), // Cập nhật trạng thái thành "pending"
+          }
+        );
+
+        if (updateResponse.ok) {
+          console.log(
+            "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công."
+          );
+          Alert.alert(
+            "Thông báo",
+            "Trạng thái đơn hàng đã được cập nhật thành công."
+          );
+        } else {
+          const errorText = await updateResponse.text();
+          console.error(
+            "[DEBUG] Lỗi khi cập nhật trạng thái đơn hàng:",
+            errorText
+          );
+          throw new Error("Không thể cập nhật trạng thái đơn hàng.");
+        }
+      } else {
+        console.log("[DEBUG] Trạng thái thanh toán chưa hoàn tất.");
+      }
+    } catch (error) {
+      console.error(
+        "[DEBUG] Lỗi trong quá trình kiểm tra và cập nhật trạng thái:",
+        error.message
+      );
+      Alert.alert(
+        "Lỗi",
+        error.message || "Có lỗi xảy ra khi cập nhật trạng thái."
+      );
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Lấy userId từ AsyncStorage
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (!storedUserId) {
+          console.error("[DEBUG] Không tìm thấy User ID.");
+          return;
+        }
+        setUserId(storedUserId);
+
+        // Lấy orderId mới nhất
+        const latestOrderId = await fetchLatestOrderId(storedUserId);
+        if (latestOrderId) {
+          setOrderId(latestOrderId);
+
+          // Kiểm tra và cập nhật trạng thái đơn hàng
+          await fetchOrderDetailsAndUpdateStatus(latestOrderId);
+        }
+      } catch (error) {
+        console.error("[DEBUG] Lỗi khi tải dữ liệu:", error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Gọi fetchData khi màn hình được focus
+    const unsubscribe = navigation.addListener("focus", fetchData);
+
+    return unsubscribe;
+  }, [navigation]);
 
   return (
     <>

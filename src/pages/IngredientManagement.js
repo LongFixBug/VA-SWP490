@@ -173,4 +173,5 @@ const Sidebar = () => {
   );
 };
 
+
 export default IngredientManagement;

@@ -1,40 +1,51 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../styles/ModeratedArticles.css";
 import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
 import { useNavigate } from "react-router-dom";
-
-const mockArticles = [
-  {
-    articleId: 1,
-    title: "Lợi ích của ăn chay đối với sức khỏe",
-    author: "User 1",
-    status: "accepted",
-    moderateDate: "2024-10-01",
-  },
-  {
-    articleId: 2,
-    title: "Các món ăn chay đơn giản dễ làm tại nhà",
-    author: "User 2",
-    status: "rejected",
-    moderateDate: "2024-10-02",
-  },
-];
-
-const itemsPerPage = 5;
+import axios from "axios";
 
 const ModeratedArticles = () => {
-  const [activeTab, setActiveTab] = useState("accepted");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [articles, setArticles] = useState([]); // Danh sách bài viết từ API
+  const [activeTab, setActiveTab] = useState("accepted"); // Tab hiện tại
+  const [searchTerm, setSearchTerm] = useState(""); // Từ khóa tìm kiếm
+  const [currentPage, setCurrentPage] = useState(1); // Trang hiện tại
   const navigate = useNavigate();
 
-  const filteredArticles = mockArticles.filter(
-    (article) =>
-      article.status === activeTab &&
-      (article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        article.author.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const itemsPerPage = 20; // Số bài viết trên mỗi trang
+
+  // Gọi API để lấy danh sách bài viết
+  useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        const response = await axios.get(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/allArticleByRoleId/3",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+          }
+        );
+        setArticles(response.data);
+      } catch (error) {
+        console.error("Lỗi khi tải danh sách bài viết:", error);
+        alert("Không thể tải danh sách bài viết.");
+      }
+    };
+
+    fetchArticles();
+  }, []);
+
+  // Lọc bài viết theo tab hiện tại và từ khóa tìm kiếm
+  const filteredArticles = articles.filter((article) => {
+    const isAccepted = activeTab === "accepted" && article.status === "accepted";
+    const isRejected = activeTab === "rejected" && article.status !== "unaccepted";
+    const matchesSearchTerm =
+      article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      article.authorName.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return (isAccepted || isRejected) && matchesSearchTerm;
+  });
 
   const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
   const indexOfLastArticle = currentPage * itemsPerPage;
@@ -97,8 +108,10 @@ const ModeratedArticles = () => {
               <tr key={article.articleId}>
                 <td>{article.articleId}</td>
                 <td>{article.title}</td>
-                <td>{article.author}</td>
-                <td>{article.status}</td>
+                <td>{article.authorName}</td>
+                <td>
+                  {article.status === "active" ? "Đã Duyệt" : "Đã Từ Chối"}
+                </td>
                 <td>{article.moderateDate || "N/A"}</td>
                 <td>
                   <button
@@ -128,6 +141,8 @@ const ModeratedArticles = () => {
 const Sidebar = () => {
   const navigate = useNavigate();
   const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("roleId");
     navigate("/");
   };
 
@@ -145,7 +160,6 @@ const Sidebar = () => {
       >
         Bài viết đã được xử lí
       </div>
-
       <div className="sidebar-item logout" onClick={handleLogout}>
         Đăng xuất
       </div>

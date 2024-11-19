@@ -1,32 +1,107 @@
-import React, {  useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
 import "../styles/ArticleDetail.css";
 import editIcon from "../assets/icons/edit-icon.png";
 
-// Mock data for article and user role
-const mockArticleData = {
-  articleId: 1,
-  title: "Lợi ích của ăn chay đối với sức khỏe",
-  content: "Bài viết này trình bày những lợi ích sức khỏe của việc ăn chay...",
-  author: "User 1",
-  status: "accepted",
-  moderateDate: "2024-10-01",
-};
-const userRole = "nutritionist"; // Example role, replace with actual role from auth context or API
-
 const ArticleDetail = () => {
-  const [article, setArticle] = useState(mockArticleData);
-  const [isEditing, setIsEditing] = useState(false);
+  const { id } = useParams(); // Lấy ID bài viết từ URL
+  const [article, setArticle] = useState(null); // Dữ liệu bài viết
+  const [articleImages, setArticleImages] = useState([]); // Ảnh bài viết
+  const [isEditing, setIsEditing] = useState(false); // Trạng thái chỉnh sửa
+  const [selectedImage, setSelectedImage] = useState(null); // Ảnh được chọn để phóng to
   const navigate = useNavigate();
 
-  const handleUpdate = () => {
-    alert("Cập nhật thông tin thành công!");
-    setIsEditing(false);
-  };
+  // Kiểm tra quyền truy cập
+  useEffect(() => {
+    const checkUserRole = () => {
+      const token = localStorage.getItem("authToken");
+      const roleId = localStorage.getItem("roleId");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setArticle({ ...article, [name]: value });
+      if (!token || !roleId) {
+        alert("Bạn cần đăng nhập để truy cập trang này!");
+        navigate("/");
+        return;
+      }
+
+      if (parseInt(roleId) !== 4) {
+        alert("Bạn không có quyền truy cập trang này!");
+        navigate("/");
+      }
+    };
+
+    checkUserRole();
+  }, [navigate]);
+
+  // Lấy thông tin bài viết từ API
+  useEffect(() => {
+    const fetchArticle = async () => {
+      try {
+        const response = await axios.get(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+          }
+        );
+        setArticle(response.data);
+      } catch (error) {
+        console.error("Lỗi khi tải thông tin bài viết:", error);
+        alert("Không thể tải thông tin bài viết.");
+        navigate("/articleModerate-management");
+      }
+    };
+
+    fetchArticle();
+  }, [id, navigate]);
+
+  // Lấy ảnh bài viết từ API
+  useEffect(() => {
+    const fetchArticleImages = async () => {
+      try {
+        const response = await axios.get(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+          }
+        );
+        setArticleImages(response.data);
+      } catch (error) {
+        console.error("Lỗi khi tải ảnh bài viết:", error);
+      }
+    };
+
+    fetchArticleImages();
+  }, [id]);
+
+  const handleUpdateStatus = async (status) => {
+    if (article) {
+      try {
+        const response = await axios.put(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/updateArticleStatusByArticleId/${article.articleId}`,
+          JSON.stringify(status),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+          }
+        );
+
+        // Log kết quả API
+        console.log("API Response:", response.data);
+
+        // Cập nhật trạng thái bài viết trong UI sau khi thành công
+        setArticle({ ...article, status });
+        alert(`Trạng thái bài viết đã được cập nhật.`);
+      } catch (error) {
+        console.error("Lỗi khi cập nhật trạng thái bài viết:", error);
+        alert("Không thể cập nhật trạng thái bài viết.");
+      }
+    }
   };
 
   return (
@@ -41,79 +116,106 @@ const ArticleDetail = () => {
               Quay lại
             </button>
 
-            {userRole === "nutritionist" && (
-              <div
-                className="edit-icon"
-                onClick={() => setIsEditing(!isEditing)}
-                style={{ cursor: "pointer" }}
-              >
-                <img src={editIcon} alt="Edit" width="40" height="40" />
-              </div>
-            )}
+            <div
+              className="edit-icon"
+              onClick={() => setIsEditing(!isEditing)}
+              style={{ cursor: "pointer" }}
+            >
+              <img src={editIcon} alt="Edit" width="40" height="40" />
+            </div>
           </div>
 
-          <div className="article-info">
-            <div>
-              <label>Tiêu đề:</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  name="title"
-                  value={article.title}
-                  onChange={handleChange}
-                />
-              ) : (
+          {article ? (
+            <div className="article-info">
+              <div>
+                <label>Tiêu đề:</label>
                 <p>{article.title}</p>
-              )}
-            </div>
+              </div>
 
-            <div>
-              <label>Nội dung:</label>
-              {isEditing ? (
-                <textarea
-                  name="content"
-                  value={article.content}
-                  onChange={handleChange}
-                />
-              ) : (
+              <div>
+                <label>Nội dung:</label>
                 <p>{article.content}</p>
-              )}
-            </div>
+              </div>
 
-            <div>
-              <label>Tác giả:</label>
-              <p>{article.author}</p>
-            </div>
+              <div>
+                <label>Tác giả:</label>
+                <p>{article.authorName}</p>
+              </div>
 
-            <div>
-              <label>Trạng thái:</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  name="status"
-                  value={article.status}
-                  onChange={handleChange}
-                />
-              ) : (
+              <div>
+                <label>Trạng thái:</label>
                 <p>{article.status}</p>
-              )}
-            </div>
+              </div>
 
-            <div>
-              <label>Ngày kiểm duyệt:</label>
-              <p>
-                {article.moderateDate ? article.moderateDate : "Chưa duyệt"}
-              </p>
-            </div>
-          </div>
+              <div>
+                <label>Ngày kiểm duyệt:</label>
+                <p>
+                  {article.moderateDate ? article.moderateDate : "Chưa duyệt"}
+                </p>
+              </div>
 
-          {isEditing && userRole === "nutritionist" && (
-            <button className="edit-button" onClick={handleUpdate}>
-              Cập nhật thông tin
-            </button>
+              <div>
+                <label>Ảnh bài viết:</label>
+                <div className="article-images">
+                  {articleImages.map((image) => (
+                    <img
+                      key={image.articleImageId}
+                      src={image.imageUrl}
+                      alt={`Article Image ${image.articleImageId}`}
+                      className="article-image"
+                      onClick={() => setSelectedImage(image.imageUrl)} // Mở ảnh lớn
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Hai nút cho Chấp nhận và Từ chối bài viết */}
+              <div className="button-group">
+                <button
+                  style={{
+                    backgroundColor: "green",
+                    color: "white",
+                    marginRight: "10px",
+                    padding: "10px 20px",
+                    border: "none",
+                    borderRadius: "5px",
+
+                    fontSize: "16px",
+                  }}
+                  onClick={() => handleUpdateStatus("accepted")}
+                >
+                  Chấp nhận bài viết
+                </button>
+                <button
+                  style={{
+                    backgroundColor: "red",
+                    color: "white",
+                    padding: "10px 20px",
+                    border: "none",
+                    borderRadius: "5px",
+
+                    fontSize: "16px",
+                  }}
+                  onClick={() => handleUpdateStatus("unaccepted")}
+                >
+                  Từ chối bài viết
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p>Đang tải thông tin bài viết...</p>
           )}
         </div>
       </div>
+
+      {/* Hiển thị modal ảnh to */}
+      {selectedImage && (
+        <div className="modal" onClick={() => setSelectedImage(null)}>
+          <div className="modal-content">
+            <img src={selectedImage} alt="Enlarged" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -122,6 +224,8 @@ const ArticleDetail = () => {
 const Sidebar = () => {
   const navigate = useNavigate();
   const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("roleId");
     navigate("/");
   };
 
@@ -129,21 +233,15 @@ const Sidebar = () => {
     <div className="sidebar">
       <div
         className="sidebar-item"
-        onClick={() => navigate("/articles-management")}
+        onClick={() => navigate("/articleModerate-management")}
       >
-        Quản lý bài viết
+        Quản lý phê duyệt bài viết
       </div>
       <div
         className="sidebar-item"
-        onClick={() => navigate("/dishes-management")}
+        onClick={() => navigate("/moderated-articles")}
       >
-        Quản lý món ăn
-      </div>
-      <div
-        className="sidebar-item"
-        onClick={() => navigate("/nutritionCriteria-management")}
-      >
-        Quản lý thể trạng
+        Bài viết đã được xử lý
       </div>
       <div className="sidebar-item logout" onClick={handleLogout}>
         Đăng xuất

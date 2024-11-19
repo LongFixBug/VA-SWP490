@@ -1,38 +1,35 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/AdminPage.css";
-import axios from "axios"; // Thêm axios để gọi API
+import axios from "axios";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
-// import Table from "../components/Table";
 import SearchBar from "../components/SearchBar";
-import Pagination from "../components/Pagination";
+import EnhancedTable from "../components/Table";
 
 const AdminPage = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("Customer"); // Lưu trạng thái tab hiện tại
-  const [searchTerm, setSearchTerm] = useState(""); // Lưu giá trị tìm kiếm
-  const [sortConfig, setSortConfig] = useState({
-    key: null,
-    direction: "ascending",
-  }); // Cấu hình sắp xếp
-  const [users, setUsers] = useState([]); // Lưu danh sách users
-  // const [editingUser, setEditingUser] = useState(null); // Lưu người dùng đang được sửa
-  const [currentPage, setCurrentPage] = useState(1); // Trang hiện tại
-  const usersPerPage = 5; // Số lượng người dùng trên mỗi trang
-  const [totalPages, setTotalPages] = useState(1); // Tổng số trang
+  const [activeTab, setActiveTab] = useState("Customer");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
 
+  // Fetch users
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        // Gọi API để lấy tất cả người dùng
+        const token = localStorage.getItem("authToken"); // Lấy token từ localStorage
         const response = await axios.get(
-          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/alluser"
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/alluser",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`, // Thêm header Authorization
+            },
+          }
         );
-        console.log(response.data); // Kiểm tra dữ liệu trả về từ API
-        let fetchedUsers = response.data; // Không nên dùng response.data.data nếu API không trả về 'data' bên trong 'data'
 
-        // Lọc người dùng theo vai trò dựa trên tab hiện tại
+        let fetchedUsers = response.data;
+
         if (activeTab === "Customer") {
           fetchedUsers = fetchedUsers.filter((user) => user.roleId === 3);
         } else if (activeTab === "system") {
@@ -41,52 +38,46 @@ const AdminPage = () => {
           );
         }
 
-        // Tìm kiếm cục bộ dựa trên searchTerm
-        if (searchTerm) {
-          fetchedUsers = fetchedUsers.filter(
-            (user) =>
-              user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              user.fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              user.phoneNumber
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              user.email.toLowerCase().includes(searchTerm.toLowerCase())
-          );
-        }
-
-        setUsers(fetchedUsers); // Cập nhật danh sách người dùng đã lọc
-        setTotalPages(Math.ceil(fetchedUsers.length / usersPerPage)); // Tính tổng số trang dựa trên số người dùng đã lọc
+        setUsers(fetchedUsers);
+        setFilteredUsers(fetchedUsers);
       } catch (error) {
         console.error("Error fetching users:", error);
+        if (error.response && error.response.status === 401) {
+          alert("Bạn không có quyền truy cập. Vui lòng đăng nhập lại!");
+          navigate("/"); // Chuyển hướng về trang đăng nhập
+        }
       }
     };
 
     fetchUsers();
-  }, [activeTab, searchTerm, sortConfig, currentPage]);
+  }, [activeTab, navigate]);
 
-  // Phân trang phía client
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
+  // Filter users by search term
+  useEffect(() => {
+    const filtered = users.filter(
+      (user) =>
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredUsers(filtered);
+  }, [searchTerm, users]);
 
-  // Hàm thay đổi hướng sắp xếp
-  const handleSort = (key) => {
-    let direction = "ascending";
-    if (sortConfig.key === key && sortConfig.direction === "ascending") {
-      direction = "descending";
-    }
-    setSortConfig({ key, direction });
-  };
-
-  // Hàm xử lý khi nhấn nút xóa (chuyển trạng thái từ active sang inactive)
   const handleDeleteClick = async (userId) => {
     try {
+      const token = localStorage.getItem("authToken");
       await axios.put(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${userId}`,
         {
-          status: "inactive", // Chuyển trạng thái sang inactive
+          status: "inactive",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Thêm header Authorization
+          },
         }
       );
+
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
           user.userId === userId ? { ...user, status: "inactive" } : user
@@ -95,92 +86,6 @@ const AdminPage = () => {
     } catch (error) {
       console.error("Error updating user status:", error);
     }
-  };
-
-  // Hàm xử lý khi chuyển sang trang trước
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  // Hàm xử lý khi chuyển sang trang sau
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const Table = ({ users, handleSort, handleEditClick, handleDeleteClick }) => {
-    const navigate = useNavigate();
-
-    const handleViewDetails = (userId) => {
-      if (userId) {
-        navigate(`/user/${userId}`);
-      } else {
-        console.error("Error: User ID is undefined");
-      }
-    };
-
-
-    return (
-      <table className="customer-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>userId</th>
-            <th onClick={() => handleSort("username")}>Tên đăng nhập</th>
-            <th onClick={() => handleSort("email")}>Email</th>
-            <th>SĐT</th>
-            <th>Vai trò</th>
-            <th>Trạng thái</th>
-            <th>Xem chi tiết</th>
-            <th>Tác vụ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.userId}>
-              <td>
-                <input type="checkbox" />
-              </td>
-              <td>{user.userId}</td>
-              <td>{user.username}</td>
-              <td>{user.email}</td>
-              <td>{user.phoneNumber}</td>
-              <td>
-                {user.roleId === 1
-                  ? "Admin"
-                  : user.roleId === 2
-                  ? "Staff"
-                  : user.roleId === 3
-                  ? "Customer"
-                  : user.roleId === 4
-                  ? "Moderator"
-                  : "Nutritionist"}
-              </td>
-              <td>{user.status || "unknown"}</td>
-              <td>
-                <button
-                  className="detail-button"
-                  onClick={() => handleViewDetails(user.userId)}
-                >
-                  Xem chi tiết
-                </button>
-              </td>
-              <td>
-                <button
-                  className="delete-button"
-                  onClick={() => handleDeleteClick(user.userId)}
-                >
-                  ❌
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    );
   };
 
   return (
@@ -198,22 +103,13 @@ const AdminPage = () => {
             className="create-button"
             onClick={() => navigate("/create-account")}
           >
-            Create
+            Tạo tài khoản
           </button>
         </div>
-        <Table
-          users={currentUsers}
-          handleSort={handleSort}
+        <EnhancedTable
+          rows={filteredUsers}
           handleDeleteClick={handleDeleteClick}
         />
-        <div className="pagination">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPrevPage={handlePrevPage}
-            onNextPage={handleNextPage}
-          />
-        </div>
       </div>
     </div>
   );

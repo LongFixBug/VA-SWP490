@@ -1,5 +1,10 @@
 import React from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate,
+} from "react-router-dom";
 import Login from "./pages/Login";
 import AdminPage from "./pages/AdminPage";
 import CreateAccount from "./pages/CreateAccount";
@@ -9,46 +14,248 @@ import DishesManagement from "./pages/DishesManagement";
 import NutritionCriteriaManagement from "./pages/NutritionCriteriaManagement";
 import NutritionCriteriaDetail from "./pages/NutritionCriteriaDetail";
 import DishDetail from "./pages/DishDetail";
-import OrdersManagement from "./pages/OrdersManagement";
-import OrderDetail from "./pages/OrderDetail";
 import IngredientManagement from "./pages/IngredientManagement";
 import IngredientDetail from "./pages/IngredientDetail";
-import ArticlesManagement from "./pages/ArticlesManagement";
-import ArticleDetail from "./pages/ArticleDetail";
-import ArticleModerateManagement from "./pages/ArticleModerateManagement";
-import ModeratedArticles from "./pages/ModeratedArticles";
-import CreateArticle from "./pages/CreateArticle";
+import CreateNutritionCriteria from "./pages/CreateNutritionCriteria";
 import CreateDish from "./pages/CreateDish";
 import CreateIngredient from "./pages/CreateIngredient";
-import CreateNutritionCriteria from "./pages/CreateNutritionCriteria";
-// import CreateOrder from "./pages/CreateOrder";
+import OrdersManagement from "./pages/OrdersManagement";
+import OrderDetail from "./pages/OrderDetail";
+import ArticlesManagement from "./pages/ArticlesManagement";
+import ArticleDetail from "./pages/ArticleDetail";
+import CreateArticle from "./pages/CreateArticle";
+import ArticleModerateManagement from "./pages/ArticleModerateManagement";
+import UserActivityManagement from "./pages/UserActivityManagement";
+import ModeratedArticles from "./pages/ModeratedArticles";
+
+// Hàm kiểm tra xác thực (JWT)
+const isAuthenticated = () => {
+  const token = localStorage.getItem("authToken");
+  return !!token; // Trả về true nếu có JWT
+};
+
+// Lấy role từ JWT
+const getUserRole = () => {
+  const token = localStorage.getItem("authToken");
+  if (!token) return null;
+
+  const payload = JSON.parse(atob(token.split(".")[1])); // Giải mã payload từ JWT
+  return payload.role; // Trả về vai trò từ payload
+};
+
+// Route bảo vệ (PrivateRoute)
+const PrivateRoute = ({ children, roles }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/" />; // Nếu chưa đăng nhập, chuyển về trang Login
+  }
+
+  const userRole = getUserRole();
+  if (roles && !roles.includes(userRole)) {
+    return <Navigate to="/" />; // Nếu vai trò không phù hợp, chuyển về trang Login
+  }
+
+  return children;
+};
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login />} /> 
-        <Route path="/admin" element={<AdminPage />} />{" "}
-        <Route path="/create-account" element={<CreateAccount />} />
-        <Route path="/dashboard" element={<Dashboards />} />
-        <Route path="/user/:id" element={<UserDetail />} />{" "}
-        <Route path="/dishes-management" element={<DishesManagement />} />
-        <Route path="/dish/:id" element={<DishDetail />} />
-        <Route path="/nutritionCriteria-management" element={<NutritionCriteriaManagement />} />
-        <Route path="/nutritionCriteria-detail/:id" element={<NutritionCriteriaDetail />} />{" "}
-        <Route path="/orders-management" element={<OrdersManagement />} />
-        <Route path="/order-detail/:id" element={<OrderDetail />} />{" "}
-        <Route path="/Ingredient-management" element={<IngredientManagement />} />
-        <Route path="/Ingredient-detail/:id" element={<IngredientDetail />} />{" "}
-        <Route path="/orders-management" element={<OrdersManagement />} />
-        <Route path="/articles-management" element={<ArticlesManagement />} />
-        <Route path="/article-detail/:id" element={<ArticleDetail />} />{" "}
-        <Route  path="/articleModerate-management" element={<ArticleModerateManagement />} />
-        <Route path="/moderated-articles" element={<ModeratedArticles />} />
-        <Route path="/create-article" element={<CreateArticle />} />
-        <Route path="/create-dish" element={<CreateDish />} />
-        <Route path="/create-ingredient" element={<CreateIngredient />} />
-        <Route path="/create-nutritionCriteria" element={<CreateNutritionCriteria />} />
+        {/* Trang Login */}
+        <Route path="/" element={<Login />} />
+
+        {/* Trang dành cho Admin */}
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute roles={["Admin"]}>
+              <AdminPage />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Trang quản lý tài khoản */}
+        <Route
+          path="/create-account"
+          element={
+            <PrivateRoute roles={["Admin"]}>
+              <CreateAccount />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Trang Dashboard */}
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute roles={["Admin", "Staff"]}>
+              <Dashboards />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Các Routes khác */}
+        <Route
+          path="/user/:id"
+          element={
+            <PrivateRoute roles={["Admin"]}>
+              <UserDetail />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/dishes-management"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <DishesManagement />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/dish/:id"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <DishDetail />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/nutritionCriteria-management"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <NutritionCriteriaManagement />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/Ingredient-management"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <IngredientManagement />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/create-nutritionCriteria"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <CreateNutritionCriteria />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/create-dish"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <CreateDish />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/create-ingredient"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <CreateIngredient />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/nutritionCriteria-detail/:id"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <NutritionCriteriaDetail />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/Ingredient-detail/:id"
+          element={
+            <PrivateRoute roles={["Admin", "Nutritionist"]}>
+              <IngredientDetail />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/orders-management"
+          element={
+            <PrivateRoute roles={["Admin", "Staff"]}>
+              <OrdersManagement />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/order-detail/:id"
+          element={
+            <PrivateRoute roles={["Admin", "Staff"]}>
+              <OrderDetail />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/articles-management"
+          element={
+            <PrivateRoute roles={["Admin", "Moderator"]}>
+              <ArticlesManagement />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/article-detail/:id"
+          element={
+            <PrivateRoute roles={["Admin", "Moderator"]}>
+              <ArticleDetail />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/create-article"
+          element={
+            <PrivateRoute roles={["Admin", "Moderator"]}>
+              <CreateArticle />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/articleModerate-management"
+          element={
+            <PrivateRoute roles={["Admin", "Moderator"]}>
+              <ArticleModerateManagement />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/userActivity-management/:id"
+          element={
+            <PrivateRoute roles={["Admin"]}>
+              <UserActivityManagement />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/moderated-articles"
+          element={
+            <PrivateRoute roles={["Admin", "Moderator"]}>
+              <ModeratedArticles />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </Router>
   );

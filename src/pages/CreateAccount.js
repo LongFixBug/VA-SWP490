@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import "../styles/CreateAccount.css"; // Tạo file CSS để tùy chỉnh giao diện
 
 const CreateAccount = () => {
@@ -7,26 +8,68 @@ const CreateAccount = () => {
   const [password, setPassword] = useState("");
   const [gender, setGender] = useState("Nam");
   const [phone, setPhone] = useState("");
-  const [role, setRole] = useState("User");
+  const [role, setRole] = useState("Staff");
   const navigate = useNavigate();
 
-  const handleCreateAccount = (e) => {
+  const handleCreateAccount = async (e) => {
     e.preventDefault();
-    // Xử lý logic tạo tài khoản ở đây
-    // Hiện tại chỉ điều hướng lại về trang admin
-    console.log({
-      username,
-      password,
-      gender,
-      phone,
-      role,
-    });
-    navigate("/admin"); // Điều hướng quay lại trang Admin sau khi tạo xong
+
+    // Mapping role to roleId
+    const roleIdMapping = {
+      Staff: 2,
+      Moderator: 4,
+      Nutritionist: 5,
+    };
+
+    const roleId = roleIdMapping[role];
+
+    try {
+      // API để tạo tài khoản mới
+      const response = await axios.post(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/createstaff",
+        {
+          username,
+          password,
+          email: `${username}@mail.com`, // Email tạm thời hoặc mặc định
+          phoneNumber: phone,
+          status: "active",
+          roleId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.status === 200) {
+        // Hiển thị thông báo thành công
+        alert(`Tài khoản ${role} đã được tạo thành công!`);
+
+        // Reset dữ liệu trong form
+        setUsername("");
+        setPassword("");
+        setGender("Nam");
+        setPhone("");
+        setRole("Staff");
+      }
+    } catch (error) {
+      console.error("Lỗi khi tạo tài khoản:", error);
+      alert("Có lỗi xảy ra khi tạo tài khoản. Vui lòng thử lại.");
+    }
   };
 
   return (
     <div className="create-account-container">
       <h2>Tạo tài khoản mới</h2>
+      {/* <button
+        type="button"
+        className="home-button"
+        onClick={() => navigate("/")}
+      >
+        Quay về Home
+      </button> */}
       <form onSubmit={handleCreateAccount}>
         <div className="input-group">
           <label htmlFor="username">Tên đăng nhập</label>
@@ -80,8 +123,9 @@ const CreateAccount = () => {
             value={role}
             onChange={(e) => setRole(e.target.value)}
           >
-            <option value="Moderator">Moderator</option>
             <option value="Staff">Staff</option>
+            <option value="Moderator">Moderator</option>
+            <option value="Nutritionist">Nutritionist</option>
           </select>
         </div>
         <div className="create-button2">

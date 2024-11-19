@@ -3,51 +3,69 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../styles/UserDetail.css";
 import Sidebar from "../components/Sidebar";
-import editIcon from "../assets/icons/edit-icon.png"; // Đường dẫn tới icon chỉnh sửa
+import editIcon from "../assets/icons/edit-icon.png";
 
 const UserDetail = () => {
-  const { id } = useParams();
-  const [user, setUser] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const { id } = useParams(); // Get the userId from URL params
+  const [user, setUser] = useState(null); // Store user details
+  const [isEditing, setIsEditing] = useState(false); // Toggle editing state
   const navigate = useNavigate();
 
+  // Fetch user details
   useEffect(() => {
     const fetchUserDetail = async () => {
       try {
+        const token = localStorage.getItem("authToken");
+        if (!token) {
+          throw new Error("Không tìm thấy token. Vui lòng đăng nhập lại.");
+        }
+
         const response = await axios.get(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`, // Thêm token vào header
+            },
+          }
         );
         setUser(response.data);
       } catch (error) {
         console.error("Error fetching user details:", error);
+        alert("Không thể tải thông tin người dùng. Vui lòng thử lại.");
       }
     };
 
     fetchUserDetail();
   }, [id]);
 
-  if (!user) {
-    return <p>Đang tải thông tin người dùng...</p>;
-  }
-
+  // Handle updating user information
   const handleUpdate = async () => {
     try {
+      const confirmUpdate = window.confirm("Bạn có chắc chắn muốn cập nhật?");
+      if (!confirmUpdate) return;
+
       await axios.put(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/${user.userId}`,
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/EditCustomer${user.userId}`,
         user
       );
       alert("Cập nhật thông tin thành công!");
-      setIsEditing(false);
+      setIsEditing(false); // Exit editing mode
     } catch (error) {
       console.error("Error updating user:", error);
       alert("Có lỗi xảy ra khi cập nhật.");
     }
   };
 
+  // Handle field change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setUser({ ...user, [name]: value });
   };
+
+  // Render loading message if user data is not yet available
+  if (!user) {
+    return <p>Đang tải thông tin người dùng...</p>;
+  }
 
   return (
     <div className="admin-container">
@@ -88,33 +106,16 @@ const UserDetail = () => {
               <input
                 type="password"
                 name="password"
-                value={user.password}
+                placeholder="Nhập mật khẩu mới"
                 onChange={handleChange}
               />
             ) : (
               <p>******</p>
             )}
 
-            <label>Họ và tên:</label>
-            {isEditing ? (
-              <input
-                type="text"
-                name="fullname"
-                value={user.fullname}
-                onChange={handleChange}
-              />
-            ) : (
-              <p>{user.fullname}</p>
-            )}
-
             <label>Email:</label>
             {isEditing ? (
-              <input
-                type="email"
-                name="email"
-                value={user.email}
-                onChange={handleChange}
-              />
+              <input type="email" name="email" value={user.email} readOnly />
             ) : (
               <p>{user.email}</p>
             )}
@@ -125,7 +126,8 @@ const UserDetail = () => {
                 type="text"
                 name="phoneNumber"
                 value={user.phoneNumber}
-                onChange={handleChange}
+                readOnly
+                // onChange={handleChange}
               />
             ) : (
               <p>{user.phoneNumber}</p>

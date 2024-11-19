@@ -11,11 +11,12 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Checkbox from "@mui/material/Checkbox";
 import IconButton from "@mui/material/IconButton";
-import DeleteIcon from "@mui/icons-material/Delete";
-import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import VisibilityIcon from "@mui/icons-material/Visibility"; // Import VisibilityIcon
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import VisibilityIcon from "@mui/icons-material/Visibility"; // Xem chi tiết
+import EditIcon from "@mui/icons-material/Edit"; // Biểu tượng chỉnh sửa
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) return -1;
@@ -54,10 +55,11 @@ function EnhancedTableHead(props) {
   };
 
   const columns = [
-    { id: "username", label: "Username" },
-    { id: "email", label: "Email" },
-    { id: "phone", label: "Phone" },
-    { id: "role", label: "Role" },
+    { id: "orderId", label: "Order ID" },
+    { id: "userId", label: "User ID" },
+    { id: "totalPrice", label: "Total Price (VNĐ)" },
+    { id: "orderDate", label: "Order Date" },
+    { id: "deliveryAddress", label: "Delivery Address" },
     { id: "status", label: "Status" },
   ];
 
@@ -79,16 +81,7 @@ function EnhancedTableHead(props) {
             style={{ cursor: "pointer" }}
             onClick={createSortHandler(column.id)}
           >
-            <span style={{ display: "flex", alignItems: "center" }}>
-              {column.label}
-              {orderBy === column.id ? (
-                order === "asc" ? (
-                  <ArrowDropUpIcon fontSize="small" />
-                ) : (
-                  <ArrowDropDownIcon fontSize="small" />
-                )
-              ) : null}
-            </span>
+            {column.label}
           </TableCell>
         ))}
         <TableCell align="right">Actions</TableCell>
@@ -106,30 +99,13 @@ EnhancedTableHead.propTypes = {
   rowCount: PropTypes.number.isRequired,
 };
 
-export default function EnhancedTable({ rows, handleDeleteClick }) {
+export default function OrderTable({ rows, handleDeleteClick }) {
   const [order, setOrder] = useState("asc");
-  const [orderBy, setOrderBy] = useState("username");
+  const [orderBy, setOrderBy] = useState("orderId");
   const [selected, setSelected] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const navigate = useNavigate();
-
-  const getRoleName = (roleId) => {
-    switch (roleId) {
-      case 1:
-        return "Admin";
-      case 2:
-        return "Staff";
-      case 3:
-        return "Customer";
-      case 4:
-        return "Moderator";
-      case 5:
-        return "Nutritionist";
-      default:
-        return "Unknown";
-    }
-  };
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -139,7 +115,7 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelected = rows.map((row) => row.userId);
+      const newSelected = rows.map((row) => row.orderId);
       setSelected(newSelected);
       return;
     }
@@ -153,6 +129,27 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+  };
+
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      await axios.put(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${orderId}`,
+        newStatus,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      alert("Order status updated successfully!");
+      window.location.reload(); // Tải lại trang
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      alert("Failed to update order status. Please try again.");
+    }
   };
 
   const isSelected = (id) => selected.indexOf(id) !== -1;
@@ -177,13 +174,13 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
               {stableSort(rows, getComparator(order, orderBy))
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row) => {
-                  const isItemSelected = isSelected(row.userId);
+                  const isItemSelected = isSelected(row.orderId);
                   return (
                     <TableRow
                       hover
                       role="checkbox"
                       tabIndex={-1}
-                      key={row.userId}
+                      key={row.orderId}
                       selected={isItemSelected}
                     >
                       <TableCell padding="checkbox">
@@ -191,12 +188,12 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
                           color="primary"
                           checked={isItemSelected}
                           onChange={() => {
-                            const selectedIndex = selected.indexOf(row.userId);
+                            const selectedIndex = selected.indexOf(row.orderId);
                             let newSelected = [];
                             if (selectedIndex === -1) {
                               newSelected = newSelected.concat(
                                 selected,
-                                row.userId
+                                row.orderId
                               );
                             } else if (selectedIndex === 0) {
                               newSelected = newSelected.concat(
@@ -214,27 +211,39 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
                             }
                             setSelected(newSelected);
                           }}
-                          inputProps={{
-                            "aria-labelledby": `enhanced-table-checkbox-${row.userId}`,
-                          }}
                         />
                       </TableCell>
-                      <TableCell>{row.username}</TableCell>
-                      <TableCell>{row.email}</TableCell>
-                      <TableCell>{row.phoneNumber}</TableCell>
-                      <TableCell>{getRoleName(row.roleId)}</TableCell>{" "}
-                      {/* Sử dụng hàm ánh xạ */}
-                      <TableCell>{row.status}</TableCell>
+                      <TableCell>{row.orderId}</TableCell>
+                      <TableCell>{row.userId}</TableCell>
+                      <TableCell>{row.totalPrice}</TableCell>
+                      <TableCell>{row.orderDate}</TableCell>
+                      <TableCell>{row.deliveryAddress}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={row.status}
+                          onChange={(e) =>
+                            handleUpdateStatus(row.orderId, e.target.value)
+                          }
+                        >
+                          {[
+                            "pending",
+                            "processing",
+                            "delivering",
+                            "delivered",
+                            "cancel",
+                          ].map((status) => (
+                            <MenuItem key={status} value={status}>
+                              {status}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </TableCell>
                       <TableCell align="right">
                         <IconButton
-                          onClick={() => handleDeleteClick(row.userId)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => navigate(`/user/${row.userId}`)}
+                          onClick={() =>
+                            navigate(`/order-detail/${row.orderId}`)
+                          }
                           color="primary"
-                          style={{ marginLeft: "10px" }}
                         >
                           <VisibilityIcon />
                         </IconButton>
@@ -263,3 +272,8 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
     </Box>
   );
 }
+
+OrderTable.propTypes = {
+  rows: PropTypes.array.isRequired,
+  handleDeleteClick: PropTypes.func,
+};

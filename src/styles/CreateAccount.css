@@ -22,7 +22,8 @@ h2 {
   font-weight: bold;
 }
 
-.input-group input, .input-group select {
+.input-group input,
+.input-group select {
   width: 100%;
   padding: 10px;
   border: 1px solid #ddd;
@@ -32,14 +33,13 @@ h2 {
 .create-button2 {
   display: flex; /* Use flex to center the content */
   justify-content: center; /* Center the button horizontally */
- 
 }
 
 .create-button2 button {
   width: 50%; /* Let the width adjust based on content */
   height: 50%;
-  padding: 10PX;
-  background-color: #4CAF50;
+  padding: 10px;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 5px;
@@ -50,5 +50,21 @@ h2 {
 }
 
 .create-button2 button:hover {
+  background-color: #45a049;
+}
+.home-button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.home-button {
+  background-color: #4caf50; /* Màu xanh */
+  color: white;
+}
+
+.home-button:hover {
   background-color: #45a049;
 }

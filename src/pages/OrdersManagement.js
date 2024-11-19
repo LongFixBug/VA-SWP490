@@ -1,65 +1,100 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/OrdersManagement.css";
-import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
-
-// Dữ liệu giả cho các đơn hàng
-const mockOrders = [
-  {
-    orderId: 1,
-    userId: 101,
-    totalPrice: 500000,
-    orderDate: "2024-10-01",
-    deliveryAddress: "123 Đường ABC, TP.HCM",
-    deliveryFee: 15000,
-    status: "processing",
-    completedTime: null,
-    note: "Giao hàng trước 12 giờ trưa",
-  },
-  {
-    orderId: 2,
-    userId: 102,
-    totalPrice: 300000,
-    orderDate: "2024-10-02",
-    deliveryAddress: "456 Đường DEF, TP.HCM",
-    deliveryFee: 10000,
-    status: "delivered",
-    completedTime: "2024-10-03 14:00",
-    note: "Không có ghi chú",
-  },
-  // Thêm dữ liệu giả khác nếu cần
-];
-const itemsPerPage = 2;
+import OrderTable from "../components/OrderTable";
+import axios from "axios";
 
 const OrdersManagement = () => {
   const navigate = useNavigate();
+  const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState("all");
 
-  const filteredOrders = mockOrders.filter(
-    (order) =>
-      order.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.deliveryAddress.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Fetch orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        const roleId = localStorage.getItem("roleId");
 
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-  const indexOfLastOrder = currentPage * itemsPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - itemsPerPage;
-  const currentOrdersPage = filteredOrders.slice(
-    indexOfFirstOrder,
-    indexOfLastOrder
-  );
+        if (!token || roleId !== "2") {
+          alert("Bạn không có quyền truy cập trang này!");
+          navigate("/");
+          return;
+        }
 
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+        const response = await axios.get(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/allOrder",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setOrders(response.data);
+        setFilteredOrders(response.data);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        if (error.response && error.response.status === 401) {
+          localStorage.removeItem("authToken");
+          navigate("/");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [navigate]);
+
+  // Filter orders by status and search term
+  useEffect(() => {
+    let filtered = orders;
+
+    if (filterStatus === "completed") {
+      filtered = orders.filter((order) => order.status === "delivered");
+    } else if (filterStatus === "cancelled") {
+      filtered = orders.filter((order) => order.status === "cancel");
+    } else if (filterStatus === "pending") {
+      filtered = orders.filter((order) =>
+        ["pending", "processing", "delivering"].includes(order.status)
+      );
     }
-  };
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
+    filtered = filtered.filter(
+      (order) =>
+        order.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.deliveryAddress.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    setFilteredOrders(filtered);
+  }, [filterStatus, searchTerm, orders]);
+
+  // Handle delete order (dummy implementation for now)
+  const handleDeleteClick = async (orderId) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      await axios.delete(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/${orderId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setOrders((prevOrders) =>
+        prevOrders.filter((order) => order.orderId !== orderId)
+      );
+
+      alert("Đơn hàng đã được xóa thành công.");
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      alert("Không thể xóa đơn hàng. Vui lòng thử lại.");
     }
   };
 
@@ -67,61 +102,56 @@ const OrdersManagement = () => {
     <div className="Orders-container">
       <Sidebar />
       <div className="content">
-        <div className="header">
+        <div>
           <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+          <div className="filter-buttons">
+            <button
+              className={filterStatus === "all" ? "active" : ""}
+              onClick={() => setFilterStatus("all")}
+            >
+              Tất cả
+            </button>
+            <button
+              className={filterStatus === "completed" ? "active" : ""}
+              onClick={() => setFilterStatus("completed")}
+            >
+              Đã hoàn thành
+            </button>
+            <button
+              className={filterStatus === "pending" ? "active" : ""}
+              onClick={() => setFilterStatus("pending")}
+            >
+              Chưa hoàn thành
+            </button>
+            <button
+              className={filterStatus === "cancelled" ? "active" : ""}
+              onClick={() => setFilterStatus("cancelled")}
+            >
+              Đã hủy
+            </button>
+          </div>
         </div>
-        <table className="orders-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Order ID</th>
-              <th>User ID</th>
-              <th>Total Price</th>
-              <th>Order Date</th>
-              <th>Delivery Address</th>
-              <th>Status</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentOrdersPage.map((order) => (
-              <tr key={order.orderId}>
-                <td>
-                  <input type="checkbox" />
-                </td>
-                <td>{order.orderId}</td>
-                <td>{order.userId}</td>
-                <td>{order.totalPrice} VNĐ</td>
-                <td>{order.orderDate}</td>
-                <td>{order.deliveryAddress}</td>
-                <td>{order.status}</td>
-                <td>
-                  <button
-                    className="detail-button"
-                    onClick={() => navigate(`/order-detail/${order.orderId}`)}
-                  >
-                    Xem thêm
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {isLoading ? (
+          <div className="loading">Đang tải dữ liệu...</div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="no-data">Không có đơn hàng nào để hiển thị.</div>
+        ) : (
+          <OrderTable
+            rows={filteredOrders}
+            handleDeleteClick={handleDeleteClick}
+          />
+        )}
       </div>
-
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPrevPage={handlePrevPage}
-        onNextPage={handleNextPage}
-      />
     </div>
   );
 };
 
+// Sidebar component
 const Sidebar = () => {
   const navigate = useNavigate();
   const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("roleId");
     navigate("/");
   };
 
@@ -133,7 +163,6 @@ const Sidebar = () => {
       >
         Quản lý đơn hàng
       </div>
-
       <div className="sidebar-item logout" onClick={handleLogout}>
         Đăng xuất
       </div>

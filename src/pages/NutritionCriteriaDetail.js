@@ -133,9 +133,15 @@ const Sidebar = () => {
       </div>
       <div
         className="sidebar-item"
-        onClick={() => navigate("/Ingredient-management")}
+        onClick={() => navigate("/ingredient-management")}
       >
         Quản lí nguyên liệu
+      </div>
+      <div
+        className="sidebar-item"
+        onClick={() => navigate("/articles-management")}
+      >
+        Quản lí bài viết
       </div>
       <div className="sidebar-item logout" onClick={handleLogout}>
         Đăng xuất

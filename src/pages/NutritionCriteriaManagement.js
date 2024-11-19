@@ -172,4 +172,5 @@ const Sidebar = () => {
   );
 };
 
+
 export default NutritionCriteriaManagement;

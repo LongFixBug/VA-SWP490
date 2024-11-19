@@ -12,9 +12,9 @@ import Paper from "@mui/material/Paper";
 import Checkbox from "@mui/material/Checkbox";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import VisibilityIcon from "@mui/icons-material/Visibility"; // Import VisibilityIcon
 import { useNavigate } from "react-router-dom";
 
 function descendingComparator(a, b, orderBy) {
@@ -39,25 +39,24 @@ function stableSort(array, comparator) {
   return stabilizedArray.map((el) => el[0]);
 }
 
-function EnhancedTableHead(props) {
-  const {
-    order,
-    orderBy,
-    onRequestSort,
-    onSelectAllClick,
-    numSelected,
-    rowCount,
-  } = props;
-
+function DishTableHead({
+  order,
+  orderBy,
+  onRequestSort,
+  numSelected,
+  rowCount,
+  onSelectAllClick,
+}) {
   const createSortHandler = (property) => (event) => {
     onRequestSort(event, property);
   };
 
   const columns = [
-    { id: "username", label: "Username" },
-    { id: "email", label: "Email" },
-    { id: "phone", label: "Phone" },
-    { id: "role", label: "Role" },
+    { id: "dishId", label: "Dish ID" },
+    { id: "name", label: "Name" },
+    { id: "dishType", label: "Type" },
+    { id: "price", label: "Price" },
+    { id: "preferenceName", label: "Preference" },
     { id: "status", label: "Status" },
   ];
 
@@ -97,7 +96,7 @@ function EnhancedTableHead(props) {
   );
 }
 
-EnhancedTableHead.propTypes = {
+DishTableHead.propTypes = {
   numSelected: PropTypes.number.isRequired,
   onRequestSort: PropTypes.func.isRequired,
   onSelectAllClick: PropTypes.func.isRequired,
@@ -106,30 +105,13 @@ EnhancedTableHead.propTypes = {
   rowCount: PropTypes.number.isRequired,
 };
 
-export default function EnhancedTable({ rows, handleDeleteClick }) {
+export default function DishTable({ dishes, handleDeleteClick }) {
   const [order, setOrder] = useState("asc");
-  const [orderBy, setOrderBy] = useState("username");
+  const [orderBy, setOrderBy] = useState("dishId");
   const [selected, setSelected] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const navigate = useNavigate();
-
-  const getRoleName = (roleId) => {
-    switch (roleId) {
-      case 1:
-        return "Admin";
-      case 2:
-        return "Staff";
-      case 3:
-        return "Customer";
-      case 4:
-        return "Moderator";
-      case 5:
-        return "Nutritionist";
-      default:
-        return "Unknown";
-    }
-  };
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -139,7 +121,7 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelected = rows.map((row) => row.userId);
+      const newSelected = dishes.map((dish) => dish.dishId);
       setSelected(newSelected);
       return;
     }
@@ -158,32 +140,32 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
   const isSelected = (id) => selected.indexOf(id) !== -1;
 
   const emptyRows =
-    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length) : 0;
+    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - dishes.length) : 0;
 
   return (
     <Box sx={{ width: "100%" }}>
       <Paper sx={{ width: "100%", mb: 2 }}>
         <TableContainer>
           <Table sx={{ minWidth: 750 }} aria-labelledby="tableTitle">
-            <EnhancedTableHead
+            <DishTableHead
               numSelected={selected.length}
               order={order}
               orderBy={orderBy}
-              rowCount={rows.length}
+              rowCount={dishes.length}
               onSelectAllClick={handleSelectAllClick}
               onRequestSort={handleRequestSort}
             />
             <TableBody>
-              {stableSort(rows, getComparator(order, orderBy))
+              {stableSort(dishes, getComparator(order, orderBy))
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((row) => {
-                  const isItemSelected = isSelected(row.userId);
+                .map((dish) => {
+                  const isItemSelected = isSelected(dish.dishId);
                   return (
                     <TableRow
                       hover
                       role="checkbox"
                       tabIndex={-1}
-                      key={row.userId}
+                      key={dish.dishId}
                       selected={isItemSelected}
                     >
                       <TableCell padding="checkbox">
@@ -191,12 +173,12 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
                           color="primary"
                           checked={isItemSelected}
                           onChange={() => {
-                            const selectedIndex = selected.indexOf(row.userId);
+                            const selectedIndex = selected.indexOf(dish.dishId);
                             let newSelected = [];
                             if (selectedIndex === -1) {
                               newSelected = newSelected.concat(
                                 selected,
-                                row.userId
+                                dish.dishId
                               );
                             } else if (selectedIndex === 0) {
                               newSelected = newSelected.concat(
@@ -215,24 +197,24 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
                             setSelected(newSelected);
                           }}
                           inputProps={{
-                            "aria-labelledby": `enhanced-table-checkbox-${row.userId}`,
+                            "aria-labelledby": `enhanced-table-checkbox-${dish.dishId}`,
                           }}
                         />
                       </TableCell>
-                      <TableCell>{row.username}</TableCell>
-                      <TableCell>{row.email}</TableCell>
-                      <TableCell>{row.phoneNumber}</TableCell>
-                      <TableCell>{getRoleName(row.roleId)}</TableCell>{" "}
-                      {/* Sử dụng hàm ánh xạ */}
-                      <TableCell>{row.status}</TableCell>
+                      <TableCell>{dish.dishId}</TableCell>
+                      <TableCell>{dish.name}</TableCell>
+                      <TableCell>{dish.dishType}</TableCell>
+                      <TableCell>{dish.price} VNĐ</TableCell>
+                      <TableCell>{dish.preferenceName}</TableCell>
+                      <TableCell>{dish.status}</TableCell>
                       <TableCell align="right">
                         <IconButton
-                          onClick={() => handleDeleteClick(row.userId)}
+                          onClick={() => handleDeleteClick(dish.dishId)}
                         >
                           <DeleteIcon />
                         </IconButton>
                         <IconButton
-                          onClick={() => navigate(`/user/${row.userId}`)}
+                          onClick={() => navigate(`/dish/${dish.dishId}`)}
                           color="primary"
                           style={{ marginLeft: "10px" }}
                         >
@@ -253,7 +235,7 @@ export default function EnhancedTable({ rows, handleDeleteClick }) {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={rows.length}
+          count={dishes.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

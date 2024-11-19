@@ -1,52 +1,69 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-// import axios from "axios";
+import axios from "axios";
 import "../styles/OrderDetail.css";
 import editIcon from "../assets/icons/edit-icon.png";
 
 const OrderDetail = () => {
-  const { id } = useParams();
-  const [order, setOrder] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const { id } = useParams(); // Lấy orderId từ URL
+  const [order, setOrder] = useState(null); // Lưu thông tin đơn hàng
+  const [isEditing, setIsEditing] = useState(false); // Trạng thái chỉnh sửa
   const navigate = useNavigate();
 
+  // Gọi API để lấy thông tin đơn hàng
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        // Tạo dữ liệu giả cho đơn hàng
-        const fakeOrder = {
-          orderId: id,
-          userId: 1,
-          totalPrice: 200000,
-          orderDate: "2024-10-01",
-          deliveryAddress: "123 Đường ABC, TP.HCM",
-          deliveryFee: 15000,
-          status: "processing",
-          completedTime: null,
-          note: "Giao hàng trước 12 giờ trưa",
-        };
-        setOrder(fakeOrder);
+        const token = localStorage.getItem("authToken"); // Lấy token từ localStorage
+        const response = await axios.get(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/${id}`, // API để lấy chi tiết đơn hàng
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setOrder(response.data); // Lưu thông tin đơn hàng vào state
       } catch (error) {
         console.error("Error fetching order details:", error);
+        alert("Không thể tải thông tin đơn hàng. Vui lòng thử lại.");
+        navigate("/orders-management"); // Điều hướng về OrdersManagement nếu lỗi
       }
     };
 
     fetchOrder();
-  }, [id]);
+  }, [id, navigate]);
 
-  if (!order) {
-    return <p>Đang tải thông tin đơn hàng...</p>;
-  }
-
-  const handleUpdate = () => {
-    alert("Cập nhật thông tin thành công!");
-    setIsEditing(false);
+  // Hàm xử lý cập nhật thông tin đơn hàng
+  const handleUpdate = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      await axios.put(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/update/${id}`, // API cập nhật đơn hàng
+        order,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      alert("Cập nhật thông tin thành công!");
+      setIsEditing(false); // Đóng chế độ chỉnh sửa
+    } catch (error) {
+      console.error("Error updating order details:", error);
+      alert("Không thể cập nhật thông tin đơn hàng. Vui lòng thử lại.");
+    }
   };
 
+  // Xử lý khi chỉnh sửa thông tin đơn hàng
   const handleChange = (e) => {
     const { name, value } = e.target;
     setOrder({ ...order, [name]: value });
   };
+
+  if (!order) {
+    return <p>Đang tải thông tin đơn hàng...</p>;
+  }
 
   return (
     <div className="admin-container">
@@ -56,7 +73,10 @@ const OrderDetail = () => {
           <h2>Thông tin chi tiết của Đơn hàng</h2>
 
           <div className="top-buttons">
-            <button className="back-button" onClick={() => navigate(-1)}>
+            <button
+              className="back-button"
+              onClick={() => navigate("/orders-management")}
+            >
               Quay lại
             </button>
 
@@ -147,7 +167,7 @@ const OrderDetail = () => {
                   <option value="processing">Đang xử lý</option>
                   <option value="delivering">Đang giao</option>
                   <option value="delivered">Đã giao</option>
-                  <option value="canceled">Đã hủy</option>
+                  <option value="cancel">Đã hủy</option>
                   <option value="failed">Giao hàng thất bại</option>
                 </select>
               ) : (
@@ -198,6 +218,8 @@ const OrderDetail = () => {
 const Sidebar = () => {
   const navigate = useNavigate();
   const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("roleId");
     navigate("/");
   };
 
@@ -207,9 +229,8 @@ const Sidebar = () => {
         className="sidebar-item"
         onClick={() => navigate("/orders-management")}
       >
-        Quản lý order
+        Quản lý đơn hàng
       </div>
-
       <div className="sidebar-item logout" onClick={handleLogout}>
         Đăng xuất
       </div>

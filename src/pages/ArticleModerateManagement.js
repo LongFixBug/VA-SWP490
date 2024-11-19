@@ -1,70 +1,103 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/ArticleModerateManagement.css";
-import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
+import EnhancedTable from "../components/MorderateTable";
+import axios from "axios";
 
-const mockArticles = [
-  {
-    articleId: 1,
-    title: "Lợi ích của ăn chay đối với sức khỏe",
-    authorId: "1",
-    author: "User 1",
-    status: "pending",
-    moderateDate: null,
-  },
-  {
-    articleId: 2,
-    title: "Các món ăn chay đơn giản dễ làm tại nhà",
-    authorId: "2",
-    author: "User 2",
-    status: "pending",
-    moderateDate: null,
-  },
-];
-
-const itemsPerPage = 2;
+const itemsPerPage = 25;
 
 const ArticleModerateManagement = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [articles, setArticles] = useState(mockArticles);
+  const [articles, setArticles] = useState([]);
+  const [filteredArticles, setFilteredArticles] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredArticles = articles.filter(
-    (article) =>
-      article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      article.author.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Fetch articles từ API
+  useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem("authToken");
+        if (!token) {
+          navigate("/"); // Chuyển về trang login nếu chưa đăng nhập
+          return;
+        }
 
-  const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
-  const indexOfLastArticle = currentPage * itemsPerPage;
-  const indexOfFirstArticle = indexOfLastArticle - itemsPerPage;
-  const currentArticlesPage = filteredArticles.slice(
-    indexOfFirstArticle,
-    indexOfLastArticle
-  );
+        const response = await axios.get(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/allArticleByRoleId/3",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`, // Đính kèm JWT
+            },
+          }
+        );
 
-  const handleReject = (articleId) => {
-    const updatedArticles = articles.map((article) =>
-      article.articleId === articleId
-        ? { ...article, status: "rejected" }
-        : article
+        const pendingArticles = response.data.filter(
+          (article) => article.status === "pending"
+        );
+
+        setArticles(pendingArticles);
+        setFilteredArticles(pendingArticles);
+        setTotalPages(Math.ceil(pendingArticles.length / itemsPerPage));
+      } catch (error) {
+        console.error("Error fetching articles:", error);
+        if (error.response && error.response.status === 401) {
+          localStorage.removeItem("authToken"); // Xóa token nếu không hợp lệ
+          navigate("/"); // Chuyển về trang login
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchArticles();
+  }, [navigate]);
+
+  // Lọc bài viết theo từ khóa tìm kiếm
+  useEffect(() => {
+    const filtered = articles.filter(
+      (article) =>
+        article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        article.authorName.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    setArticles(updatedArticles);
-    alert("Bài viết đã được từ chối!");
-  };
+    setFilteredArticles(filtered);
+    setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+    if (currentPage > Math.ceil(filtered.length / itemsPerPage)) {
+      setCurrentPage(1);
+    }
+  }, [searchTerm, articles]);
 
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+  // Xử lý xóa bài viết
+  const handleDeleteClick = async (articleId) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      await axios.delete(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/delete/${articleId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Cập nhật danh sách bài viết sau khi xóa
+      setArticles((prevArticles) =>
+        prevArticles.filter((article) => article.articleId !== articleId)
+      );
+      alert("Bài viết đã được xóa thành công.");
+    } catch (error) {
+      console.error("Error deleting article:", error);
+      alert("Không thể xóa bài viết. Vui lòng thử lại.");
     }
   };
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+  // Xử lý thay đổi trang
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
   };
 
   return (
@@ -74,68 +107,24 @@ const ArticleModerateManagement = () => {
         <div className="header">
           <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         </div>
-        <table className="articles-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Article ID</th>
-              <th>Tiêu đề</th>
-              <th>Tác giả</th>
-              <th>Trạng thái</th>
-              <th>Ngày duyệt</th>
-              <th>Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentArticlesPage.map((article) => (
-              <tr key={article.articleId}>
-                <td>
-                  <input type="checkbox" />
-                </td>
-                <td>{article.articleId}</td>
-                <td>{article.title}</td>
-                <td>
-                  <span
-                    className="author-link"
-                    onClick={() =>
-                      navigate(`/userActivity-management/${article.authorId}`)
-                    }
-                    style={{ cursor: "pointer", color: "blue" }}
-                  >
-                    {article.author}
-                  </span>
-                </td>
-                <td>{article.status}</td>
-                <td>{article.moderateDate ? article.moderateDate : "N/A"}</td>
-                <td>
-                  <button
-                    className="detail-button"
-                    onClick={() =>
-                      navigate(`/article-detail/${article.articleId}`)
-                    }
-                  >
-                    Xem thêm
-                  </button>
-                  {article.status === "pending" && (
-                    <button
-                      className="reject-button"
-                      onClick={() => handleReject(article.articleId)}
-                    >
-                      Từ chối
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {isLoading ? (
+          <div className="loading">Đang tải...</div>
+        ) : filteredArticles.length === 0 ? (
+          <div className="no-data">Không có bài viết nào để hiển thị.</div>
+        ) : (
+          <EnhancedTable
+            articles={filteredArticles.slice(
+              (currentPage - 1) * itemsPerPage,
+              currentPage * itemsPerPage
+            )}
+            handleDeleteClick={handleDeleteClick}
+            currentPage={currentPage}
+            rowsPerPage={itemsPerPage}
+            totalPages={totalPages}
+            handlePageChange={handlePageChange}
+          />
+        )}
       </div>
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPrevPage={handlePrevPage}
-        onNextPage={handleNextPage}
-      />
     </div>
   );
 };
@@ -143,6 +132,7 @@ const ArticleModerateManagement = () => {
 const Sidebar = () => {
   const navigate = useNavigate();
   const handleLogout = () => {
+    localStorage.removeItem("authToken"); // Xóa JWT khi đăng xuất
     navigate("/");
   };
 
@@ -160,7 +150,6 @@ const Sidebar = () => {
       >
         Bài viết đã được xử lí
       </div>
-
       <div className="sidebar-item logout" onClick={handleLogout}>
         Đăng xuất
       </div>

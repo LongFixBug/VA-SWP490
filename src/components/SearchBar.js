@@ -1,10 +1,10 @@
 // src/components/SearchBar.js
 import React from "react";
 import "../styles/SearchBar.css";
-// import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const SearchBar = ({ searchTerm, setSearchTerm }) => {
-  // const navigate = useNavigate();
+  
   return (
     <div className="search-bar">
       <input

@@ -3,48 +3,48 @@
     flex-direction: column;
     padding: 20px;
     background-color: #f8f8f8;
-}
-
-.dish-info {
+  }
+  
+  .dish-info {
     background-color: #fff;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.dish-info p {
+  }
+  
+  .dish-info p {
     margin: 10px 0;
-}
-
-.dish-info label {
+  }
+  
+  .dish-info label {
     font-weight: bold;
     display: block;
     margin-top: 10px;
-}
-
-.edit-icon {
+  }
+  
+  .edit-icon {
     position: absolute;
     top: 10px;
     right: 10px;
     cursor: pointer;
-}
-
-input,
-textarea {
+  }
+  
+  input,
+  textarea {
     display: block;
     width: 100%;
     padding: 10px;
     margin: 10px 0;
     border: 1px solid #ddd;
     border-radius: 5px;
-}
-
-textarea {
+  }
+  
+  textarea {
     resize: vertical;
     height: 100px;
-}
-
-.edit-button {
+  }
+  
+  .edit-button {
     background-color: #4caf50;
     color: white;
     padding: 10px 20px;
@@ -52,22 +52,22 @@ textarea {
     cursor: pointer;
     border-radius: 5px;
     font-weight: bold;
-}
-
-.edit-button:hover {
+  }
+  
+  .edit-button:hover {
     background-color: #45a049;
-}
-
-.top-buttons {
+  }
+  
+  .top-buttons {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
     position: relative;
-}
-
-.back-button {
-    background-color: #4CAF50;
+  }
+  
+  .back-button {
+    background-color: #4caf50;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -75,43 +75,68 @@ textarea {
     border-radius: 5px;
     font-size: 16px;
     height: 50px;
-}
-
-.back-button:hover {
+  }
+  
+  .back-button:hover {
     background-color: #45a049;
-}
-
-.header-actions {
+  }
+  
+  .header-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-}
-
-.search-bar input {
+  }
+  
+  .search-bar input {
     padding: 10px;
     width: 200px;
     border: 1px solid #ddd;
     border-radius: 5px;
-}
-
-.create-button {
-    background-color: #4CAF50;
+  }
+  
+  .create-button {
+    background-color: #4caf50;
     color: white;
     border: none;
     padding: 10px 20px;
     cursor: pointer;
     border-radius: 5px;
     font-size: 16px;
-}
-
-.create-button:hover {
+  }
+  
+  .create-button:hover {
     background-color: #45a049;
-}
-
-.dish-info img {
+  }
+  
+  .dish-info img {
     margin-top: 10px;
     border-radius: 10px;
     width: 100px;
     height: auto;
-}
+  }
+  .ingredient-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .delete-ingredient-button {
+    margin-left: 20px;
+    background-color: red;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  
+  .add-ingredient-button {
+    margin-top: 20px;
+    background-color: green;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+  }
+  

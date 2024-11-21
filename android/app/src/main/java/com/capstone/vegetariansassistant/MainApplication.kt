@@ -26,7 +26,7 @@ class MainApplication : Application(), ReactApplication {
             // Packages that cannot be autolinked yet can be added manually here, for example:
             // packages.add(new MyReactNativePackage());
              val packages = PackageList(this).packages.toMutableList()
-    packages.add(RNDateTimePickerPackage()) // Thêm RNCDatePicker vào danh sách
+ 
     return packages
             return PackageList(this).packages
           }

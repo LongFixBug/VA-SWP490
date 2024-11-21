@@ -44,7 +44,7 @@ const EditProfileScreen = ({ navigation }) => {
   const [visibleActivityMenu, setVisibleActivityMenu] = useState(false);
   const [visibleGoalMenu, setVisibleGoalMenu] = useState(false);
   const [visibleDietaryMenu, setVisibleDietaryMenu] = useState(false);
-  const { setUser } = useUser();
+  // const { setUser } = useUser();
   const [avatar, setAvatar] = useState(null); // State for avatar
   const CLOUD_NAME = "dpzzzifpa"; // Tên Cloudinary
   const UPLOAD_PRESET = "vegetarian assistant"; // Upload preset
@@ -347,7 +347,7 @@ const EditProfileScreen = ({ navigation }) => {
         await AsyncStorage.setItem("userData", JSON.stringify(updatedData));
         console.log("Thông tin mới đã được lưu vào AsyncStorage");
         // Cập nhật Context
-        setUser(updatedData);
+        // setUser(updatedData);
 
         // Quay về trang trước đó
         navigation.goBack();

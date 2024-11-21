@@ -92,17 +92,135 @@ const CheckoutScreen = ({ navigation }) => {
     getUserIdFromStorage();
   }, []);
 
+  const fetchCoordinates = async (address) => {
+    if (!address) {
+      console.error("Địa chỉ không hợp lệ.");
+      return null;
+    }
+
+    try {
+      // Gọi OpenCage Geocoder API
+      const response = await fetch(
+        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+          address
+        )}&key=8c52d2ca976a45b08c2b774e6167ca75`
+      );
+
+      if (!response.ok) {
+        throw new Error("Không thể gọi OpenCage API.");
+      }
+
+      const data = await response.json();
+      console.log("OpenCage API response:", data);
+
+      // Kiểm tra kết quả và lấy tọa độ
+      if (data.results && data.results.length > 0) {
+        const { lat, lng } = data.results[0].geometry;
+        console.log("Tọa độ:", { latitude: lat, longitude: lng });
+        return { latitude: lat, longitude: lng };
+      } else {
+        console.error("Không tìm thấy tọa độ cho địa chỉ này.");
+        return null;
+      }
+    } catch (error) {
+      console.error("Lỗi khi gọi OpenCage API:", error.message);
+      return null;
+    }
+  };
+
+  const fetchDeliveryFee = async (customerAddress) => {
+    try {
+      console.log("Địa chỉ khách hàng:", customerAddress);
+
+      // Store's fixed location (FPT University, District 9)
+      const shopLocation = {
+        latitude: 10.84102,
+        longitude: 106.80606,
+      };
+
+      // Get customer coordinates from their address
+      const customerLocation = await fetchCoordinates(customerAddress);
+      if (!customerLocation) {
+        Alert.alert("Lỗi", "Không thể lấy tọa độ từ địa chỉ khách hàng.");
+        return;
+      }
+      console.log("Tọa độ khách hàng:", customerLocation);
+
+      const shippingFeePayload = {
+        shopLocation,
+        customerLocation,
+        shippingFeeUnit: 5000,
+      };
+      console.log(
+        "Payload gửi đến API tính phí giao hàng:",
+        shippingFeePayload
+      );
+
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/calculate-shipping-fee`,
+        {
+          method: "POST",
+          body: JSON.stringify(shippingFeePayload),
+        }
+      );
+
+      // Lấy phản hồi dạng text
+      const responseText = await response.text();
+      console.log("Phản hồi từ API:", responseText);
+
+      if (!response.ok) {
+        console.error("Response status:", response.status);
+        throw new Error("Không thể tính phí giao hàng.");
+      }
+
+      // Xử lý nếu phản hồi là một số
+      const shippingFee = parseFloat(responseText); // Chuyển thành số thực
+      if (!isNaN(shippingFee)) {
+        console.log("Phí giao hàng:", shippingFee);
+        setDeliveryFee(shippingFee);
+        setFinalPrice(totalPrice - totalPrice * discountRate + shippingFee);
+      } else {
+        console.error("Phản hồi không phải là số hợp lệ:", responseText);
+        throw new Error("Phản hồi không hợp lệ từ API tính phí.");
+      }
+    } catch (error) {
+      console.error("Lỗi khi tính phí giao hàng:", error.message);
+      Alert.alert("Lỗi", "Không thể tính phí giao hàng.");
+    }
+  };
+
   const fetchDeliveryInfo = async (id) => {
     try {
+      // Gọi API để lấy thông tin giao hàng
       const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
       );
+
+      if (!response.ok) {
+        console.error("API trả về trạng thái không hợp lệ:", response.status);
+        throw new Error(`Error: ${response.status} - ${response.statusText}`);
+      }
+
+      // Kiểm tra dữ liệu phản hồi
       const data = await response.json();
+      if (!data) {
+        console.error("API không trả về dữ liệu hợp lệ.");
+        return;
+      }
+
       console.log("Delivery info:", data);
       setDeliveryInfo(data);
-      fetchDeliveryFee(data); // Tính phí giao hàng sau khi nhận được thông tin
+
+      // Tính phí giao hàng sau khi nhận được thông tin
+      if (data.address) {
+        await fetchDeliveryFee(data.address);
+      }
     } catch (error) {
-      console.error("Error fetching delivery info:", error);
+      console.error("Error fetching delivery info:", error.message);
+      Alert.alert(
+        "Lỗi",
+        "Không thể lấy thông tin giao hàng. Vui lòng thử lại sau."
+      );
     }
   };
 
@@ -162,42 +280,42 @@ const CheckoutScreen = ({ navigation }) => {
     }
   };
 
-  const fetchDeliveryFee = async () => {
-    try {
-      const queryParams = new URLSearchParams({
-        pick_province: "Hồ Chí Minh",
-        pick_district: "Quận 9",
-        province: deliveryInfo.province || "Hồ Chí Minh",
-        district: deliveryInfo.district || "Quận 12",
-        address: deliveryInfo.address || "338/10 Đ. Lê Thị Riêng",
-        weight: 1000,
-        value: totalPrice,
-      }).toString();
+  // const fetchDeliveryFee = async () => {
+  //   try {
+  //     const queryParams = new URLSearchParams({
+  //       pick_province: "Hồ Chí Minh",
+  //       pick_district: "Quận 9",
+  //       province: deliveryInfo.province || "Hồ Chí Minh",
+  //       district: deliveryInfo.district || "Quận 12",
+  //       address: deliveryInfo.address || "338/10 Đ. Lê Thị Riêng",
+  //       weight: 1000,
+  //       value: totalPrice,
+  //     }).toString();
 
-      const response = await fetchWithAuth(
-        `https://services.giaohangtietkiem.vn/services/shipment/fee?${queryParams}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            token: "35j4uHBQNjODAEOrWBlA23Sscp3TicIQ0k4mN2",
-          },
-        }
-      );
+  //     const response = await fetchWithAuth(
+  //       `https://services.giaohangtietkiem.vn/services/shipment/fee?${queryParams}`,
+  //       {
+  //         method: "GET",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //           token: "35j4uHBQNjODAEOrWBlA23Sscp3TicIQ0k4mN2",
+  //         },
+  //       }
+  //     );
 
-      const data = await response.json();
-      console.log("Dữ liệu phí giao hàng:", data);
+  //     const data = await response.json();
+  //     console.log("Dữ liệu phí giao hàng:", data);
 
-      if (data && data.fee) {
-        setDeliveryFee(data.fee.fee);
-        setFinalPrice(totalPrice - totalPrice * discountRate + data.fee.fee);
-      } else {
-        Alert.alert("Lỗi", "Không thể lấy phí giao hàng.");
-      }
-    } catch (error) {
-      console.error("Lỗi khi lấy phí giao hàng:", error);
-    }
-  };
+  //     if (data && data.fee) {
+  //       setDeliveryFee(data.fee.fee);
+  //       setFinalPrice(totalPrice - totalPrice * discountRate + data.fee.fee);
+  //     } else {
+  //       Alert.alert("Lỗi", "Không thể lấy phí giao hàng.");
+  //     }
+  //   } catch (error) {
+  //     console.error("Lỗi khi lấy phí giao hàng:", error);
+  //   }
+  // };
 
   const handleCheckout = async () => {
     const validCartItems = detailedCartItems.filter(

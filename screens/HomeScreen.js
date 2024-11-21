@@ -18,9 +18,46 @@ import { useNavigation } from "@react-navigation/native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-// import { useUser } from "../context/UserContext";
 
 const { width, height } = Dimensions.get("window");
+
+// const AnimatedText = ({ text }) => {
+//   const translateX = useRef(new Animated.Value(0)).current;
+
+//   useEffect(() => {
+//     const textWidth = text.length * 15; // Mỗi ký tự rộng khoảng 14px
+//     const containerWidth = 200; // Chiều rộng vùng chứa văn bản
+
+//     const startAnimation = () => {
+//       Animated.sequence([
+//         Animated.timing(translateX, {
+//           toValue: -(textWidth - containerWidth),
+//           duration: 3000, // Thời gian di chuyển sang trái
+//           useNativeDriver: true,
+//         }),
+//         Animated.timing(translateX, {
+//           toValue: 0,
+//           duration: 3000, // Thời gian di chuyển lại về phải
+//           useNativeDriver: true,
+//         }),
+//       ]).start(() => startAnimation());
+//     };
+
+//     startAnimation();
+//   }, [text]);
+
+//   return (
+//     <View style={{ width: 200, overflow: "hidden" }}>
+//       <Animated.Text
+//         style={{
+//           transform: [{ translateX }],
+//         }}
+//       >
+//         {text}
+//       </Animated.Text>
+//     </View>
+//   );
+// };
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -34,16 +71,20 @@ const HomeScreen = () => {
   const [accumulatedPoints, setAccumulatedPoints] = useState(0);
   const [tierLabel, setTierLabel] = useState("");
   const [userData, setUserData] = useState(null);
-  // const { user, updateUser } = useUser();
 
   const [cartCount, setCartCount] = useState(0);
 
-  const fetchWithAuth = async (url, options = {}) => {
+  const fetchWithAuth = async (url, options = {}, navigation) => {
     const token = await AsyncStorage.getItem("authToken");
 
     if (!token) {
-      console.error("Không tìm thấy token.");
-      throw new Error("Unauthorized: Missing token");
+      Toast.show({
+        type: "error",
+        text1: "Phiên đăng nhập đã hết hạn",
+        text2: "Vui lòng đăng nhập lại.",
+      });
+      navigation.replace("Login"); // Điều hướng về màn hình đăng nhập
+      return; // Kết thúc hàm
     }
 
     const headers = {
@@ -55,7 +96,13 @@ const HomeScreen = () => {
     try {
       const response = await fetch(url, { ...options, headers });
       if (response.status === 401) {
-        console.error("Token hết hạn hoặc không hợp lệ.");
+        Toast.show({
+          type: "error",
+          text1: "Phiên đăng nhập đã hết hạn",
+          text2: "Vui lòng đăng nhập lại.",
+        });
+        navigation.replace("Login"); // Điều hướng về màn hình đăng nhập
+        return; // Kết thúc hàm
       }
       return response;
     } catch (error) {
@@ -64,51 +111,9 @@ const HomeScreen = () => {
     }
   };
 
-  const fetchUserData = async () => {
-    try {
-      const storedUserId = await AsyncStorage.getItem("userId");
-      if (!storedUserId) {
-        console.error("Không tìm thấy userId trong AsyncStorage");
-        return;
-      }
-
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${storedUserId}`
-      );
-
-      if (!response.ok) {
-        console.error("Lỗi HTTP khi gọi API người dùng:", response.status);
-        return;
-      }
-
-      const data = await response.json();
-      console.log("Thông tin người dùng mới:", data);
-
-      // Cập nhật vào AsyncStorage và state
-      await AsyncStorage.setItem("userData", JSON.stringify(data));
-      setUserData(data); // Đặt vào state
-      setUsername(data.username || "Người dùng");
-    } catch (error) {
-      console.error("Lỗi khi lấy thông tin người dùng:", error);
-    }
-  };
-
-  useEffect(() => {
-    const onFocus = navigation.addListener("focus", () => {
-      if (userId) {
-        fetchUserData();
-        fetchMembershipData(userId); // Lấy dữ liệu membership
-        refreshCartCount(); // Lấy dữ liệu giỏ hàng
-        fetchRecommendedDishes(); // Lấy danh sách món ăn đề xuất
-      }
-    });
-
-    return onFocus; // Dọn dẹp listener khi component bị hủy
-  }, [navigation, userId]);
-
   const fetchMembershipData = async (id) => {
     try {
-      console.log(`Đang gọi API với userId: ${id}`);
+      // console.log(`Đang gọi API với userId: ${id}`);
       const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`
       );
@@ -119,10 +124,10 @@ const HomeScreen = () => {
       }
 
       const rawResponse = await response.text();
-      console.log("Phản hồi thô từ API:", rawResponse);
+      // console.log("Phản hồi thô từ API:", rawResponse);
 
       if (!rawResponse) {
-        console.log("Người dùng chưa có đóng góp, hiển thị tier Bronze");
+        // console.log("Người dùng chưa có đóng góp, hiển thị tier Bronze");
 
         // Gọi API getUserByUserId để lấy thông tin người dùng
         const userResponse = await fetchWithAuth(
@@ -139,7 +144,7 @@ const HomeScreen = () => {
         }
 
         const userData = await userResponse.json();
-        console.log("Dữ liệu người dùng:", userData);
+        // console.log("Dữ liệu người dùng:", userData);
 
         // Cài đặt thông tin người dùng và hiển thị tier là Bronze
         setUsername(userData.username || "Unknown User");
@@ -151,7 +156,7 @@ const HomeScreen = () => {
 
       // Nếu có dữ liệu membership, xử lý như bình thường
       const data = JSON.parse(rawResponse);
-      console.log("Dữ liệu membership:", data);
+      // console.log("Dữ liệu membership:", data);
 
       if (data) {
         setUsername(data.username || "Unknown User");
@@ -185,11 +190,11 @@ const HomeScreen = () => {
     const getUserIdFromStorage = async () => {
       try {
         const storedUserId = await AsyncStorage.getItem("userId");
-        console.log("User ID retrieved from AsyncStorage:", storedUserId);
+        // console.log("User ID retrieved from AsyncStorage:", storedUserId);
 
         if (storedUserId) {
           setUserId(storedUserId);
-          // fetchUserData(storedUserId); // Fetch user data with the userId
+          fetchUserData(storedUserId); // Fetch user data with the userId
           fetchMembershipData(storedUserId);
         } else {
           console.log("No User ID found in AsyncStorage.");
@@ -201,6 +206,152 @@ const HomeScreen = () => {
 
     getUserIdFromStorage();
   }, []);
+
+  const fetchUserData = async (id) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`
+      );
+
+      if (!response.ok) {
+        console.error(
+          "HTTP Error when fetching user data:",
+          response.status,
+          response.statusText
+        );
+        return;
+      }
+
+      const data = await response.json();
+      // console.log("User data retrieved from API:", data);
+
+      const userData = {
+        userId: data.userId,
+        username: data.username || "Người dùng",
+        email: data.email || "",
+        phoneNumber: data.phoneNumber || "",
+        address: data.address || "",
+        gender: data.gender || "",
+        dietaryPreferenceId: data.dietaryPreferenceId || 1,
+        goal: data.goal || "",
+        activityLevel: data.activityLevel || "",
+        age: data.age || 0,
+        imageUrl: data.imageUrl || "https://via.placeholder.com/100",
+        height: data.height || 0,
+        weight: data.weight || 0,
+        profession: data.profession || "",
+        isPhoneVerified: data.isPhoneVerified || false,
+      };
+      await AsyncStorage.setItem("userData", JSON.stringify(userData));
+      // console.log("User data saved to AsyncStorage:", userData);
+
+      // console.log("User data saved to AsyncStorage successfully!");
+
+      setUserData(data); // Đặt dữ liệu người dùng vào state nếu cần
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+  const debugAsyncStorage = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const data = await AsyncStorage.multiGet(keys);
+      // console.log("AsyncStorage Data:", data);
+    } catch (error) {
+      console.error("Error debugging AsyncStorage:", error);
+    }
+  };
+
+  debugAsyncStorage();
+
+  // Fetch rating for each dish
+  const fetchDishRating = async (dishId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
+      );
+      const jsonData = await response.json();
+      const ratings = jsonData.map((feedback) => feedback.rating);
+      const averageRating = ratings.length
+        ? (
+            ratings.reduce((acc, rating) => acc + rating, 0) / ratings.length
+          ).toFixed(1)
+        : "0.0";
+      return parseFloat(averageRating);
+    } catch (error) {
+      console.error(`Error fetching rating for dish ${dishId}:`, error);
+      return 0;
+    }
+  };
+
+  // Fetch dishes from API and add rating for each dish
+  const fetchDishes = async () => {
+    try {
+      const response = await fetchWithAuth(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/allDish"
+      );
+      const jsonData = await response.json();
+
+      // Map through dishes to add ratings
+      const dishesWithRatings = await Promise.all(
+        jsonData.map(async (dish) => {
+          const rating = await fetchDishRating(dish.dishId);
+          return { ...dish, averageRating: rating };
+        })
+      );
+
+      setDishes(dishesWithRatings);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching dishes:", error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDishes();
+  }, []);
+
+  // Handle search input
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    if (query.length > 0) {
+      const filtered = dishes.filter((dish) =>
+        dish.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setSearchResults(filtered);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const handleSearchSelect = (dish) => {
+    navigation.navigate("DishDetail", { dishId: dish.dishId }); // Truyền dishId thay vì dish
+    setSearchResults([]); // Clear suggestions after selection
+  };
+
+  const handleSearchIconPress = () => {
+    // Loại bỏ các ký tự không phải chữ hoặc dấu câu (ngoại trừ khoảng trắng) và xóa khoảng trắng thừa
+    const cleanedQuery = searchQuery
+      .replace(/[\d.,\/?'";:{}[\]+=_)(*&%$#@!~\\|]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+
+    if (cleanedQuery.length > 0) {
+      navigation.navigate("SearchDishes", { searchQuery: cleanedQuery });
+    }
+  };
+
+  const renderDishItem = ({ item }) => (
+    <TouchableOpacity
+      onPress={() => navigation.navigate("DishDetail", { dishId: item.dishId })} // Truyền dishId thay vì toàn bộ dish
+    >
+      <View style={styles.dishItem}>
+        <Text>{item.name}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   const refreshCartCount = async () => {
     try {
@@ -222,69 +373,108 @@ const HomeScreen = () => {
   // Fetch recommended dishes from API
 
   const fetchRecommendedDishes = async () => {
+    if (!userId) {
+      console.error("Không có userId để gọi API.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (!userId) {
-        console.error("User ID is not available");
+      // Gọi API recommendDishes
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendDishes/${userId}?dishType=Món chính`
+      );
+
+      if (!response.ok) {
+        console.error("Lỗi HTTP khi gọi API recommendDishes:", response.status);
+        setLoading(false);
         return;
       }
 
-      // Gọi API recommend dishes
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendDishes/${userId}`
-      );
       const recommendData = await response.json();
 
-      // Log tất cả dishId và dishName từ API recommend để kiểm tra
-      console.log("Dữ liệu từ API recommendDishes:");
-      recommendData.forEach((dish) => {
-        console.log(`dishId: ${dish.dishId}, dishName: ${dish.dishName}`);
-      });
+      // console.log("Dữ liệu từ API recommendDishes:", recommendData);
 
-      // Xử lý từng món ăn: lấy thông tin chi tiết và rating
+      // Kết hợp dữ liệu từ API feedback để thêm rating
       const detailedDishes = await Promise.all(
-        recommendData.map(async (recommendDish) => {
-          const { dishId, dishName } = recommendDish;
-
-          // Gọi API GetDishByID để lấy chi tiết món ăn
-          const detailResponse = await fetchWithAuth(
-            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${dishId}`
-          );
-          const dishDetail = await detailResponse.json();
+        recommendData.map(async (item) => {
+          const { dishId, dishName, dish } = item;
 
           // Gọi API feedback để lấy rating
-          const feedbackResponse = await fetchWithAuth(
-            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
-          );
-          const feedbackData = await feedbackResponse.json();
+          try {
+            const feedbackResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
+            );
 
-          // Tính trung bình rating
-          const ratings = feedbackData.map((feedback) => feedback.rating);
-          const averageRating =
-            ratings.length > 0
-              ? (
-                  ratings.reduce((acc, curr) => acc + curr, 0) / ratings.length
-                ).toFixed(1)
-              : "0.0";
+            if (!feedbackResponse.ok) {
+              console.error(
+                `Lỗi HTTP khi gọi API feedback cho dishId ${dishId}:`,
+                feedbackResponse.status
+              );
+              return null;
+            }
 
-          // Kết hợp dữ liệu từ tất cả các API
-          return {
-            dishId,
-            dishName, // Lấy từ API recommendDishes
-            dishType: dishDetail.dishType || "Loại món ăn", // Lấy từ GetDishByID
-            price: dishDetail.price || 0, // Lấy từ GetDishByID
-            imageUrl: dishDetail.imageUrl || "https://via.placeholder.com/150", // Lấy từ GetDishByID
-            averageRating, // Tính từ API feedback
-          };
+            const feedbackData = await feedbackResponse.json();
+
+            // Tính trung bình rating từ feedback
+            const ratings = feedbackData.map((feedback) => feedback.rating);
+            const averageRating =
+              ratings.length > 0
+                ? (
+                    ratings.reduce((acc, curr) => acc + curr, 0) /
+                    ratings.length
+                  ).toFixed(1)
+                : "0.0";
+
+            // Kết hợp dữ liệu từ recommendDishes và feedback
+            return {
+              dishId,
+              dishName,
+              dishType: dish?.dishType || "Loại món ăn",
+              price: dish?.price || 0,
+              imageUrl: dish?.imageUrl || "https://via.placeholder.com/150",
+              calories: item.calories || 0,
+              protein: item.protein || 0,
+              carbs: item.carbs || 0,
+              fat: item.fat || 0,
+              averageRating, // Thêm rating trung bình
+            };
+          } catch (feedbackError) {
+            console.error(
+              `Lỗi khi gọi API feedback cho dishId ${dishId}:`,
+              feedbackError.message || feedbackError
+            );
+            return {
+              dishId,
+              dishName,
+              dishType: dish?.dishType || "Loại món ăn",
+              price: dish?.price || 0,
+              imageUrl: dish?.imageUrl || "https://via.placeholder.com/150",
+              calories: item.calories || 0,
+              protein: item.protein || 0,
+              carbs: item.carbs || 0,
+              fat: item.fat || 0,
+              averageRating: "0.0", // Không có rating
+            };
+          }
         })
       );
 
-      setDishes(detailedDishes); // Cập nhật state với dữ liệu đầy đủ
+      // Lọc các món ăn có dữ liệu hợp lệ (không bị lỗi)
+      const validDishes = detailedDishes.filter((dish) => dish !== null);
+
+      setDishes(validDishes); // Cập nhật state với danh sách món ăn đầy đủ thông tin
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching recommended dishes:", error);
+      console.error(
+        "Error fetching recommended dishes:",
+        error.message || error
+      );
       setLoading(false);
     }
   };
+
+  // Xử lý từng món ăn: lấy thông tin chi tiết và rating
 
   // Sử dụng useEffect để gọi fetchRecommendedDishes
   useEffect(() => {
@@ -293,10 +483,26 @@ const HomeScreen = () => {
     }
   }, [userId]);
 
+  // useEffect để làm mới số lượng món trong giỏ khi màn hình Home hiển thị
   useEffect(() => {
     refreshCartCount();
-    const subscription = navigation.addListener("focus", refreshCartCount);
+
+    // Đăng ký listener để lắng nghe sự kiện thay đổi
+    const subscription = navigation.addListener("focus", () => {
+      refreshCartCount();
+    });
+
     return subscription;
+  }, [navigation, userId]);
+
+  // useEffect để lấy số lượng món ăn khi màn hình Home hiển thị
+  useEffect(() => {
+    refreshCartCount();
+
+    // Đăng ký listener để lắng nghe sự kiện thay đổi trong AsyncStorage
+    const subscription = navigation.addListener("focus", () => {
+      refreshCartCount();
+    });
 
     // Dọn dẹp khi component bị hủy
     return subscription;
@@ -458,18 +664,20 @@ const HomeScreen = () => {
 
       {/* Search & Cart */}
       <View style={styles.searchCartContainer}>
-        {/* Phần Search */}
-        <TouchableOpacity
-          style={styles.searchContainer}
-          onPress={() => navigation.navigate("AllDishes", { fromSearch: true })}
-        >
-          <Icon name="search-outline" size={24} color={COLORS.grey} />
-          <Text style={{ marginLeft: 10, color: COLORS.grey, fontSize: 16 }}>
-            Tìm món ăn...
-          </Text>
-        </TouchableOpacity>
-
-        {/* Phần Cart */}
+        <View style={styles.searchContainer}>
+          <Icon
+            name="search-outline"
+            size={24}
+            color={COLORS.grey}
+            onPress={handleSearchIconPress}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm món ăn..."
+            value={searchQuery}
+            onChangeText={handleSearch}
+          />
+        </View>
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => navigation.navigate("Cart")}
@@ -486,9 +694,7 @@ const HomeScreen = () => {
             }}
           >
             <Icon name={"cart-outline"} size={30} color={COLORS.green} />
-            {cartCount > 0 && (
-              <Text style={styles.bagdeCart}>{cartCount || 0}</Text>
-            )}
+            {cartCount > 0 && <Text style={styles.bagdeCart}>{cartCount}</Text>}
           </View>
         </TouchableOpacity>
       </View>
@@ -725,12 +931,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     marginBottom: 10,
-    marginTop: 10,
+    marginTop: 20,
     backgroundColor: COLORS.white,
     elevation: 1,
     borderRadius: 8,
     overflow: "hidden",
-    width: width / 2 - 32, // Đảm bảo kích thước cố định để 2 cột hiển thị đều nhau
+    width: width / 2 - 30, // Đảm bảo kích thước cố định để 2 cột hiển thị đều nhau
   },
   dummyItem: {
     flex: 1,

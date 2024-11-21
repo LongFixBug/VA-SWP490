@@ -87,58 +87,95 @@ const CommunityScreen = ({ navigation }) => {
 
   const fetchArticles = async () => {
     try {
-      setLoading(true);
-
-      // Fetch community posts
+      // Gọi API để lấy bài viết của "Cộng đồng" và "Chuyên gia"
       const communityResponse = await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/allArticleByRoleId/3"
       );
-      const communityData = await communityResponse.json();
-
-      // Fetch expert posts
       const expertResponse = await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/allArticleByRoleId/5"
       );
-      const expertData = await expertResponse.json();
 
-      // Process posts with user info and images
+      const communityData = communityResponse.ok
+        ? await communityResponse.json()
+        : [];
+      const expertData = expertResponse.ok ? await expertResponse.json() : [];
+
+      // Hàm xử lý bài viết
       const processPosts = async (posts) => {
-        const processedPosts = await Promise.all(
+        const userId = await AsyncStorage.getItem("userId");
+
+        return Promise.all(
           posts.map(async (post) => {
-            // Fetch user information
-            const userResponse = await fetchWithAuth(
-              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${post.authorId}`
-            );
-            const userData = await userResponse.json();
+            try {
+              // Gọi API lấy thông tin "likes"
+              const likesResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/getArticleLikeByArticleId/${post.articleId}`
+              );
+              const likesData = likesResponse.ok
+                ? await likesResponse.json()
+                : [];
+              const userLiked = likesData.some(
+                (like) => like.userId === parseInt(userId)
+              );
 
-            // Fetch post images
-            const imageResponse = await fetchWithAuth(
-              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${post.articleId}`
-            );
-            const images = await imageResponse.json();
+              // Gọi API lấy số lượng bình luận
+              const commentsResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`
+              );
+              const commentsData = commentsResponse.ok
+                ? await commentsResponse.json()
+                : [];
+              const commentCount = commentsData.length;
 
-            return {
-              ...post,
-              authorName: userData.username || "Ẩn danh",
-              authorImageUrl:
-                userData.imageUrl || "https://via.placeholder.com/45",
-              images: images.filter((img) => img.imageUrl), // Lọc ảnh hợp lệ
-            };
+              // Gọi API lấy thông tin tác giả bài viết
+              const userResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${post.authorId}`
+              );
+              const userData = userResponse.ok
+                ? await userResponse.json()
+                : { username: "Ẩn danh", imageUrl: "" };
+
+              // Gọi API lấy ảnh bài viết
+              const imageResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${post.articleId}`
+              );
+              const images = imageResponse.ok ? await imageResponse.json() : [];
+
+              // Kết hợp tất cả dữ liệu vào bài viết
+              return {
+                ...post,
+                liked: userLiked,
+                likes: likesData.length || 0,
+                comments: commentCount,
+                authorName: userData.username || "Ẩn danh",
+                authorImageUrl:
+                  userData.imageUrl || "https://via.placeholder.com/45",
+                images: images.filter((img) => img.imageUrl), // Chỉ lấy ảnh hợp lệ
+              };
+            } catch (error) {
+              console.error(`Lỗi khi xử lý bài viết ${post.articleId}:`, error);
+              return null; // Bỏ qua bài viết nếu có lỗi
+            }
           })
         );
-        return processedPosts.filter((post) => post.status === "accepted");
       };
 
-      const filteredCommunityPosts = await processPosts(communityData);
-      const filteredExpertPosts = await processPosts(expertData);
+      // Xử lý bài viết của cộng đồng và chuyên gia
+      const processedCommunityPosts = await processPosts(communityData);
+      const processedExpertPosts = await processPosts(expertData);
 
-      setCommunityPosts(filteredCommunityPosts);
-      setExpertPosts(filteredExpertPosts);
+      // Lọc bài viết có trạng thái "accepted"
+      setCommunityPosts(
+        processedCommunityPosts.filter((post) => post?.status === "accepted")
+      );
+      setExpertPosts(
+        processedExpertPosts.filter((post) => post?.status === "accepted")
+      );
     } catch (error) {
-      console.error("Error fetching articles:", error);
+      console.error("Lỗi khi lấy dữ liệu bài viết:", error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoading(false); // Tắt trạng thái loading
+      setRefreshing(false); // Kết thúc làm mới
     }
   };
 
@@ -159,20 +196,117 @@ const CommunityScreen = ({ navigation }) => {
     }));
   };
 
+  const handleLike = async (articleId) => {
+    try {
+      const posts = currentTabView === 1 ? communityPosts : expertPosts; // Xác định danh sách bài viết hiện tại
+      const postIndex = posts.findIndex((post) => post.articleId === articleId);
+
+      if (postIndex === -1) {
+        console.error(`Không tìm thấy bài viết với articleId: ${articleId}`);
+        return;
+      }
+
+      const post = posts[postIndex];
+      const userId = await AsyncStorage.getItem("userId");
+
+      if (!post.liked) {
+        // Nếu chưa like, gọi API để like
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/createArticleLike`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              articleId,
+              userId: userId,
+              likeDate: new Date().toISOString(),
+            }),
+          }
+        );
+
+        if (response.ok) {
+          const updatedPosts = [...posts];
+          updatedPosts[postIndex] = {
+            ...post,
+            liked: true, // Đánh dấu đã like
+            likes: post.likes + 1, // Tăng số lượt like
+          };
+
+          // Cập nhật danh sách bài viết
+          if (currentTabView === 1) setCommunityPosts(updatedPosts);
+          else setExpertPosts(updatedPosts);
+        }
+      } else {
+        console.warn("Bạn đã like bài viết này, không cần thực hiện thêm.");
+      }
+    } catch (error) {
+      console.error("Lỗi khi xử lý nút like:", error);
+    }
+  };
+
+  //get like
+  const fetchArticleLikes = async (articleId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/getArticleLikeByArticleId/${articleId}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.length; // Trả về số lượng "like"
+      } else {
+        return 0; // Mặc định nếu không có lượt like
+      }
+    } catch (error) {
+      console.error(
+        `Lỗi khi lấy số lượt like cho bài viết ${articleId}:`,
+        error
+      );
+      return 0; // Mặc định nếu có lỗi
+    }
+  };
+
+  const fetchArticleComments = async (articleId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${articleId}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.length || 0; // Trả về số lượng bình luận hoặc 0 nếu không có
+      } else if (response.status === 404) {
+        return 0; // Trả về 0 nếu bài viết không có bình luận
+      } else {
+        console.error(
+          `Không thể lấy số lượng bình luận cho bài viết ${articleId}`
+        );
+        return 0;
+      }
+    } catch (error) {
+      console.error(
+        `Lỗi khi lấy số lượng bình luận cho bài viết ${articleId}:`,
+        error
+      );
+      return 0; // Trả về 0 trong trường hợp lỗi
+    }
+  };
+
   const renderPost = (item) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate("PostDetailScreen", { post: item })}
+    <View
+      style={{
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.greyPastel,
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 10,
+      }}
+      key={item.articleId}
     >
-      <View
-        style={{
-          backgroundColor: COLORS.white,
-          borderWidth: 1,
-          borderColor: COLORS.greyPastel,
-          padding: 10,
-          borderRadius: 8,
-          marginBottom: 10,
-        }}
-        key={item.articleId}
+      {/* Thông tin bài viết */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate("PostDetailScreen", { post: item })}
+        activeOpacity={0.8}
       >
         <View style={{ flexDirection: "row" }}>
           <Image
@@ -206,7 +340,6 @@ const CommunityScreen = ({ navigation }) => {
               {item.createdAt}
             </Text>
           </View>
-          <Icon name="ellipsis-horizontal" color={COLORS.greySolid} size={24} />
         </View>
         <View style={{ marginTop: 10 }}>
           <Text
@@ -229,76 +362,85 @@ const CommunityScreen = ({ navigation }) => {
           >
             {item.content}
           </Text>
-          <ScrollView
-            horizontal
-            style={{ marginTop: 10 }}
-            showsHorizontalScrollIndicator={false}
-          >
-            {item.images &&
-              item.images.map((image, index) => (
-                <Image
-                  key={`${item.articleId}-${index}`}
-                  source={{ uri: image.imageUrl }}
-                  style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: 8,
-                    marginRight: 10,
-                  }}
-                />
-              ))}
-          </ScrollView>
-          <View style={{ flexDirection: "row", marginTop: 10 }}>
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginRight: 20,
-              }}
-              onPress={() => handleLike(item.articleId)}
-            >
-              <IconAnt name="like2" size={28} color={COLORS.greySolid} />
-              <Text
-                style={{
-                  fontFamily: FONTS.semiBold,
-                  fontSize: 16,
-                  color: COLORS.greySolid,
-                  marginLeft: 5,
-                }}
-              >
-                {item.likes || 0}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginRight: 20,
-              }}
-              onPress={() =>
-                navigation.navigate("PostDetailScreen", { post: item })
-              }
-            >
-              <Icon
-                name="chatbubble-outline"
-                size={27}
-                color={COLORS.greySolid}
-              />
-              <Text
-                style={{
-                  fontFamily: FONTS.semiBold,
-                  fontSize: 16,
-                  color: COLORS.greySolid,
-                  marginLeft: 5,
-                }}
-              >
-                {item.comments || 0}
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
+      </TouchableOpacity>
+
+      {/* Cuộn ảnh ngang */}
+      {item.images && item.images.length > 0 && (
+        <ScrollView
+          horizontal
+          style={{ marginTop: 10 }}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 10 }}
+        >
+          {item.images.map((image, index) => (
+            <Image
+              key={`${item.articleId}-${index}`}
+              source={{
+                uri: image.imageUrl, // URL mặc định nếu không có imageUrl
+              }}
+              style={{
+                width: 150,
+                height: 100,
+                borderRadius: 8,
+                marginRight: 10,
+              }}
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      {/* Tương tác thích và bình luận */}
+      <View style={{ flexDirection: "row", marginTop: 10 }}>
+        <TouchableOpacity
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginRight: 20,
+          }}
+          onPress={() => handleLike(item.articleId)}
+        >
+          <IconAnt
+            name={item.liked ? "like1" : "like2"} // Biểu tượng outline hoặc full
+            size={28}
+            color={item.liked ? COLORS.green : COLORS.greySolid} // Đổi màu khi đã like
+          />
+          <Text
+            style={{
+              fontFamily: FONTS.semiBold,
+              fontSize: 16,
+              color: item.liked ? COLORS.green : COLORS.greySolid, // Đổi màu số lượt like
+              marginLeft: 5,
+            }}
+          >
+            {item.likes || 0}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginRight: 20,
+          }}
+          onPress={() =>
+            navigation.navigate("PostDetailScreen", { post: item })
+          }
+        >
+          <Icon name="chatbubble-outline" size={27} color={COLORS.greySolid} />
+          <Text
+            style={{
+              fontFamily: FONTS.semiBold,
+              fontSize: 16,
+              color: COLORS.greySolid,
+              marginLeft: 5,
+            }}
+          >
+            {item.comments || 0}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   return (

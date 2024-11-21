@@ -2,7 +2,6 @@ import {
   StyleSheet,
   Text,
   View,
-  Button,
   Image,
   TextInput,
   TouchableOpacity,
@@ -23,7 +22,36 @@ const LoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Hàm kiểm tra dữ liệu lưu trong AsyncStorage
+  // Hàm lưu token vào AsyncStorage
+  const storeUserData = async (token, user) => {
+    try {
+      await AsyncStorage.multiSet([
+        ["authToken", token],
+        ["userId", String(user.userId)],
+        ["username", user.username],
+        ["password", user.password],
+        ["phoneNumber", user.phoneNumber],
+        ["email", user.email || ""],
+        ["address", user.address || ""],
+        ["roleId", String(user.roleId)],
+        ["status", user.status],
+        ["gender", user.gender],
+        ["dietaryPreferenceId", String(user.dietaryPreferenceId)],
+        ["goal", user.goal || ""],
+        ["activityLevel", user.activityLevel || ""],
+        ["age", String(user.age)],
+        ["imageUrl", user.imageUrl || ""],
+        ["height", String(user.height)],
+        ["weight", String(user.weight)],
+        ["profession", user.profession || ""],
+        ["isPhoneVerified", String(user.isPhoneVerified)],
+      ]);
+    } catch (error) {
+      console.error("Failed to save user data", error);
+    }
+  };
+
+  // Hàm kiểm tra dữ liệu AsyncStorage
   const checkStoredData = async () => {
     try {
       const keys = await AsyncStorage.getAllKeys();
@@ -31,15 +59,6 @@ const LoginScreen = ({ navigation }) => {
       console.log("Stored data:", values);
     } catch (error) {
       console.error("Error checking stored data:", error);
-    }
-  };
-
-  // Hàm lưu token vào AsyncStorage
-  const storeToken = async (token) => {
-    try {
-      await AsyncStorage.setItem("authToken", token);
-    } catch (error) {
-      console.error("Failed to save the token", error);
     }
   };
 
@@ -63,35 +82,35 @@ const LoginScreen = ({ navigation }) => {
 
       const { token, user } = response.data;
 
-      // Xóa dữ liệu AsyncStorage cũ
-      await AsyncStorage.clear();
-
-      // Lưu token và toàn bộ dữ liệu user vào AsyncStorage
-      await AsyncStorage.multiSet([
-        ["authToken", token],
-        ["userId", String(user.userId)],
-        ["username", user.username],
-        ["password", user.password],
-        ["phoneNumber", user.phoneNumber],
-        ["email", user.email || ""],
-        ["address", user.address || ""],
-        ["roleId", String(user.roleId)],
-        ["status", user.status],
-        ["gender", user.gender],
-        ["dietaryPreferenceId", String(user.dietaryPreferenceId)],
-        ["goal", user.goal || ""],
-        ["activityLevel", user.activityLevel || ""],
-        ["age", String(user.age)],
-        ["imageUrl", user.imageUrl || ""],
-        ["height", String(user.height)],
-        ["weight", String(user.weight)],
-        ["profession", user.profession || ""],
-        ["isPhoneVerified", String(user.isPhoneVerified)],
+      // Xóa dữ liệu cũ trong AsyncStorage
+      await AsyncStorage.multiRemove([
+        "authToken",
+        "userId",
+        "username",
+        "password",
+        "phoneNumber",
+        "email",
+        "address",
+        "roleId",
+        "status",
+        "gender",
+        "dietaryPreferenceId",
+        "goal",
+        "activityLevel",
+        "age",
+        "imageUrl",
+        "height",
+        "weight",
+        "profession",
+        "isPhoneVerified",
       ]);
+
+      // Lưu token và dữ liệu user
+      await storeUserData(token, user);
 
       Alert.alert("Thành công", `Chào mừng ${user.username}!`);
 
-      // Điều hướng tới màn hình chính
+      // Điều hướng tới màn hình Splash
       navigation.navigate("Splash");
 
       // Kiểm tra dữ liệu đã lưu
@@ -158,17 +177,14 @@ const LoginScreen = ({ navigation }) => {
             <Icon name="key" size={18} color={COLORS.green} />
             <TextInput
               style={styles.textInput}
-              secureTextEntry={!showPassword} // Hiển thị/mở mật khẩu
+              secureTextEntry={!showPassword}
               placeholder="************"
               value={password}
               onChangeText={setPassword}
             />
-            {/* Icon con mắt */}
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)} // Đổi trạng thái hiển thị mật khẩu
-            >
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
               <Icon
-                name={showPassword ? "eye-off" : "eye"} // Đổi icon dựa trên trạng thái
+                name={showPassword ? "eye-off" : "eye"}
                 size={20}
                 color={COLORS.green}
               />
@@ -238,29 +254,5 @@ const styles = StyleSheet.create({
     marginTop: 15,
     alignItems: "center",
     justifyContent: "center",
-  },
-  orText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 14,
-    color: COLORS.grey,
-    alignSelf: "center",
-    marginVertical: 25,
-  },
-  googleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-    padding: 10,
-    width: "100%",
-    backgroundColor: COLORS.greyPastel,
-    elevation: 3,
-    borderRadius: 10,
-  },
-  googleLogo: {
-    height: 30,
-    width: 30,
-    borderRadius: 50,
-    marginRight: 10,
   },
 });

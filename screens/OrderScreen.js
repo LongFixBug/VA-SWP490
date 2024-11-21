@@ -31,7 +31,7 @@ const OrderScreen = ({ navigation }) => {
   const [userId, setUserId] = useState(null);
 
   const orderStatus = {
-    pending: { color: COLORS.diamond, text: "Chờ xác nhận" },
+    pending: { color: COLORS.yellow, text: "Chờ xác nhận" },
     processing: { color: COLORS.orange, text: "Đang xử lí" },
     delivering: { color: COLORS.blue, text: "Đang giao hàng" },
     delivered: { color: COLORS.green, text: "Đã giao" },
@@ -95,8 +95,20 @@ const OrderScreen = ({ navigation }) => {
       }
       const data = await response.json();
 
+      // Chỉ giữ lại đơn hàng có trạng thái hợp lệ
+      const validStatuses = [
+        "pending",
+        "processing",
+        "delivering",
+        "delivered",
+        "cancel",
+      ];
+      const filteredData = data.filter((order) =>
+        validStatuses.includes(order.status)
+      );
+
       const ordersWithDetails = await Promise.all(
-        data.map(async (order) => {
+        filteredData.map(async (order) => {
           const orderDetailResponse = await fetchWithAuth(
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailByOrderId/${order.orderId}`
           );

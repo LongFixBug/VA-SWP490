@@ -48,9 +48,10 @@ import NotificationScreen from "./screens/NotificationScreen";
 
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
-import { UserProvider } from "./context/UserContext";
+// import { UserProvider } from "./context/UserContext";
 import ContactUsScreen from "./screens/ContactUsScreen";
 import FollowerScreen from "./screens/FollowerScreen";
+import messaging from "@react-native-firebase/messaging";
 
 const toastConfig = {
   success: (props) => (
@@ -266,6 +267,31 @@ const TabRoute = ({ userId }) => {
   );
 };
 
+const requestPermission = async () => {
+  const authStatus = await messaging().requestPermission();
+  const enabled =
+    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+  if (enabled) {
+    console.log("Quyền thông báo đã được cấp!");
+    getToken(); // Nhận token nếu quyền đã được cấp
+  } else {
+    console.log("Quyền thông báo bị từ chối.");
+  }
+};
+
+const getToken = async () => {
+  try {
+    const token = await messaging().getToken();
+    console.log("FCM Token:", token);
+    // Lưu token vào AsyncStorage hoặc gửi lên backend
+    await AsyncStorage.setItem("deviceToken", token);
+  } catch (error) {
+    console.error("Lỗi khi lấy FCM Token:", error);
+  }
+};
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     "OpenSans-Bold": require("./assets/fonts/OpenSans-Bold.ttf"),
@@ -277,19 +303,67 @@ export default function App() {
 
   const [initialRoute, setInitialRoute] = useState(null);
 
-  // Kiểm tra trạng thái đăng nhập
+  // Yêu cầu quyền và lắng nghe tin nhắn
   useEffect(() => {
-    const checkLoginStatus = async () => {
+    const checkLoginStatus = async (navigation) => {
       try {
         const token = await AsyncStorage.getItem("authToken");
-        setInitialRoute(token ? "Home" : "Login");
+        const userId = await AsyncStorage.getItem("userId");
+
+        if (!token || !userId) {
+          setInitialRoute("Login");
+          return;
+        }
+
+        // Kiểm tra token hợp lệ bằng cách gọi API
+        const response = await fetch("YOUR_API_URL", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.status === 401) {
+          // Token không hợp lệ
+          Toast.show({
+            type: "error",
+            text1: "Phiên đăng nhập đã hết hạn",
+            text2: "Vui lòng đăng nhập lại.",
+          });
+          setInitialRoute("Login");
+        } else {
+          setInitialRoute("Login");
+        }
       } catch (error) {
         console.error("Error checking login status:", error);
-        setInitialRoute("Login"); // Điều hướng tới Login trong trường hợp có lỗi
+        setInitialRoute("Home");
       }
     };
 
+    // Yêu cầu quyền thông báo khi ứng dụng khởi động
+    const initMessaging = async () => {
+      await requestPermission();
+
+      // Lắng nghe tin nhắn khi ứng dụng đang chạy
+      const unsubscribeForeground = messaging().onMessage(
+        async (remoteMessage) => {
+          console.log("Tin nhắn foreground:", remoteMessage);
+          showToastNotification(remoteMessage);
+        }
+      );
+
+      // Xử lý tin nhắn trong background
+      messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+        console.log("Tin nhắn background:", remoteMessage);
+      });
+
+      return unsubscribeForeground;
+    };
+
     checkLoginStatus();
+    initMessaging();
+
+    return () => {
+      // Hủy lắng nghe khi component bị unmount
+      messaging().onMessage(() => {});
+    };
   }, []);
 
   // Chờ load font và xác định route ban đầu
@@ -299,62 +373,58 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <UserProvider>
-        <NavigationContainer>
-          <Stack.Navigator
-            screenOptions={{ headerShown: false }}
-            initialRouteName={initialRoute}
-          >
-            <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="InputOTP" component={InputOTPScreen} />
-            <Stack.Screen name="Home" component={TabRoute} />
-            <Stack.Screen name="Order" component={OrderScreen} />
-            <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-            <Stack.Screen
-              name="SuggestedDishes"
-              component={SuggestedDishesScreen}
-            />
-            <Stack.Screen name="InputProfile" component={InputProfileScreen} />
-            <Stack.Screen name="DishDetail" component={DishDetailScreen} />
-            <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
-            <Stack.Screen
-              name="PostDetailScreen"
-              component={PostDetailScreen}
-            />
-            <Stack.Screen name="SearchDishes" component={SearchDishesScreen} />
-            <Stack.Screen name="Cart" component={CartScreen} />
-            <Stack.Screen name="Favourite" component={FavouriteScreen} />
-            <Stack.Screen name="AllDishes" component={AllDishScreen} />
-            <Stack.Screen name="Checkout" component={CheckoutScreen} />
-            {/* <Stack.Screen name="Payment" component={PaymentScreen} /> */}
-            <Stack.Screen name="Menu" component={MenuScreen} />
-            <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
-            <Stack.Screen name="Membership" component={MembershipScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-            <Stack.Screen name="Setting" component={SettingScreen} />
-            <Stack.Screen name="ContactUs" component={ContactUsScreen} />
-            <Stack.Screen
-              name="NotificationSetting"
-              component={NotificationSettingScreen}
-            />
-            <Stack.Screen name="Follow" component={FollowerScreen} />
+      <NavigationContainer>
+        <Stack.Navigator
+          screenOptions={{ headerShown: false }}
+          initialRouteName={initialRoute}
+        >
+          <Stack.Screen name="Splash" component={SplashScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="InputOTP" component={InputOTPScreen} />
+          <Stack.Screen name="Home" component={TabRoute} />
+          <Stack.Screen name="Order" component={OrderScreen} />
+          <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+          <Stack.Screen
+            name="SuggestedDishes"
+            component={SuggestedDishesScreen}
+          />
+          <Stack.Screen name="InputProfile" component={InputProfileScreen} />
+          <Stack.Screen name="DishDetail" component={DishDetailScreen} />
+          <Stack.Screen name="NewPostScreen" component={NewPostScreen} />
+          <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
+          <Stack.Screen name="SearchDishes" component={SearchDishesScreen} />
+          <Stack.Screen name="Cart" component={CartScreen} />
+          <Stack.Screen name="Favourite" component={FavouriteScreen} />
+          <Stack.Screen name="AllDishes" component={AllDishScreen} />
+          <Stack.Screen name="Checkout" component={CheckoutScreen} />
+          {/* <Stack.Screen name="Payment" component={PaymentScreen} /> */}
+          <Stack.Screen name="Menu" component={MenuScreen} />
+          <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
+          <Stack.Screen name="Membership" component={MembershipScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="Setting" component={SettingScreen} />
+          <Stack.Screen name="ContactUs" component={ContactUsScreen} />
+          <Stack.Screen
+            name="NotificationSetting"
+            component={NotificationSettingScreen}
+          />
+          <Stack.Screen name="Follow" component={FollowerScreen} />
 
-            <Stack.Screen
-              name="Payment"
-              component={PaymentScreen}
-              options={{ title: "Thanh Toán" }}
-            />
-            <Stack.Screen
-              name="WebViewScreen"
-              component={WebViewScreen}
-              options={{ title: "Thanh Toán QR" }}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </UserProvider>
+          <Stack.Screen
+            name="Payment"
+            component={PaymentScreen}
+            options={{ title: "Thanh Toán" }}
+          />
+          <Stack.Screen
+            name="WebViewScreen"
+            component={WebViewScreen}
+            options={{ title: "Thanh Toán QR" }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+
       <Toast config={toastConfig} />
     </GestureHandlerRootView>
   );

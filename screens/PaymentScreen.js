@@ -72,24 +72,38 @@ const PaymentScreen = ({ navigation }) => {
     fetchData();
   }, []);
 
-  // Xử lý thanh toán
   const handleConfirmPayment = async () => {
     try {
       setLoading(true);
+
       if (!userId) throw new Error("Không tìm thấy User ID.");
       if (!orderDetails) throw new Error("Không tìm thấy thông tin đơn hàng.");
 
-      // Tạo đơn hàng
+      // Lấy thông tin từ AsyncStorage
+      const pendingOrder = await AsyncStorage.getItem("pendingOrder");
+      if (!pendingOrder)
+        throw new Error("Không tìm thấy thông tin đơn hàng đang chờ.");
+
+      const orderInfo = JSON.parse(pendingOrder);
+
+      // Tạo đơn hàng với các thông tin bổ sung
       const orderData = {
         userId: parseInt(userId, 10),
-        totalPrice: orderDetails.totalPrice,
-        deliveryAddress: orderDetails.deliveryAddress || "Không có địa chỉ",
-        note: orderDetails.note || "Không có ghi chú",
-        deliveryFee: orderDetails.deliveryFee || 0,
+        totalPrice: orderInfo.totalPrice,
+        deliveryAddress: orderInfo.deliveryAddress || "Không có địa chỉ",
+        note: orderInfo.note || "Không có ghi chú",
+        deliveryFee: orderInfo.deliveryFee || 0,
+        discountRate: orderInfo.discountRate || 0,
+        discountPrice: orderInfo.discountPrice || 0,
+        phoneNumber: orderInfo.phoneNumber || "Không có số điện thoại",
+        receiverName: orderInfo.receiverName || "Không có tên người nhận",
         orderDate: new Date().toISOString(),
-        status: "paid",
+        status: "pending_payment",
       };
 
+      console.log("[DEBUG] Dữ liệu tạo đơn hàng:", orderData);
+
+      // Gọi API để tạo đơn hàng
       const createOrderResponse = await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderByCustomer",
         {
@@ -110,7 +124,7 @@ const PaymentScreen = ({ navigation }) => {
       const latestOrderId = latestOrder.orderId;
 
       // Tạo chi tiết đơn hàng
-      const detailedCartItems = orderDetails.items || [];
+      const detailedCartItems = orderInfo.cartDetails || [];
       for (const item of detailedCartItems) {
         const orderDetailData = {
           orderId: latestOrderId,
@@ -142,7 +156,6 @@ const PaymentScreen = ({ navigation }) => {
       const authToken = await AsyncStorage.getItem("authToken");
       if (!authToken) throw new Error("Không tìm thấy authToken.");
 
-      // Log dữ liệu trước khi gửi
       console.log("Dữ liệu gửi đến API thanh toán:", paymentData);
       console.log("Token Authorization:", authToken);
 
@@ -158,7 +171,6 @@ const PaymentScreen = ({ navigation }) => {
         }
       );
 
-      // Log trạng thái phản hồi
       console.log(
         "Trạng thái phản hồi từ API thanh toán:",
         paymentResponse.status
@@ -175,7 +187,6 @@ const PaymentScreen = ({ navigation }) => {
         throw new Error("Lỗi khi gọi API thanh toán.");
       }
 
-      // Lấy đường link thanh toán
       const paymentLink = await paymentResponse.text();
       console.log("Đường link thanh toán nhận được:", paymentLink);
 
@@ -183,7 +194,6 @@ const PaymentScreen = ({ navigation }) => {
         throw new Error("Không nhận được liên kết thanh toán hợp lệ.");
       }
 
-      // Điều hướng đến liên kết thanh toán
       navigation.navigate("WebViewScreen", { url: paymentLink });
 
       // Xóa đơn hàng đang chờ

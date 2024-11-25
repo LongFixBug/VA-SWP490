@@ -52,6 +52,7 @@ import FONTS from "./constants/font";
 import ContactUsScreen from "./screens/ContactUsScreen";
 import FollowerScreen from "./screens/FollowerScreen";
 import messaging from "@react-native-firebase/messaging";
+import RecommedDishScreen from "./screens/RecommendDishScreen";
 
 const toastConfig = {
   success: (props) => (
@@ -92,178 +93,181 @@ const toastConfig = {
 
 const TabRoute = ({ userId }) => {
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarActiveTintColor: COLORS.green,
-        tabBarInactiveTintColor: COLORS.grey,
-        tabBarLabelStyle: {
-          display: "none",
-        },
-        tabBarStyle: {
-          backgroundColor: COLORS.white,
-          height: 60,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        },
-      })}
-    >
-      <Tab.Screen
-        name="Trang chủ"
-        component={HomeScreen}
-        options={{
-          tabBarIcon: ({ focused, color, size }) => {
-            return focused ? (
-              <View
-                style={{
-                  backgroundColor: COLORS.white,
-                  borderRadius: 50,
-                  padding: 20,
-                  marginTop: -40,
-                  shadowColor: COLORS.green,
-                  shadowOffset: {
-                    width: 0,
-                    height: 5,
-                  },
-                  shadowOpacity: 0.25,
-                  elevation: 4,
-                }}
-              >
-                <Icon name="home" color={COLORS.green} size={size} />
-              </View>
-            ) : (
-              <Icon name="home-outline" color={color} size={28} />
-            );
+    <View style={{ flex: 1, backgroundColor: COLORS.white }}>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarActiveTintColor: COLORS.white,
+          tabBarInactiveTintColor: COLORS.greySolid,
+          tabBarLabelStyle: {
+            display: "none",
           },
-          headerShown: false,
-        }}
-      />
-      <Tab.Screen
-        name="Đơn hàng"
-        component={OrderScreen}
-        options={{
-          tabBarIcon: ({ focused, color, size }) => {
-            return focused ? (
-              <View
-                style={{
-                  backgroundColor: COLORS.white,
-                  borderRadius: 50,
-                  padding: 20,
-                  marginTop: -40,
-                  shadowColor: COLORS.green,
-                  shadowOffset: {
-                    width: 0,
-                    height: 5,
-                  },
-                  shadowOpacity: 0.25,
-                  elevation: 4,
-                }}
-              >
-                <Icon name="list" color={COLORS.green} size={size} />
-              </View>
-            ) : (
-              <Icon name="list-outline" color={color} size={28} />
-            );
+          tabBarStyle: {
+            backgroundColor: COLORS.white,
+            height: 60,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
           },
-          headerShown: false,
-        }}
-      />
-      <Tab.Screen
-        name="Đăng tin"
-        component={CommunityScreen}
-        options={{
-          tabBarIcon: ({ focused, color, size }) => {
-            return focused ? (
-              <View
-                style={{
-                  backgroundColor: COLORS.white,
-                  borderRadius: 50,
-                  padding: 20,
-                  marginTop: -40,
-                  shadowColor: COLORS.green,
-                  shadowOffset: {
-                    width: 0,
-                    height: 5,
-                  },
-                  shadowOpacity: 0.25,
-                  elevation: 4,
-                }}
-              >
-                <Icon name="people" color={color} size={size} />
-              </View>
-            ) : (
-              <Icon name="people-outline" color={color} size={28} />
-            );
-          },
-          headerShown: false,
-        }}
-      />
-      <Tab.Screen
-        name="Thông báo"
-        component={NotificationScreen}
-        initialParams={{ userId }}
-        options={{
-          tabBarIcon: ({ focused, color, size }) => {
-            return focused ? (
-              <View
-                style={{
-                  backgroundColor: COLORS.white,
-                  borderRadius: 50,
-                  padding: 20,
-                  marginTop: -40,
-                  shadowColor: COLORS.green,
-                  shadowOffset: {
-                    width: 0,
-                    height: 5,
-                  },
-                  shadowOpacity: 0.25,
-                  elevation: 4,
-                }}
-              >
-                <Icon name="notifications" color={COLORS.green} size={size} />
-              </View>
-            ) : (
-              <Icon name="notifications-outline" color={color} size={28} />
-            );
-          },
-          tabBarBadge: 8,
-          tabBarBadgeStyle: {
-            fontFamily: FONTS.semiBold,
-          },
+        })}
+      >
+        <Tab.Screen
+          name="Trang chủ"
+          component={HomeScreen}
+          initialParams={{ userId }}
+          options={{
+            tabBarIcon: ({ focused, color, size }) => {
+              return focused ? (
+                <View
+                  style={{
+                    backgroundColor: COLORS.green,
+                    borderRadius: 50,
+                    padding: 20,
+                    marginTop: -40,
+                    shadowColor: COLORS.green,
+                    shadowOffset: {
+                      width: 0,
+                      height: 5,
+                    },
+                    shadowOpacity: 0.25,
+                    elevation: 4,
+                  }}
+                >
+                  <Icon name="home" color={color} size={size} />
+                </View>
+              ) : (
+                <Icon name="home-outline" color={color} size={28} />
+              );
+            },
+            headerShown: false,
+          }}
+        />
+        <Tab.Screen
+          name="Đơn hàng"
+          component={OrderScreen}
+          options={{
+            tabBarIcon: ({ focused, color, size }) => {
+              return focused ? (
+                <View
+                  style={{
+                    backgroundColor: COLORS.green,
+                    borderRadius: 50,
+                    padding: 20,
+                    marginTop: -40,
+                    shadowColor: COLORS.white,
+                    shadowOffset: {
+                      width: 0,
+                      height: 5,
+                    },
+                    shadowOpacity: 0.25,
+                    elevation: 4,
+                  }}
+                >
+                  <Icon name="albums" color={color} size={size} />
+                </View>
+              ) : (
+                <Icon name="albums-outline" color={color} size={28} />
+              );
+            },
+            headerShown: false,
+          }}
+        />
+        <Tab.Screen
+          name="Cộng đồng"
+          component={CommunityScreen}
+          options={{
+            tabBarIcon: ({ focused, color, size }) => {
+              return focused ? (
+                <View
+                  style={{
+                    backgroundColor: COLORS.green,
+                    borderRadius: 50,
+                    padding: 20,
+                    marginTop: -40,
+                    shadowColor: COLORS.green,
+                    shadowOffset: {
+                      width: 0,
+                      height: 5,
+                    },
+                    shadowOpacity: 0.25,
+                    elevation: 4,
+                  }}
+                >
+                  <Icon name="people" color={color} size={size} />
+                </View>
+              ) : (
+                <Icon name="people-outline" color={color} size={28} />
+              );
+            },
+            headerShown: false,
+          }}
+        />
+        <Tab.Screen
+          name="Thông báo"
+          component={NotificationScreen}
+          initialParams={{ userId }}
+          options={{
+            tabBarIcon: ({ focused, color, size }) => {
+              return focused ? (
+                <View
+                  style={{
+                    backgroundColor: COLORS.green,
+                    borderRadius: 50,
+                    padding: 20,
+                    marginTop: -40,
+                    shadowColor: COLORS.green,
+                    shadowOffset: {
+                      width: 0,
+                      height: 5,
+                    },
+                    shadowOpacity: 0.25,
+                    elevation: 4,
+                  }}
+                >
+                  <Icon name="notifications" color={color} size={size} />
+                </View>
+              ) : (
+                <Icon name="notifications-outline" color={color} size={28} />
+              );
+            },
+            tabBarBadge: 8,
+            tabBarBadgeStyle: {
+              fontFamily: FONTS.semiBold,
+            },
 
-          headerShown: false,
-        }}
-      />
-      <Tab.Screen
-        name="Tài khoản"
-        component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ focused, color, size }) => {
-            return focused ? (
-              <View
-                style={{
-                  backgroundColor: COLORS.white,
-                  borderRadius: 50,
-                  padding: 20,
-                  marginTop: -40,
-                  shadowColor: COLORS.green,
-                  shadowOffset: {
-                    width: 0,
-                    height: 5,
-                  },
-                  shadowOpacity: 0.25,
-                  elevation: 4,
-                }}
-              >
-                <Icon name="person" color={COLORS.green} size={size} />
-              </View>
-            ) : (
-              <Icon name="person-outline" color={color} size={28} />
-            );
-          },
-          headerShown: false,
-        }}
-      />
-    </Tab.Navigator>
+            headerShown: false,
+          }}
+        />
+        <Tab.Screen
+          name="Tài khoản"
+          component={ProfileScreen}
+          options={{
+            tabBarIcon: ({ focused, color, size }) => {
+              return focused ? (
+                <View
+                  style={{
+                    backgroundColor: COLORS.green,
+                    borderRadius: 50,
+                    padding: 20,
+                    marginTop: -40,
+                    shadowColor: COLORS.green,
+                    shadowOffset: {
+                      width: 0,
+                      height: 5,
+                    },
+                    shadowOpacity: 0.25,
+                    elevation: 4,
+                  }}
+                >
+                  <Icon name="person" color={color} size={size} />
+                </View>
+              ) : (
+                <Icon name="person-outline" color={color} size={28} />
+              );
+            },
+            headerShown: false,
+          }}
+        />
+      </Tab.Navigator>
+    </View>
   );
 };
 
@@ -332,8 +336,7 @@ export default function App() {
           setInitialRoute("Login");
         }
       } catch (error) {
-        console.error("Error checking login status:", error);
-        setInitialRoute("Home");
+        setInitialRoute("Login"); // không có thông tin token trả về login
       }
     };
 
@@ -397,6 +400,7 @@ export default function App() {
           <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="Favourite" component={FavouriteScreen} />
           <Stack.Screen name="AllDishes" component={AllDishScreen} />
+          <Stack.Screen name="Recommend" component={RecommedDishScreen} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
           {/* <Stack.Screen name="Payment" component={PaymentScreen} /> */}
           <Stack.Screen name="Menu" component={MenuScreen} />

@@ -21,50 +21,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
 
-// const AnimatedText = ({ text }) => {
-//   const translateX = useRef(new Animated.Value(0)).current;
-
-//   useEffect(() => {
-//     const textWidth = text.length * 15; // Mỗi ký tự rộng khoảng 14px
-//     const containerWidth = 200; // Chiều rộng vùng chứa văn bản
-
-//     const startAnimation = () => {
-//       Animated.sequence([
-//         Animated.timing(translateX, {
-//           toValue: -(textWidth - containerWidth),
-//           duration: 3000, // Thời gian di chuyển sang trái
-//           useNativeDriver: true,
-//         }),
-//         Animated.timing(translateX, {
-//           toValue: 0,
-//           duration: 3000, // Thời gian di chuyển lại về phải
-//           useNativeDriver: true,
-//         }),
-//       ]).start(() => startAnimation());
-//     };
-
-//     startAnimation();
-//   }, [text]);
-
-//   return (
-//     <View style={{ width: 200, overflow: "hidden" }}>
-//       <Animated.Text
-//         style={{
-//           transform: [{ translateX }],
-//         }}
-//       >
-//         {text}
-//       </Animated.Text>
-//     </View>
-//   );
-// };
-
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [dishes, setDishes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
   const [userId, setUserId] = useState(null);
   const [username, setUsername] = useState("");
   const [tierId, setTierId] = useState(null);
@@ -73,6 +33,13 @@ const HomeScreen = () => {
   const [userData, setUserData] = useState(null);
 
   const [cartCount, setCartCount] = useState(0);
+
+  const rankColors = {
+    Bronze: "#333300", // Bronze color
+    Silver: "#C0C0C0", // Silver color
+    Gold: "#f5d114", // Gold color
+    Platinum: "#1b93e3", // Platinum color
+  };
 
   const fetchWithAuth = async (url, options = {}, navigation) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -113,7 +80,6 @@ const HomeScreen = () => {
 
   const fetchMembershipData = async (id) => {
     try {
-      // console.log(`Đang gọi API với userId: ${id}`);
       const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`
       );
@@ -124,12 +90,8 @@ const HomeScreen = () => {
       }
 
       const rawResponse = await response.text();
-      // console.log("Phản hồi thô từ API:", rawResponse);
 
       if (!rawResponse) {
-        // console.log("Người dùng chưa có đóng góp, hiển thị tier Bronze");
-
-        // Gọi API getUserByUserId để lấy thông tin người dùng
         const userResponse = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`
         );
@@ -144,40 +106,86 @@ const HomeScreen = () => {
         }
 
         const userData = await userResponse.json();
-        // console.log("Dữ liệu người dùng:", userData);
 
-        // Cài đặt thông tin người dùng và hiển thị tier là Bronze
         setUsername(userData.username || "Unknown User");
         setTierLabel("Bronze");
         setAccumulatedPoints(0);
+        await AsyncStorage.setItem(
+          "membershipData",
+          JSON.stringify({ tierName: "Bronze", discountRate: 0 })
+        );
 
         return;
       }
 
-      // Nếu có dữ liệu membership, xử lý như bình thường
-      const data = JSON.parse(rawResponse);
-      // console.log("Dữ liệu membership:", data);
+      const membershipData = JSON.parse(rawResponse);
 
-      if (data) {
-        setUsername(data.username || "Unknown User");
-        setTierId(data.tierId);
-        setAccumulatedPoints(data.accumulatedPoints);
+      if (membershipData) {
+        setUsername(membershipData.username || "Unknown User");
+        setTierId(membershipData.tierId);
+        setAccumulatedPoints(membershipData.accumulatedPoints);
 
-        switch (data.tierId) {
-          case 1:
-            setTierLabel("Silver");
-            break;
-          case 2:
-            setTierLabel("Gold");
-            break;
-          case 3:
-            setTierLabel("Platinum");
-            break;
-          case 4:
-            setTierLabel("Diamond");
-            break;
-          default:
-            setTierLabel("N/A");
+        const tierResponse = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membershipTier/${membershipData.tierId}`
+        );
+
+        if (!tierResponse.ok) {
+          console.error(
+            "HTTP Error khi gọi API membershipTier:",
+            tierResponse.status,
+            tierResponse.statusText
+          );
+          return;
+        }
+
+        const tierData = await tierResponse.json();
+
+        if (tierData) {
+          setTierLabel(tierData.tierName || "N/A");
+
+          await AsyncStorage.setItem(
+            "membershipData",
+            JSON.stringify({
+              tierName: tierData.tierName || "N/A",
+              discountRate: tierData.discountRate || 0,
+            })
+          );
+
+          // Check and create discount history
+          const discountRates = { 2: 0.1, 3: 0.2, 4: 0.3 }; // Tier-to-discount mapping
+          if (membershipData.tierId >= 2 && membershipData.tierId <= 4) {
+            const discountRate = discountRates[membershipData.tierId];
+            const currentDate = new Date();
+            const expirationDate = new Date();
+            expirationDate.setDate(currentDate.getDate() + 7);
+
+            const discountPayload = {
+              userId: id,
+              tierId: membershipData.tierId,
+              grantedDate: currentDate.toISOString(),
+              discountRate: discountRate,
+              status: "active",
+              expirationDate: expirationDate.toISOString(),
+            };
+
+            const discountResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history`,
+              {
+                method: "POST",
+                body: JSON.stringify(discountPayload),
+              }
+            );
+
+            if (!discountResponse.ok) {
+              console.error(
+                "Error creating discount history:",
+                discountResponse.status,
+                discountResponse.statusText
+              );
+            } else {
+              console.log("Discount history created successfully!");
+            }
+          }
         }
       }
     } catch (error) {
@@ -243,11 +251,9 @@ const HomeScreen = () => {
         isPhoneVerified: data.isPhoneVerified || false,
       };
       await AsyncStorage.setItem("userData", JSON.stringify(userData));
-      // console.log("User data saved to AsyncStorage:", userData);
-
-      // console.log("User data saved to AsyncStorage successfully!");
 
       setUserData(data); // Đặt dữ liệu người dùng vào state nếu cần
+      setUsername(data.username); // Cập nhật username trực tiếp
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
@@ -312,47 +318,6 @@ const HomeScreen = () => {
     fetchDishes();
   }, []);
 
-  // Handle search input
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-    if (query.length > 0) {
-      const filtered = dishes.filter((dish) =>
-        dish.name.toLowerCase().includes(query.toLowerCase())
-      );
-      setSearchResults(filtered);
-    } else {
-      setSearchResults([]);
-    }
-  };
-
-  const handleSearchSelect = (dish) => {
-    navigation.navigate("DishDetail", { dishId: dish.dishId }); // Truyền dishId thay vì dish
-    setSearchResults([]); // Clear suggestions after selection
-  };
-
-  const handleSearchIconPress = () => {
-    // Loại bỏ các ký tự không phải chữ hoặc dấu câu (ngoại trừ khoảng trắng) và xóa khoảng trắng thừa
-    const cleanedQuery = searchQuery
-      .replace(/[\d.,\/?'";:{}[\]+=_)(*&%$#@!~\\|]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-
-    if (cleanedQuery.length > 0) {
-      navigation.navigate("SearchDishes", { searchQuery: cleanedQuery });
-    }
-  };
-
-  const renderDishItem = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate("DishDetail", { dishId: item.dishId })} // Truyền dishId thay vì toàn bộ dish
-    >
-      <View style={styles.dishItem}>
-        <Text>{item.name}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-
   const refreshCartCount = async () => {
     try {
       if (userId) {
@@ -372,147 +337,43 @@ const HomeScreen = () => {
 
   // Fetch recommended dishes from API
 
-  const fetchRecommendedDishes = async () => {
-    if (!userId) {
-      console.error("Không có userId để gọi API.");
-      setLoading(false);
-      return;
+  const refreshData = async () => {
+    setLoading(true); // Hiển thị trạng thái loading
+    try {
+      await refreshCartCount(); // Lấy số lượng giỏ hàng
+    } catch (error) {
+      console.error("Error refreshing cart count:", error);
     }
 
     try {
-      // Gọi API recommendDishes
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendDishes/${userId}?dishType=Món chính`
-      );
+      if (userId) {
+        await fetchUserData(userId); // Lấy thông tin người dùng
 
-      if (!response.ok) {
-        console.error("Lỗi HTTP khi gọi API recommendDishes:", response.status);
-        setLoading(false);
-        return;
+        await fetchMembershipData(userId); // Lấy thông tin membership
       }
-
-      const recommendData = await response.json();
-
-      // console.log("Dữ liệu từ API recommendDishes:", recommendData);
-
-      // Kết hợp dữ liệu từ API feedback để thêm rating
-      const detailedDishes = await Promise.all(
-        recommendData.map(async (item) => {
-          const { dishId, dishName, dish } = item;
-
-          // Gọi API feedback để lấy rating
-          try {
-            const feedbackResponse = await fetchWithAuth(
-              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dishId}`
-            );
-
-            if (!feedbackResponse.ok) {
-              console.error(
-                `Lỗi HTTP khi gọi API feedback cho dishId ${dishId}:`,
-                feedbackResponse.status
-              );
-              return null;
-            }
-
-            const feedbackData = await feedbackResponse.json();
-
-            // Tính trung bình rating từ feedback
-            const ratings = feedbackData.map((feedback) => feedback.rating);
-            const averageRating =
-              ratings.length > 0
-                ? (
-                    ratings.reduce((acc, curr) => acc + curr, 0) /
-                    ratings.length
-                  ).toFixed(1)
-                : "0.0";
-
-            // Kết hợp dữ liệu từ recommendDishes và feedback
-            return {
-              dishId,
-              dishName,
-              dishType: dish?.dishType || "Loại món ăn",
-              price: dish?.price || 0,
-              imageUrl: dish?.imageUrl || "https://via.placeholder.com/150",
-              calories: item.calories || 0,
-              protein: item.protein || 0,
-              carbs: item.carbs || 0,
-              fat: item.fat || 0,
-              averageRating, // Thêm rating trung bình
-            };
-          } catch (feedbackError) {
-            console.error(
-              `Lỗi khi gọi API feedback cho dishId ${dishId}:`,
-              feedbackError.message || feedbackError
-            );
-            return {
-              dishId,
-              dishName,
-              dishType: dish?.dishType || "Loại món ăn",
-              price: dish?.price || 0,
-              imageUrl: dish?.imageUrl || "https://via.placeholder.com/150",
-              calories: item.calories || 0,
-              protein: item.protein || 0,
-              carbs: item.carbs || 0,
-              fat: item.fat || 0,
-              averageRating: "0.0", // Không có rating
-            };
-          }
-        })
-      );
-
-      // Lọc các món ăn có dữ liệu hợp lệ (không bị lỗi)
-      const validDishes = detailedDishes.filter((dish) => dish !== null);
-
-      setDishes(validDishes); // Cập nhật state với danh sách món ăn đầy đủ thông tin
-      setLoading(false);
     } catch (error) {
       console.error(
-        "Error fetching recommended dishes:",
-        error.message || error
+        "Error fetching user data, recommended dishes or membership data:",
+        error
       );
-      setLoading(false);
     }
+
+    setLoading(false); // Tắt trạng thái loading
   };
 
-  // Xử lý từng món ăn: lấy thông tin chi tiết và rating
-
-  // Sử dụng useEffect để gọi fetchRecommendedDishes
   useEffect(() => {
-    if (userId) {
-      fetchRecommendedDishes();
-    }
-  }, [userId]);
-
-  // useEffect để làm mới số lượng món trong giỏ khi màn hình Home hiển thị
-  useEffect(() => {
-    refreshCartCount();
-
-    // Đăng ký listener để lắng nghe sự kiện thay đổi
-    const subscription = navigation.addListener("focus", () => {
-      refreshCartCount();
+    const unsubscribe = navigation.addListener("focus", () => {
+      refreshData(); // Gọi lại API khi màn hình được focus
     });
 
-    return subscription;
+    return unsubscribe; // Dọn dẹp listener khi component unmount
   }, [navigation, userId]);
-
-  // useEffect để lấy số lượng món ăn khi màn hình Home hiển thị
-  useEffect(() => {
-    refreshCartCount();
-
-    // Đăng ký listener để lắng nghe sự kiện thay đổi trong AsyncStorage
-    const subscription = navigation.addListener("focus", () => {
-      refreshCartCount();
-    });
-
-    // Dọn dẹp khi component bị hủy
-    return subscription;
-  }, [navigation]);
 
   return (
     <View style={styles.container}>
       <ImageBackground
         source={{
-          uri: "https://img.freepik.com/free-vector/gradient-background-green-tones_23-2148361057.jpg?t=st=1730213577~exp=1730217177~hmac=26a87cd41f3c181425f09787c4ccc85c3346646104a3071504cfb8496d240a60&w=996",
+          uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
           //  uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
         }}
         style={{
@@ -551,7 +412,7 @@ const HomeScreen = () => {
               fontSize: 18,
             }}
           >
-            {username}
+            {userData?.username}
           </Text>
         </View>
         <TouchableOpacity
@@ -560,39 +421,44 @@ const HomeScreen = () => {
           onPress={() => navigation.navigate("Membership")}
         >
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                alignItems: "flex-end",
-                marginRight: 8,
-                padding: 5,
-                borderRadius: 5,
-                elevation: 0,
-              }}
-            >
-              <Text
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View
                 style={{
-                  fontFamily: FONTS.bold,
-                  color: COLORS.white,
-                  fontSize: 13,
-                  alignSelf: "center",
-                  borderBottomWidth: 1,
-                  borderBottomColor: "white",
-                  paddingBottom: 3,
+                  alignItems: "flex-end",
+                  marginRight: 8,
+                  padding: 5,
+                  borderRadius: 5,
+                  elevation: 0,
                 }}
               >
-                <Icon name="star" size={16} color={COLORS.white} />{" "}
-                {accumulatedPoints} điểm
-              </Text>
-              <Text
-                style={{
-                  fontFamily: FONTS.bold,
-                  color: COLORS.diamond,
-                  fontSize: 12,
-                }}
-              >
-                {tierLabel}
-              </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.bold,
+                    fontSize: 13,
+                    color: rankColors[tierLabel] || COLORS.white, // Use rankColors dynamically
+                    alignSelf: "center",
+                    borderBottomWidth: 1,
+                    borderBottomColor: rankColors[tierLabel] || "white", // Apply the same color to underline
+                    paddingBottom: 3,
+                  }}
+                >
+                  Đang có {accumulatedPoints} điểm
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.bold,
+                    fontSize: 13,
+                    color: rankColors[tierLabel] || COLORS.white, // Apply dynamic color to tierLabel
+
+                    marginTop: 3,
+                  }}
+                >
+                  <Icon name="trophy" size={16} color={rankColors[tierLabel]} />{" "}
+                  Hạng {tierLabel}
+                </Text>
+              </View>
             </View>
+
             <Image
               source={{
                 uri:
@@ -615,7 +481,9 @@ const HomeScreen = () => {
       <View style={styles.featureIcons}>
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => navigation.navigate("AllDishes")}
+          onPress={
+            () => navigation.navigate("Recommend") // Truyền tham số dishType
+          }
           style={{
             padding: 10,
             backgroundColor: COLORS.white,
@@ -663,21 +531,18 @@ const HomeScreen = () => {
       </View>
 
       {/* Search & Cart */}
+      {/* Search & Cart */}
       <View style={styles.searchCartContainer}>
-        <View style={styles.searchContainer}>
-          <Icon
-            name="search-outline"
-            size={24}
-            color={COLORS.grey}
-            onPress={handleSearchIconPress}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm món ăn..."
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
-        </View>
+        {/* Search bar */}
+        <TouchableOpacity
+          style={styles.searchContainer}
+          onPress={() => navigation.navigate("AllDishes", { fromSearch: true })} // Điều hướng đến AllDishes
+        >
+          <Icon name="search-outline" size={24} color={COLORS.grey} />
+          <Text style={styles.searchPlaceholder}>Tìm món ăn...</Text>
+        </TouchableOpacity>
+
+        {/* Cart icon */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => navigation.navigate("Cart")}
@@ -699,23 +564,9 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Search Suggestions */}
-      {searchResults.length > 0 && (
-        <View style={styles.searchSuggestions}>
-          {searchResults.map((result) => (
-            <TouchableOpacity
-              key={result.id}
-              onPress={() => handleSearchSelect(result)}
-            >
-              <Text style={styles.suggestionText}>{result.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
       {/* Dishes Section */}
       <View style={styles.dishHeader}>
-        <Text style={styles.sectionTitle}>Món ăn dành cho bạn</Text>
+        <Text style={styles.sectionTitle}>Danh sách món ăn</Text>
         <TouchableOpacity onPress={() => navigation.navigate("AllDishes")}>
           <Text style={styles.viewAll}>Xem tất cả</Text>
         </TouchableOpacity>
@@ -753,8 +604,12 @@ const HomeScreen = () => {
                 />
                 <View style={{ padding: 5 }}>
                   {/* Tên món ăn */}
-                  <Text style={styles.textNameDish}>
-                    {item.dishName || "Tên món"}
+                  <Text
+                    style={styles.textNameDish}
+                    numberOfLines={1} // Giới hạn 1 dòng
+                    ellipsizeMode="tail" // Thêm "..." nếu tên quá dài
+                  >
+                    {item.name || "Tên món ăn"}
                   </Text>
 
                   {/* Loại món ăn */}
@@ -763,21 +618,18 @@ const HomeScreen = () => {
                   </Text>
 
                   {/* Rating và Giá */}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <View style={{ flexDirection: "row" }}>
+                  <View style={styles.ratingAndPrice}>
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
+                    >
                       <Text style={styles.star}>⭐</Text>
                       <Text style={styles.rating}>
-                        {item.averageRating || "0.0"}
+                        {item.averageRating?.toFixed(1) || "0.0"}
                       </Text>
                     </View>
-                    <Text style={styles.textDishType}>
+                    <Text style={styles.price}>
                       {item.price
-                        ? `${item.price.toLocaleString()} đ`
+                        ? `${item.price.toLocaleString()} vnđ`
                         : "0.000 đ"}
                     </Text>
                   </View>
@@ -865,32 +717,7 @@ const styles = StyleSheet.create({
     borderColor: "#E0E0E0",
     marginRight: 20,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    color: COLORS.grey,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-  },
 
-  searchSuggestions: {
-    position: "absolute",
-    top: 300,
-    marginLeft: 19,
-
-    width: "79%",
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    zIndex: 1,
-
-    borderRadius: 5,
-  },
-  suggestionText: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
   dishHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -931,31 +758,31 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     marginBottom: 10,
-    marginTop: 20,
+    marginTop: 5,
     backgroundColor: COLORS.white,
     elevation: 1,
     borderRadius: 8,
     overflow: "hidden",
-    width: width / 2 - 30, // Đảm bảo kích thước cố định để 2 cột hiển thị đều nhau
-  },
-  dummyItem: {
-    flex: 1,
-    marginHori0ontal: 5,
-    marginBottom: 10,
-    backgroundColor: "transparent",
-    width: "45%",
+    width: width / 2 - 30, // Kích thước item
   },
   textNameDish: {
     color: COLORS.black,
     fontSize: 14,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
+    height: 20, // Đặt chiều cao cố định để tránh thay đổi
   },
   textDishType: {
     color: COLORS.grey,
     fontSize: 12,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
+    height: 15, // Đặt chiều cao cố định
+  },
+  ratingAndPrice: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   star: {
     fontSize: 14,
@@ -965,6 +792,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.black,
     marginLeft: 5,
+  },
+  price: {
+    fontSize: 14,
+    color: COLORS.black,
+    fontFamily: FONTS.bold,
   },
 });
 

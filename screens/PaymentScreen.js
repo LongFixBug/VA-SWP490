@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  TouchableOpacity,
 } from "react-native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
@@ -18,7 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const PaymentScreen = ({ navigation }) => {
   const [orderDetails, setOrderDetails] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [note, setNote] = useState("Chuyển tiền cho đơn hàng tại VA");
+
   const [userId, setUserId] = useState(null);
 
   // Hàm gọi API có thêm token
@@ -83,7 +84,7 @@ const PaymentScreen = ({ navigation }) => {
         userId: parseInt(userId, 10),
         totalPrice: orderDetails.totalPrice,
         deliveryAddress: orderDetails.deliveryAddress || "Không có địa chỉ",
-        note: note || "Không có ghi chú",
+        note: orderDetails.note || "Không có ghi chú",
         deliveryFee: orderDetails.deliveryFee || 0,
         orderDate: new Date().toISOString(),
         status: "paid",
@@ -198,13 +199,34 @@ const PaymentScreen = ({ navigation }) => {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.white }}>
       <Header
-        title={"Mã QR"}
-        leftIcon={"arrow-back-outline"}
+        title={"Xác nhận thanh toán"}
         colorBackground={"transparent"}
-        colorText={COLORS.white}
+        colorText={COLORS.green}
         onPress={() => navigation.goBack()}
       />
       <View style={styles.content}>
+        <View style={styles.rulesContainer}>
+          <Text style={styles.rulesHeader}>Quy định thanh toán:</Text>
+          <Text style={styles.rulesText}>
+            1/ Khi bạn chọn thanh toán QR CODE cho đơn hàng này, sau khi thanh
+            toán thành công nếu bạn hủy đơn hàng thì phải liên hệ cho VA qua
+            những phương thức ở trang "Contact Us" để VA kịp thời hỗ trợ việc
+            hoàn tiền.
+          </Text>
+          <Text style={styles.rulesText}>
+            2/ Nếu bạn không liên hệ cho VA thì sẽ mất vài ngày để có thể xử lý.
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate("ContactUs")}>
+            <Text
+              style={[
+                styles.rulesText,
+                { color: COLORS.green, textDecorationLine: "underline" },
+              ]}
+            >
+              3/ Truy cập "Contact Us" ở đây.
+            </Text>
+          </TouchableOpacity>
+        </View>
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.green} />
         ) : (
@@ -212,14 +234,8 @@ const PaymentScreen = ({ navigation }) => {
             Nhấn "Xác nhận thanh toán" để tạo mã QR
           </Text>
         )}
-        <TextInput
-          style={styles.input}
-          value={note}
-          onChangeText={setNote}
-          placeholder="Nhập ghi chú..."
-        />
         <Text style={styles.totalText}>
-          Số tiền thanh toán: {orderDetails?.totalPrice?.toLocaleString()}đ
+          Số tiền thanh toán: {orderDetails?.totalPrice?.toLocaleString()}vnđ
         </Text>
       </View>
       <ButtonFloatBottom
@@ -259,5 +275,25 @@ const styles = StyleSheet.create({
     borderColor: COLORS.grey,
     borderRadius: 8,
     fontFamily: FONTS.regular,
+  },
+  rulesContainer: {
+    marginTop: 20,
+    paddingHorizontal: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.grey,
+    paddingTop: 10,
+  },
+  rulesHeader: {
+    fontSize: 20,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.green,
+    marginBottom: 5,
+  },
+  rulesText: {
+    fontSize: 20,
+    fontFamily: FONTS.regular,
+    color: COLORS.grey,
+    marginBottom: 10,
+    textAlign: "justify",
   },
 });

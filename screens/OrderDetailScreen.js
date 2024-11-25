@@ -27,6 +27,7 @@ import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
+import Toast from "react-native-toast-message";
 
 const OrderDetailScreen = ({ navigation }) => {
   const [order, setOrder] = useState(null);
@@ -63,7 +64,7 @@ const OrderDetailScreen = ({ navigation }) => {
   );
 
   const orderStatus = {
-    pending: { color: COLORS.yellow, text: "Chờ xác nhận" },
+    pending: { color: COLORS.grey, text: "Chờ xác nhận" },
     processing: { color: COLORS.orange, text: "Đang xử lí" },
     delivering: { color: COLORS.blue, text: "Đang giao hàng" },
     delivered: { color: COLORS.green, text: "Đã giao" },
@@ -184,13 +185,36 @@ const OrderDetailScreen = ({ navigation }) => {
         return;
       }
 
+      // Gọi API kiểm tra nội dung feedback
+      const checkResult = await checkCommentContent(feedback);
+
+      if (checkResult && checkResult.success === false) {
+        // Đóng form trước khi hiển thị Toast
+        handleClosePress();
+
+        let message =
+          "Nội dung đánh giá của bạn không hợp lệ. Vui lòng nhập lại!";
+        if (checkResult.message.includes("violent language")) {
+          message = "Bạn sử dụng ngôn từ bạo lực, hãy đánh giá lại nhé!";
+        }
+
+        Toast.show({
+          type: "error",
+          text1: "Cảnh báo",
+          text2: message,
+        });
+
+        return; // Dừng lại nếu nội dung không hợp lệ
+      }
+
+      // Nếu nội dung hợp lệ, gửi feedback
       const payload = {
-        dishId: selectedDish.dishId, // Use the selectedDish's dishId
-        userId: order?.userId, // ID người dùng
-        orderId: order?.orderId, // ID đơn hàng
-        rating: rating, // Điểm đánh giá
-        feedbackContent: feedback, // Nội dung đánh giá
-        feedbackDate: new Date().toISOString(), // Thời gian đánh giá
+        dishId: selectedDish.dishId,
+        userId: order?.userId,
+        orderId: order?.orderId,
+        rating: rating,
+        feedbackContent: feedback,
+        feedbackDate: new Date().toISOString(),
       };
 
       const response = await fetchWithAuth(
@@ -202,15 +226,29 @@ const OrderDetailScreen = ({ navigation }) => {
       );
 
       if (response.ok) {
+        await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/EditCustomer/membership/changePoint/${order?.userId}/20`,
+          {
+            method: "PUT",
+          }
+        );
+
+        // Đóng form feedback trước khi hiển thị Toast
         handleClosePress();
-        setFeedback(""); // Clear feedback input
-        setRating(0); // Reset rating
-        setLoading(true);
-        setTimeout(() => {
-          setLoading(false);
-          setNotificationVisible(true);
-        }, 1000);
-        Alert.alert("Thông báo", "Đánh giá đã được gửi thành công.");
+
+        // Reset form feedback
+        setFeedback("");
+        setRating(0);
+
+        // Hiển thị Toast thành công
+        Toast.show({
+          type: "success",
+          text1: "Thông báo",
+          text2: "Đánh giá đã được gửi thành công! Bạn đã được cộng điểm.",
+        });
+
+        // Load lại danh sách món đã đánh giá
+        await fetchReviewedDishes();
       } else {
         const errorData = await response.json();
         console.error("Error submitting feedback:", errorData);
@@ -219,6 +257,30 @@ const OrderDetailScreen = ({ navigation }) => {
     } catch (error) {
       console.error("Error submitting feedback:", error);
       Alert.alert("Lỗi", "Có lỗi xảy ra khi gửi đánh giá.");
+    }
+  };
+  //sua check content
+  const checkCommentContent = async (content) => {
+    try {
+      const response = await fetchWithAuth(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/checkCommentContent",
+        {
+          method: "POST",
+          body: JSON.stringify({ content }),
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return data; // Trả về kết quả từ API
+      } else {
+        console.error("Error checking comment content:", response.status);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error checking comment content:", error);
+      return null;
     }
   };
 
@@ -274,6 +336,7 @@ const OrderDetailScreen = ({ navigation }) => {
         colorText={COLORS.black}
         onPress={() => navigation.goBack()}
       />
+      <Toast />
       <ScrollView
         style={{ flex: 1, backgroundColor: COLORS.white }}
         contentContainerStyle={{ padding: 15, paddingTop: 0 }}
@@ -338,6 +401,11 @@ const OrderDetailScreen = ({ navigation }) => {
               activeOpacity={0.8}
               style={styles.listItem}
               key={index}
+              onPress={() =>
+                navigation.navigate("DishDetail", {
+                  dishId: item.dish.dishId,
+                })
+              } // Chuyển `onPress` vào bên trong `TouchableOpacity`
             >
               <Image
                 source={{ uri: item.dish.imageUrl }}

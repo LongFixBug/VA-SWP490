@@ -13,6 +13,7 @@ import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import IconAnt from "react-native-vector-icons/AntDesign";
 
 const ProfileScreen = ({ navigation }) => {
   const [userData, setUserData] = useState({});
@@ -22,6 +23,8 @@ const ProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [showPendingPosts, setShowPendingPosts] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
+  const [rejectedPosts, setRejectedPosts] = useState([]);
+  const [activeTab, setActiveTab] = useState("accepted"); // Thêm state activeTab
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -115,6 +118,8 @@ const ProfileScreen = ({ navigation }) => {
             return {
               ...post,
               images: images.filter((img) => img.imageUrl),
+              authorImageUrl:
+                userData.imageUrl || "https://via.placeholder.com/45",
             };
           })
         );
@@ -127,9 +132,13 @@ const ProfileScreen = ({ navigation }) => {
       const pending = processedPosts.filter(
         (post) => post.status === "pending"
       );
+      const reject = processedPosts.filter(
+        (post) => post.status === "unaccepted"
+      );
 
       setUserPosts(accepted);
       setPendingPosts(pending);
+      setRejectedPosts(reject);
     } catch (error) {
       console.error("Lỗi khi tải bài viết:", error);
     } finally {
@@ -142,6 +151,167 @@ const ProfileScreen = ({ navigation }) => {
     await fetchUserPosts();
     setRefreshing(false);
   };
+
+  const renderPost = (item, activeTab) => (
+    <View
+      style={{
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.greyPastel,
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 10,
+      }}
+      key={item.articleId}
+    >
+      {/* Thông tin bài viết */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate("PostDetailScreen", { post: item })}
+        activeOpacity={0.8}
+      >
+        <View style={{ flexDirection: "row" }}>
+          <Image
+            source={{
+              uri:
+                item.authorImageUrl ||
+                userData.imageUrl ||
+                "https://via.placeholder.com/45",
+            }}
+            style={{
+              width: 45,
+              height: 45,
+              borderRadius: 50,
+              marginRight: 10,
+            }}
+          />
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontFamily: FONTS.medium,
+                fontSize: 14,
+              }}
+            >
+              {item.authorName || "Ẩn danh"}
+            </Text>
+            <Text
+              style={{
+                fontFamily: FONTS.medium,
+                fontSize: 12,
+                marginTop: 3,
+                color: COLORS.grey,
+              }}
+            >
+              {item.createdAt || "Ngày không xác định"}
+            </Text>
+          </View>
+        </View>
+        <View style={{ marginTop: 10 }}>
+          <Text
+            style={{
+              fontFamily: FONTS.semiBold,
+              fontSize: 14,
+              lineHeight: 20,
+            }}
+          >
+            {item.title}
+          </Text>
+          <Text
+            style={{
+              fontFamily: FONTS.medium,
+              fontSize: 13,
+              lineHeight: 22,
+              marginTop: 5,
+            }}
+            numberOfLines={2}
+          >
+            {item.content}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* Cuộn ảnh ngang */}
+      {item.images && item.images.length > 0 && (
+        <ScrollView
+          horizontal
+          style={{ marginTop: 10 }}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 10 }}
+        >
+          {item.images.map((image, index) => (
+            <Image
+              key={`${item.articleId}-${index}`}
+              source={{
+                uri: image.imageUrl,
+              }}
+              style={{
+                width: 150,
+                height: 100,
+                borderRadius: 8,
+                marginRight: 10,
+              }}
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      {/* Tương tác thích và bình luận - chỉ hiển thị nếu là bài "đã chấp nhận" */}
+      {activeTab === "accepted" && (
+        <View style={{ flexDirection: "row", marginTop: 10 }}>
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginRight: 20,
+            }}
+            onPress={() => console.log("Like button pressed")}
+          >
+            <IconAnt
+              name={item.liked ? "like1" : "like2"}
+              size={28}
+              color={item.liked ? COLORS.green : COLORS.greySolid}
+            />
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                fontSize: 16,
+                color: item.liked ? COLORS.green : COLORS.greySolid,
+                marginLeft: 5,
+              }}
+            >
+              {item.likes || 0}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginRight: 20,
+            }}
+            onPress={() =>
+              navigation.navigate("PostDetailScreen", { post: item })
+            }
+          >
+            <Icon
+              name="chatbubble-outline"
+              size={27}
+              color={COLORS.greySolid}
+            />
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                fontSize: 16,
+                color: COLORS.greySolid,
+                marginLeft: 5,
+              }}
+            >
+              {item.comments || 0}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <>
@@ -190,107 +360,104 @@ const ProfileScreen = ({ navigation }) => {
         )}
 
         {/* Thông tin người dùng */}
-        <View style={{ flexDirection: "row", marginBottom: 20 }}>
+        {/* Thông tin người dùng */}
+        <View style={{ alignItems: "center", marginBottom: 10 }}>
           <Image
             source={{
               uri:
                 userData?.imageUrl ||
-                "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740",
+                "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg",
             }}
             style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              marginRight: 10,
+              width: 120,
+              height: 120,
+              borderRadius: 60,
+              marginBottom: 10,
             }}
           />
+          <Text
+            style={{ fontFamily: FONTS.bold, fontSize: 20, marginBottom: 10 }}
+          >
+            {userData.username || "Người dùng"}
+          </Text>
+
+          {/* Tabs */}
           <View
             style={{
-              flex: 1,
               flexDirection: "row",
-              alignItems: "center",
+              justifyContent: "space-around",
+              width: "100%",
+              marginTop: 10,
             }}
           >
             {/* Bài đăng */}
             <TouchableOpacity
+              onPress={() => setActiveTab("accepted")}
               style={{
                 alignItems: "center",
-                width: "30%",
+                borderBottomWidth: activeTab === "accepted" ? 2 : 0,
+                borderBottomColor: COLORS.green,
+                paddingBottom: 5,
               }}
-              onPress={() => setShowPendingPosts(false)}
             >
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
                 {userPosts.length}
               </Text>
-              <Text
-                style={{
-                  fontFamily: FONTS.medium,
-                  marginTop: 8,
-                  fontSize: 12,
-                }}
-              >
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
                 Bài đăng
               </Text>
             </TouchableOpacity>
 
             {/* Bài chờ duyệt */}
             <TouchableOpacity
+              onPress={() => setActiveTab("pending")}
               style={{
                 alignItems: "center",
-                width: "35%",
+                borderBottomWidth: activeTab === "pending" ? 2 : 0,
+                borderBottomColor: COLORS.green,
+                paddingBottom: 5,
               }}
-              onPress={() => setShowPendingPosts(true)}
             >
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
                 {pendingPosts.length}
               </Text>
-              <Text
-                style={{
-                  fontFamily: FONTS.medium,
-                  marginTop: 8,
-                  fontSize: 12,
-                }}
-              >
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
                 Bài chờ duyệt
               </Text>
             </TouchableOpacity>
 
-            {/* Đang theo dõi */}
+            {/* Bài bị từ chối */}
             <TouchableOpacity
+              onPress={() => setActiveTab("rejected")}
               style={{
                 alignItems: "center",
-                width: "35%",
+                borderBottomWidth: activeTab === "rejected" ? 2 : 0,
+                borderBottomColor: COLORS.green,
+                paddingBottom: 5,
               }}
             >
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 15 }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
+                {rejectedPosts.length || 0}
+              </Text>
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
+                Bài bị từ chối
+              </Text>
+            </TouchableOpacity>
+
+            {/* Người theo dõi */}
+            <TouchableOpacity style={{ alignItems: "center" }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
                 {followersCount}
               </Text>
-              <Text
-                style={{
-                  fontFamily: FONTS.medium,
-                  marginTop: 8,
-                  fontSize: 12,
-                }}
-              >
-                Đang theo dõi
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
+                Người theo dõi
               </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text
-          style={{
-            fontFamily: FONTS.semiBold,
-            marginTop: 10,
-            fontSize: 17,
-            marginLeft: 5,
-          }}
-        >
-          {userData.username}
-        </Text>
-
         {/* Danh sách bài viết */}
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 10, marginBottom: 20 }}>
           <View
             style={{
               flexDirection: "row",
@@ -306,260 +473,42 @@ const ProfileScreen = ({ navigation }) => {
                 fontSize: 17,
               }}
             >
-              {showPendingPosts ? "Bài chờ duyệt" : "Bài đăng"}
+              {activeTab === "accepted"
+                ? "Bài đăng"
+                : activeTab === "pending"
+                ? "Bài chờ duyệt"
+                : "Bài bị từ chối"}
             </Text>
-            <Icon name="options" size={24} color={COLORS.grey} />
+            {/* <Icon name="options" size={24} color={COLORS.grey} /> */}
           </View>
 
-          {/* Hiển thị danh sách bài */}
+          {/* Hiển thị danh sách bài viết */}
           {loading ? (
             <Text style={{ textAlign: "center", marginVertical: 20 }}>
               Đang tải...
             </Text>
-          ) : showPendingPosts ? (
+          ) : activeTab === "accepted" ? (
+            userPosts.length === 0 ? (
+              <Text style={{ textAlign: "center", marginVertical: 20 }}>
+                Không có bài viết nào
+              </Text>
+            ) : (
+              userPosts.map((post) => renderPost(post, activeTab)) // Sử dụng hàm renderPost
+            )
+          ) : activeTab === "pending" ? (
             pendingPosts.length === 0 ? (
               <Text style={{ textAlign: "center", marginVertical: 20 }}>
                 Không có bài viết chờ duyệt
               </Text>
             ) : (
-              pendingPosts.map((item, index) => (
-                <TouchableOpacity
-                  key={`${item.articleId}-${index}`}
-                  onPress={() =>
-                    navigation.navigate("PostDetailScreen", { post: item })
-                  }
-                >
-                  <View
-                    style={{
-                      backgroundColor: COLORS.white,
-                      borderWidth: 1,
-                      borderColor: COLORS.greyPastel,
-                      padding: 10,
-                      borderRadius: 8,
-                      marginBottom: 10,
-                    }}
-                  >
-                    <View style={{ flexDirection: "row" }}>
-                      <Image
-                        source={{
-                          uri:
-                            userData.imageUrl ||
-                            "https://via.placeholder.com/45",
-                        }}
-                        style={{
-                          width: 45,
-                          height: 45,
-                          borderRadius: 50,
-                          marginRight: 10,
-                        }}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontFamily: FONTS.medium,
-                            fontSize: 14,
-                          }}
-                        >
-                          {userData.username || "Người dùng"}
-                        </Text>
-                        <Text
-                          style={{
-                            fontFamily: FONTS.medium,
-                            fontSize: 12,
-                            marginTop: 3,
-                            color: COLORS.grey,
-                          }}
-                        >
-                          {item.createdAt || "12:05, 22/10/2024"}
-                        </Text>
-                      </View>
-                      <Icon
-                        name="ellipsis-horizontal"
-                        size={24}
-                        color={COLORS.greySolid}
-                      />
-                    </View>
-                    <View style={{ marginTop: 10 }}>
-                      <Text
-                        style={{
-                          fontFamily: FONTS.semiBold,
-                          fontSize: 14,
-                          lineHeight: 20,
-                        }}
-                      >
-                        {item.title}
-                      </Text>
-                      <Text
-                        style={{
-                          fontFamily: FONTS.medium,
-                          fontSize: 13,
-                          lineHeight: 22,
-                          marginTop: 5,
-                        }}
-                        numberOfLines={2}
-                      >
-                        {item.content}
-                      </Text>
-                      <ScrollView
-                        horizontal
-                        style={{ marginTop: 10 }}
-                        showsHorizontalScrollIndicator={false}
-                      >
-                        {Array.isArray(item.articleImages) &&
-                        item.articleImages.length > 0 ? (
-                          item.articleImages.map((image, idx) => (
-                            <Image
-                              key={idx}
-                              source={{
-                                uri: image || "https://via.placeholder.com/100",
-                              }} // Fallback nếu `image` null
-                              style={{
-                                width: 100,
-                                height: 100,
-                                borderRadius: 8,
-                                marginRight: 10,
-                              }}
-                            />
-                          ))
-                        ) : (
-                          <Text
-                            style={{
-                              fontFamily: FONTS.medium,
-                              fontSize: 12,
-                              color: COLORS.grey,
-                            }}
-                          >
-                            Không có ảnh
-                          </Text>
-                        )}
-                      </ScrollView>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))
+              pendingPosts.map((post) => renderPost(post, activeTab)) // Sử dụng hàm renderPost
             )
-          ) : userPosts.length === 0 ? (
+          ) : rejectedPosts.length === 0 ? (
             <Text style={{ textAlign: "center", marginVertical: 20 }}>
-              Không có bài viết nào
+              Không có bài viết bị từ chối
             </Text>
           ) : (
-            userPosts.map((item, index) => (
-              <TouchableOpacity
-                key={`${item.articleId}-${index}`}
-                onPress={() =>
-                  navigation.navigate("PostDetailScreen", {
-                    post: {
-                      ...item,
-                      articleImages: item.articleImages || [], // Nếu null, dùng mảng rỗng làm fallback
-                    },
-                  })
-                }
-              >
-                <View
-                  style={{
-                    backgroundColor: COLORS.white,
-                    borderWidth: 1,
-                    borderColor: COLORS.greyPastel,
-                    padding: 10,
-                    borderRadius: 8,
-                    marginBottom: 10,
-                  }}
-                >
-                  <View style={{ flexDirection: "row" }}>
-                    <Image
-                      source={{
-                        uri:
-                          userData.imageUrl || "https://via.placeholder.com/45",
-                      }}
-                      style={{
-                        width: 45,
-                        height: 45,
-                        borderRadius: 50,
-                        marginRight: 10,
-                      }}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontFamily: FONTS.medium,
-                          fontSize: 14,
-                        }}
-                      >
-                        {userData.username || "Người dùng"}
-                      </Text>
-                      <Text
-                        style={{
-                          fontFamily: FONTS.medium,
-                          fontSize: 12,
-                          marginTop: 3,
-                          color: COLORS.grey,
-                        }}
-                      >
-                        {item.createdAt || "12:05, 22/10/2024"}
-                      </Text>
-                    </View>
-                    <Icon
-                      name="ellipsis-horizontal"
-                      size={24}
-                      color={COLORS.greySolid}
-                    />
-                  </View>
-                  <View style={{ marginTop: 10 }}>
-                    <Text
-                      style={{
-                        fontFamily: FONTS.semiBold,
-                        fontSize: 14,
-                        lineHeight: 20,
-                      }}
-                    >
-                      {item.title}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: FONTS.medium,
-                        fontSize: 13,
-                        lineHeight: 22,
-                        marginTop: 5,
-                      }}
-                      numberOfLines={2}
-                    >
-                      {item.content}
-                    </Text>
-                    <ScrollView
-                      horizontal
-                      style={{ marginTop: 10 }}
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      {Array.isArray(item.articleImages) &&
-                      item.articleImages.length > 0 ? (
-                        item.articleImages.map((image, idx) => (
-                          <Image
-                            key={idx}
-                            source={{ uri: image }}
-                            style={{
-                              width: 100,
-                              height: 100,
-                              borderRadius: 8,
-                              marginRight: 10,
-                            }}
-                          />
-                        ))
-                      ) : (
-                        <Text
-                          style={{
-                            fontFamily: FONTS.medium,
-                            fontSize: 12,
-                            color: COLORS.grey,
-                          }}
-                        >
-                          Không có ảnh
-                        </Text>
-                      )}
-                    </ScrollView>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))
+            rejectedPosts.map((post) => renderPost(post)) // Sử dụng hàm renderPost
           )}
         </View>
       </ScrollView>

@@ -286,37 +286,33 @@ const AllDishScreen = ({ navigation, route }) => {
               }}
               style={styles.gridItem}
             >
-              <Image
-                source={{
-                  uri: item.imageUrl || "https://picsum.photos/300",
-                }}
-                style={{
-                  width: "100%",
-                  height: 100,
-                  resizeMode: "cover",
-                  borderTopLeftRadius: 8,
-                  borderTopRightRadius: 8,
-                }}
-              />
-              <View style={{ padding: 5 }}>
-                <Text style={styles.textNameDish} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.textDishType}>{item.dishType}</Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{
+                    uri: item.imageUrl || "https://picsum.photos/300",
                   }}
-                >
-                  <View style={{ flexDirection: "row" }}>
+                  style={styles.dishImage}
+                />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.textNameDish} numberOfLines={1}>
+                  {item.name || "Tên món ăn"}
+                </Text>
+                <Text style={styles.textDishType}>
+                  {item.dishType || "Loại món ăn"}
+                </Text>
+                <View style={styles.ratingAndPrice}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Icon name="star" size={16} color={COLORS.star} />
-                    <Text style={styles.textDishType} numberOfLines={1}>
-                      {" "}
+                    <Text style={styles.textDishType}>
                       {ratings[item.dishId]?.toFixed(1) || "0.0"}
                     </Text>
                   </View>
-                  <Text style={styles.textDishType}>{item.price} đ</Text>
+                  <Text style={styles.price}>
+                    {item.price
+                      ? `${item.price.toLocaleString()} đ`
+                      : "0.000 đ"}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -351,23 +347,52 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderRadius: 8,
     overflow: "hidden",
-    maxWidth: "48%",
+    maxWidth: "48%", // Đảm bảo các item có cùng chiều rộng
+  },
+  imageContainer: {
+    width: "100%",
+    height: 120, // Đặt chiều cao cố định cho hình ảnh
+    overflow: "hidden",
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  dishImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover", // Đảm bảo hình ảnh lấp đầy không gian
+  },
+  textContainer: {
+    padding: 5,
+    backgroundColor: COLORS.white,
   },
   textNameDish: {
     color: COLORS.black,
     fontSize: 14,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
+    height: 20, // Đặt chiều cao cố định để tránh thay đổi bố cục
   },
   textDishType: {
     color: COLORS.grey,
     fontSize: 12,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
+    height: 15, // Đặt chiều cao cố định
+  },
+  ratingAndPrice: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 5,
   },
   dummyItem: {
     flex: 1,
     margin: 10,
     backgroundColor: "transparent",
+  },
+  price: {
+    fontSize: 14,
+    color: COLORS.black,
+    fontFamily: FONTS.bold,
   },
 });

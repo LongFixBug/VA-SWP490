@@ -16,6 +16,7 @@ import IconAnt from "react-native-vector-icons/AntDesign";
 import Header from "../components/Header";
 import ImageViewer from "react-native-image-zoom-viewer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Toast from "react-native-toast-message";
 
 const PostDetailScreen = ({ navigation, route }) => {
   const { post } = route.params;
@@ -37,6 +38,14 @@ const PostDetailScreen = ({ navigation, route }) => {
     };
 
     return fetch(url, { ...options, headers });
+  };
+
+  const showToast = (type, title, message) => {
+    Toast.show({
+      type: type, // Loại thông báo: 'success', 'error', 'info'
+      text1: title, // Tiêu đề thông báo
+      text2: message, // Nội dung thông báo
+    });
   };
 
   useEffect(() => {
@@ -121,7 +130,7 @@ const PostDetailScreen = ({ navigation, route }) => {
         const commentsData = await commentsResponse.json();
         setCommentCount(commentsData.length);
       } catch (error) {
-        console.error("Lỗi khi tải dữ liệu ban đầu:", error);
+        return 0;
       }
     };
 
@@ -172,10 +181,120 @@ const PostDetailScreen = ({ navigation, route }) => {
     }
   };
 
+  // const handlePostComment = async () => {
+  //   if (newComment.trim()) {
+  //     try {
+  //       // Lấy thông tin người dùng hiện tại từ AsyncStorage
+  //       const storedUserData = await AsyncStorage.getItem("userData");
+  //       const parsedUserData = storedUserData ? JSON.parse(storedUserData) : {};
+
+  //       const userId =
+  //         parsedUserData.userId || (await AsyncStorage.getItem("userId"));
+  //       const userName = parsedUserData.username || "Ẩn danh";
+  //       const avatarUrl =
+  //         parsedUserData.imageUrl || "https://via.placeholder.com/35";
+
+  //       // Gửi bình luận lên API
+  //       const response = await fetchWithAuth(
+  //         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment`,
+  //         {
+  //           method: "POST",
+  //           body: JSON.stringify({
+  //             content: newComment,
+  //             userId: userId,
+  //             articleId: post.articleId,
+  //           }),
+  //         }
+  //       );
+
+  //       if (response.ok) {
+  //         // Thêm bình luận mới vào danh sách bình luận
+  //         const newCommentData = {
+  //           content: newComment,
+  //           userId: userId,
+  //           articleId: post.articleId,
+  //           userName: userName,
+  //           avatarUrl: avatarUrl, // Đảm bảo avatar được hiển thị ngay
+  //         };
+
+  //         setComments((prevComments) => [newCommentData, ...prevComments]);
+  //         setNewComment(""); // Reset nội dung bình luận
+  //         setCommentCount((prev) => prev + 1); // Tăng số lượng bình luận
+  //       }
+  //     } catch (error) {
+  //       console.error("Error posting comment:", error);
+  //     }
+  //   }
+  // };
+
+  //checkcomment
+  const checkCommentContent = async (content) => {
+    try {
+      // Tách nội dung thành từng từ
+      const words = content.split(/\s+/); // Tách theo khoảng trắng
+
+      for (let word of words) {
+        // Gọi API kiểm tra từng từ
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/check-comment-content?Content=${encodeURIComponent(
+            word
+          )}`,
+          {
+            method: "GET", // Phương thức GET
+          }
+        );
+
+        if (!response.ok) {
+          return { success: false, message: "Invalid content detected." };
+        }
+
+        const result = await response.json();
+
+        // Nếu API trả về success là false, dừng kiểm tra và trả về lỗi
+        if (!result.success) {
+          return {
+            success: false,
+            message: `Invalid content detected: "${word}"`,
+          };
+        }
+      }
+
+      // Nếu tất cả từ đều hợp lệ
+      return { success: true, message: "Content is valid." };
+    } catch (error) {
+      console.error("Error checking comment content:", error);
+      return { success: false, message: "Error checking content." };
+    }
+  };
+
   const handlePostComment = async () => {
     if (newComment.trim()) {
       try {
-        // Lấy thông tin người dùng hiện tại từ AsyncStorage
+        // Gọi API kiểm tra nội dung bình luận
+        const checkResult = await checkCommentContent(newComment);
+
+        if (!checkResult.success) {
+          // Hiển thị thông báo lỗi dựa trên message từ API
+          let toastMessage =
+            "Bình luận của bạn không hợp lệ, hãy bình luận lại nhé!";
+          if (
+            checkResult.message === "Invalid content: contains adult language."
+          ) {
+            toastMessage =
+              "Bạn sử dụng ngôn từ thô tục, hãy bình luận lại nhé!";
+          } else if (
+            checkResult.message ===
+            "Invalid content: contains violent language."
+          ) {
+            toastMessage =
+              "Bạn sử dụng ngôn từ bạo lực, hãy bình luận lại nhé!";
+          }
+
+          showToast("error", "Lỗi bình luận", toastMessage);
+          return; // Dừng xử lý nếu nội dung không hợp lệ
+        }
+
+        // Tiếp tục gửi bình luận nếu nội dung hợp lệ
         const storedUserData = await AsyncStorage.getItem("userData");
         const parsedUserData = storedUserData ? JSON.parse(storedUserData) : {};
 
@@ -185,7 +304,6 @@ const PostDetailScreen = ({ navigation, route }) => {
         const avatarUrl =
           parsedUserData.imageUrl || "https://via.placeholder.com/35";
 
-        // Gửi bình luận lên API
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment`,
           {
@@ -199,22 +317,32 @@ const PostDetailScreen = ({ navigation, route }) => {
         );
 
         if (response.ok) {
-          // Thêm bình luận mới vào danh sách bình luận
           const newCommentData = {
             content: newComment,
             userId: userId,
             articleId: post.articleId,
             userName: userName,
-            avatarUrl: avatarUrl, // Đảm bảo avatar được hiển thị ngay
+            avatarUrl: avatarUrl,
           };
 
           setComments((prevComments) => [newCommentData, ...prevComments]);
           setNewComment(""); // Reset nội dung bình luận
           setCommentCount((prev) => prev + 1); // Tăng số lượng bình luận
+
+          showToast("success", "Thành công", "Bình luận đã được đăng!");
+        } else {
+          showToast(
+            "error",
+            "Lỗi",
+            "Không thể gửi bình luận, vui lòng thử lại sau."
+          );
         }
       } catch (error) {
         console.error("Error posting comment:", error);
+        showToast("error", "Lỗi", "Đã xảy ra lỗi, vui lòng thử lại sau.");
       }
+    } else {
+      showToast("error", "Lỗi", "Vui lòng nhập nội dung bình luận.");
     }
   };
 
@@ -268,61 +396,64 @@ const PostDetailScreen = ({ navigation, route }) => {
               ))}
           </ScrollView>
           {/* like - comment */}
-          <View
-            style={{
-              flexDirection: "row",
-              marginTop: 20,
-              alignItems: "center",
-            }}
-          >
-            {/* Nút like */}
-            <TouchableOpacity
+          {/* like - comment */}
+          {post.status === "accepted" && (
+            <View
               style={{
                 flexDirection: "row",
+                marginTop: 20,
                 alignItems: "center",
-                marginRight: 20,
               }}
-              onPress={handleLike}
             >
-              <IconAnt
-                name={liked ? "like1" : "like2"}
-                size={24}
-                color={liked ? COLORS.green : COLORS.greySolid}
-              />
-              <Text
+              {/* Nút like */}
+              <TouchableOpacity
                 style={{
-                  fontFamily: FONTS.medium,
-                  fontSize: 16,
-                  marginLeft: 5,
-                  color: liked ? COLORS.green : COLORS.greySolid,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginRight: 20,
                 }}
+                onPress={handleLike}
               >
-                {likes || 0}
-              </Text>
-            </TouchableOpacity>
+                <IconAnt
+                  name={liked ? "like1" : "like2"}
+                  size={24}
+                  color={liked ? COLORS.green : COLORS.greySolid}
+                />
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    fontSize: 16,
+                    marginLeft: 5,
+                    color: liked ? COLORS.green : COLORS.greySolid,
+                  }}
+                >
+                  {likes || 0}
+                </Text>
+              </TouchableOpacity>
 
-            {/* Nút comment */}
-            <TouchableOpacity
-              style={{ flexDirection: "row", alignItems: "center" }}
-              onPress={() => {}}
-            >
-              <Icon
-                name="chatbubble-outline"
-                size={24}
-                color={COLORS.greySolid}
-              />
-              <Text
-                style={{
-                  fontFamily: FONTS.medium,
-                  fontSize: 16,
-                  marginLeft: 5,
-                  color: COLORS.greySolid,
-                }}
+              {/* Nút comment */}
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center" }}
+                onPress={() => {}}
               >
-                {commentCount || 0}
-              </Text>
-            </TouchableOpacity>
-          </View>
+                <Icon
+                  name="chatbubble-outline"
+                  size={24}
+                  color={COLORS.greySolid}
+                />
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    fontSize: 16,
+                    marginLeft: 5,
+                    color: COLORS.greySolid,
+                  }}
+                >
+                  {commentCount || 0}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Khu vực hiển thị bình luận */}
@@ -363,6 +494,9 @@ const PostDetailScreen = ({ navigation, route }) => {
           <Icon name="send-outline" size={24} color={COLORS.green} />
         </TouchableOpacity>
       </View>
+
+      {/* Toast Message */}
+      <Toast />
 
       {/* Modal hiển thị ảnh */}
       <Modal visible={imageView} transparent>

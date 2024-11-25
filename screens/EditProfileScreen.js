@@ -525,7 +525,7 @@ const EditProfileScreen = ({ navigation }) => {
         </View>
 
         {/* Nghề nghiệp */}
-        <View style={styles.attributeRow}>
+        {/* <View style={styles.attributeRow}>
           <View>
             <Text style={styles.textTitle}>Nghề nghiệp: </Text>
           </View>
@@ -538,7 +538,7 @@ const EditProfileScreen = ({ navigation }) => {
               placeholderTextColor={COLORS.lightGrey}
             />
           </View>
-        </View>
+        </View> */}
 
         {/* Mức độ hoạt động */}
         <View style={styles.inputContainer}>

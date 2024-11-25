@@ -156,14 +156,13 @@ const LoginScreen = ({ navigation }) => {
         </View>
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
-            Email hoặc số điện thoại{" "}
-            <Text style={{ color: COLORS.red }}>*</Text>
+            Số điện thoại <Text style={{ color: COLORS.red }}>*</Text>
           </Text>
           <View style={styles.inputRow}>
             <Icon name="person" size={18} color={COLORS.green} />
             <TextInput
               style={styles.textInput}
-              placeholder="Nhập email hoặc số điện thoại"
+              placeholder="Nhập số điện thoại"
               value={emailOrPhone}
               onChangeText={setEmailOrPhone}
             />

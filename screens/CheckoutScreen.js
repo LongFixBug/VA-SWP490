@@ -277,16 +277,21 @@ const CheckoutScreen = ({ navigation }) => {
   }, [selectedDiscount, totalPrice, deliveryFee]);
 
   const handleCheckout = async () => {
+    // Lọc các món hàng hợp lệ
     const validCartItems = detailedCartItems.filter(
       (item) => item.quantity > 0
     );
 
+    // Kiểm tra nếu giỏ hàng trống
     if (validCartItems.length === 0) {
       Alert.alert("Thông báo", "Giỏ hàng trống.");
       return;
     }
+
+    // Tính giá trị giảm giá
     const calculatedDiscountPrice = totalPrice * discountRate;
 
+    // Dữ liệu đơn hàng
     const orderData = {
       userId,
       totalPrice: finalPrice,
@@ -295,15 +300,22 @@ const CheckoutScreen = ({ navigation }) => {
       deliveryFee,
       cartDetails: validCartItems,
       discountRate,
-      discountPrice: totalPrice * discountRate,
+      discountPrice: calculatedDiscountPrice,
       phoneNumber: deliveryInfo.phoneNumber || "Không có số điện thoại",
       receiverName: deliveryInfo.username || "Không có tên người nhận",
+      paymentMethod: currentPayment, // Thêm phương thức thanh toán
     };
 
     try {
+      // Lưu dữ liệu đơn hàng vào AsyncStorage
       await AsyncStorage.setItem("pendingOrder", JSON.stringify(orderData));
       console.log("[DEBUG] Dữ liệu đơn hàng lưu vào AsyncStorage:", orderData);
-      navigation.navigate("Payment", { finalPrice });
+
+      // Điều hướng đến PaymentScreen và truyền thêm thông tin
+      navigation.navigate("Payment", {
+        finalPrice,
+        currentPayment, // Phương thức thanh toán (COD hoặc QR)
+      });
     } catch (error) {
       console.error("Lỗi khi lưu đơn hàng vào AsyncStorage:", error);
       Alert.alert("Lỗi", "Không thể lưu thông tin đơn hàng.");
@@ -381,9 +393,9 @@ const CheckoutScreen = ({ navigation }) => {
       const paymentDetail = paymentDetails[0];
       console.log("[DEBUG] Chi tiết thanh toán đầu tiên:", paymentDetail);
 
-      if (paymentDetail?.paymentStatus === "completed") {
+      if (paymentDetail?.paymentMethod === "COD") {
         console.log(
-          "[DEBUG] Thanh toán đã hoàn tất. Tiến hành cập nhật trạng thái đơn hàng..."
+          "[DEBUG] Phương thức thanh toán là COD. Auto cập nhật trạng thái đơn hàng."
         );
 
         // Step 2: Update order status to 'pending'
@@ -407,93 +419,134 @@ const CheckoutScreen = ({ navigation }) => {
         }
 
         console.log("[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công.");
-
-        // Step 3: Fetch the latest order for the user to get the discountRate
-        console.log("[DEBUG] Gọi API lấy danh sách đơn hàng...");
-        const storedUserId = await AsyncStorage.getItem("userId");
-        if (!storedUserId) {
-          throw new Error("Không thể lấy User ID.");
-        }
-
-        const userId = parseInt(storedUserId, 10);
-        console.log("[DEBUG] User ID:", userId);
-
-        const ordersResponse = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
+      } else if (paymentDetail?.paymentMethod === "PayOs") {
+        console.log(
+          "[DEBUG] Phương thức thanh toán là PayOs. Kiểm tra trạng thái thanh toán."
         );
 
-        if (!ordersResponse.ok) {
-          const errorText = await ordersResponse.text();
-          console.error("[DEBUG] Lỗi khi lấy danh sách đơn hàng:", errorText);
-          throw new Error("Không thể lấy danh sách đơn hàng.");
-        }
+        if (paymentDetail?.paymentStatus === "completed") {
+          console.log(
+            "[DEBUG] Thanh toán đã hoàn tất. Tiến hành cập nhật trạng thái đơn hàng..."
+          );
 
-        const orders = await ordersResponse.json();
-        console.log("[DEBUG] Danh sách đơn hàng:", orders);
+          // Step 2: Update order status to 'pending'
+          const updateResponse = await fetchWithAuth(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}?newStatus=pending`,
+            {
+              method: "PUT",
+              headers: {
+                Accept: "*/*",
+              },
+            }
+          );
 
-        // Find the latest order with "pending" status
-        const latestOrder = orders
-          .filter((order) => order.status === "pending")
-          .reduce((latest, current) => {
-            return new Date(current.orderDate) > new Date(latest.orderDate)
-              ? current
-              : latest;
-          }, orders[0]);
+          if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            console.error(
+              "[DEBUG] Lỗi khi cập nhật trạng thái đơn hàng:",
+              errorText
+            );
+            throw new Error("Không thể cập nhật trạng thái đơn hàng.");
+          }
 
-        if (!latestOrder) {
-          console.log("[DEBUG] Không tìm thấy đơn hàng trạng thái 'pending'.");
-          return;
-        }
-
-        console.log("[DEBUG] Đơn hàng trạng thái 'pending':", latestOrder);
-
-        // Step 4: Map discountRate to tierId
-        const discountRate = latestOrder.discountRate;
-        let tierId = 0;
-
-        if (discountRate === 0.1) {
-          tierId = 2;
-        } else if (discountRate === 0.2) {
-          tierId = 3;
-        } else if (discountRate === 0.3) {
-          tierId = 4;
+          console.log(
+            "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công."
+          );
         } else {
           console.log(
-            "[DEBUG] Không có giảm giá hoặc discountRate không hợp lệ:",
-            discountRate
+            "[DEBUG] Trạng thái thanh toán chưa hoàn tất. Không cập nhật đơn hàng hoặc giảm giá."
           );
           return;
         }
-
-        console.log("[DEBUG] Tính toán tierId:", tierId);
-
-        // Step 5: Update discount history
-        console.log("[DEBUG] Gọi API cập nhật trạng thái giảm giá...");
-        const discountUpdateResponse = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history/inactive/${userId}/${tierId}`,
-          {
-            method: "PUT",
-            headers: {
-              Accept: "*/*",
-            },
-          }
-        );
-
-        if (!discountUpdateResponse.ok) {
-          const errorText = await discountUpdateResponse.text();
-          console.error(
-            "[DEBUG] Lỗi khi cập nhật trạng thái giảm giá:",
-            errorText
-          );
-          throw new Error("Không thể cập nhật trạng thái giảm giá.");
-        }
-
-        console.log("[DEBUG] Trạng thái giảm giá đã được cập nhật thành công.");
       } else {
         console.log(
-          "[DEBUG] Trạng thái thanh toán chưa hoàn tất. Không cập nhật đơn hàng hoặc giảm giá."
+          "[DEBUG] Phương thức thanh toán không được hỗ trợ:",
+          paymentDetail?.paymentMethod
         );
+        throw new Error("Phương thức thanh toán không được hỗ trợ.");
       }
+
+      // Step 3: Fetch the latest order for the user to get the discountRate
+      console.log("[DEBUG] Gọi API lấy danh sách đơn hàng...");
+      const storedUserId = await AsyncStorage.getItem("userId");
+      if (!storedUserId) {
+        throw new Error("Không thể lấy User ID.");
+      }
+
+      const userId = parseInt(storedUserId, 10);
+      console.log("[DEBUG] User ID:", userId);
+
+      const ordersResponse = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
+      );
+
+      if (!ordersResponse.ok) {
+        const errorText = await ordersResponse.text();
+        console.error("[DEBUG] Lỗi khi lấy danh sách đơn hàng:", errorText);
+        throw new Error("Không thể lấy danh sách đơn hàng.");
+      }
+
+      const orders = await ordersResponse.json();
+      console.log("[DEBUG] Danh sách đơn hàng:", orders);
+
+      // Find the latest order with "pending" status
+      const latestOrder = orders
+        .filter((order) => order.status === "pending")
+        .reduce((latest, current) => {
+          return new Date(current.orderDate) > new Date(latest.orderDate)
+            ? current
+            : latest;
+        }, orders[0]);
+
+      if (!latestOrder) {
+        console.log("[DEBUG] Không tìm thấy đơn hàng trạng thái 'pending'.");
+        return;
+      }
+
+      console.log("[DEBUG] Đơn hàng trạng thái 'pending':", latestOrder);
+
+      // Step 4: Map discountRate to tierId
+      const discountRate = latestOrder.discountRate;
+      let tierId = 0;
+
+      if (discountRate === 0.1) {
+        tierId = 2;
+      } else if (discountRate === 0.2) {
+        tierId = 3;
+      } else if (discountRate === 0.3) {
+        tierId = 4;
+      } else {
+        console.log(
+          "[DEBUG] Không có giảm giá hoặc discountRate không hợp lệ:",
+          discountRate
+        );
+        return;
+      }
+
+      console.log("[DEBUG] Tính toán tierId:", tierId);
+
+      // Step 5: Update discount history
+      console.log("[DEBUG] Gọi API cập nhật trạng thái giảm giá...");
+      const discountUpdateResponse = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history/inactive/${userId}/${tierId}`,
+        {
+          method: "PUT",
+          headers: {
+            Accept: "*/*",
+          },
+        }
+      );
+
+      if (!discountUpdateResponse.ok) {
+        const errorText = await discountUpdateResponse.text();
+        console.error(
+          "[DEBUG] Lỗi khi cập nhật trạng thái giảm giá:",
+          errorText
+        );
+        throw new Error("Không thể cập nhật trạng thái giảm giá.");
+      }
+
+      console.log("[DEBUG] Trạng thái giảm giá đã được cập nhật thành công.");
     } catch (error) {
       console.error(
         "[DEBUG] Lỗi khi kiểm tra và cập nhật trạng thái:",
@@ -728,6 +781,7 @@ const CheckoutScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </View>
+
         <View style={styles.deliveryFeeContainer}>
           <Text style={styles.textBold}>Phí giao hàng:</Text>
           <Text style={{ ...styles.textBold, color: COLORS.green }}>

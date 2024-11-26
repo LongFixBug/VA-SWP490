@@ -16,10 +16,10 @@ import Header from "../components/Header";
 import { ButtonFloatBottom } from "../components/Button";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const PaymentScreen = ({ navigation }) => {
+const PaymentScreen = ({ navigation, route }) => {
   const [orderDetails, setOrderDetails] = useState(null);
   const [loading, setLoading] = useState(false);
-
+  const { currentPayment } = route.params || {}; // Lấy từ params
   const [userId, setUserId] = useState(null);
 
   // Hàm gọi API có thêm token
@@ -79,31 +79,21 @@ const PaymentScreen = ({ navigation }) => {
       if (!userId) throw new Error("Không tìm thấy User ID.");
       if (!orderDetails) throw new Error("Không tìm thấy thông tin đơn hàng.");
 
-      // Lấy thông tin từ AsyncStorage
-      const pendingOrder = await AsyncStorage.getItem("pendingOrder");
-      if (!pendingOrder)
-        throw new Error("Không tìm thấy thông tin đơn hàng đang chờ.");
-
-      const orderInfo = JSON.parse(pendingOrder);
-
-      // Tạo đơn hàng với các thông tin bổ sung
+      // Step 1: Tạo Order
       const orderData = {
         userId: parseInt(userId, 10),
-        totalPrice: orderInfo.totalPrice,
-        deliveryAddress: orderInfo.deliveryAddress || "Không có địa chỉ",
-        note: orderInfo.note || "Không có ghi chú",
-        deliveryFee: orderInfo.deliveryFee || 0,
-        discountRate: orderInfo.discountRate || 0,
-        discountPrice: orderInfo.discountPrice || 0,
-        phoneNumber: orderInfo.phoneNumber || "Không có số điện thoại",
-        receiverName: orderInfo.receiverName || "Không có tên người nhận",
+        totalPrice: orderDetails.totalPrice,
+        deliveryAddress: orderDetails.deliveryAddress || "Không có địa chỉ",
+        note: orderDetails.note || "Không có ghi chú",
+        deliveryFee: orderDetails.deliveryFee || 0,
+        discountRate: orderDetails.discountRate || 0,
+        discountPrice: orderDetails.discountPrice || 0,
+        phoneNumber: orderDetails.phoneNumber || "Không có số điện thoại",
+        receiverName: orderDetails.receiverName || "Không có tên người nhận",
         orderDate: new Date().toISOString(),
-        status: "pending_payment",
+        status: "pending_payment", // Trạng thái mặc định ban đầu
       };
 
-      console.log("[DEBUG] Dữ liệu tạo đơn hàng:", orderData);
-
-      // Gọi API để tạo đơn hàng
       const createOrderResponse = await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderByCustomer",
         {
@@ -111,20 +101,24 @@ const PaymentScreen = ({ navigation }) => {
           body: JSON.stringify(orderData),
         }
       );
-      if (!createOrderResponse.ok) throw new Error("Không thể tạo đơn hàng.");
 
-      // Lấy ID đơn hàng mới nhất
+      if (!createOrderResponse.ok) {
+        throw new Error("Không thể tạo đơn hàng.");
+      }
+
+      // Step 2: Lấy Order ID mới nhất
       const getOrdersResponse = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
       );
+
       const orders = await getOrdersResponse.json();
       const latestOrder = orders.reduce((maxOrder, order) =>
         order.orderId > maxOrder.orderId ? order : maxOrder
       );
       const latestOrderId = latestOrder.orderId;
 
-      // Tạo chi tiết đơn hàng
-      const detailedCartItems = orderInfo.cartDetails || [];
+      // Step 3: Tạo OrderDetail
+      const detailedCartItems = orderDetails.items || [];
       for (const item of detailedCartItems) {
         const orderDetailData = {
           orderId: latestOrderId,
@@ -132,6 +126,7 @@ const PaymentScreen = ({ navigation }) => {
           quantity: item.quantity,
           price: item.price,
         };
+
         const createOrderDetailResponse = await fetchWithAuth(
           "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderDetail",
           {
@@ -141,63 +136,74 @@ const PaymentScreen = ({ navigation }) => {
         );
 
         if (!createOrderDetailResponse.ok) {
-          console.error(
-            `Không thể tạo chi tiết đơn hàng cho món: ${item.dishId}.`
+          throw new Error(
+            `Không thể tạo chi tiết đơn hàng cho món: ${item.dishId}`
           );
         }
       }
 
-      // Gọi API thanh toán
-      const paymentData = {
-        orderId: latestOrderId,
-        decryptionKey: "Sav3CtqBonMF3f41HaoxABIi8NKVUMBU1MOHBi1qmf0=", // Key truyền trực tiếp
-      };
+      // Step 4: Xử lý thanh toán theo phương thức
+      if (currentPayment === "COD") {
+        // Tạo PaymentDetail cho COD
+        const paymentDetailData = {
+          orderId: latestOrderId,
+          paymentMethod: "COD",
+          paymentStatus: "pending", // Thanh toán COD sẽ ở trạng thái pending
+          transactionId: "",
+          paymentDate: new Date().toISOString(),
+          amount: orderDetails.totalPrice,
+          refundAmount: 0,
+          returnUrl: "",
+          cancelUrl: "",
+        };
 
-      const authToken = await AsyncStorage.getItem("authToken");
-      if (!authToken) throw new Error("Không tìm thấy authToken.");
+        const createPaymentDetailResponse = await fetchWithAuth(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/create-payment-detail",
+          {
+            method: "POST",
+            body: JSON.stringify(paymentDetailData),
+          }
+        );
 
-      console.log("Dữ liệu gửi đến API thanh toán:", paymentData);
-      console.log("Token Authorization:", authToken);
-
-      const paymentResponse = await fetchWithAuth(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/checkout",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify(paymentData),
-        }
-      );
-
-      console.log(
-        "Trạng thái phản hồi từ API thanh toán:",
-        paymentResponse.status
-      );
-
-      if (!paymentResponse.ok) {
-        const errorText = await paymentResponse.text();
-        console.error("Phản hồi lỗi từ API thanh toán:", errorText);
-
-        if (errorText.includes("Padding is invalid and cannot be removed")) {
-          throw new Error("Key không hợp lệ hoặc không đúng định dạng Base64.");
+        if (!createPaymentDetailResponse.ok) {
+          throw new Error("Không thể tạo thông tin thanh toán COD.");
         }
 
-        throw new Error("Lỗi khi gọi API thanh toán.");
+        // Hiển thị popup thành công
+        Alert.alert(
+          "Thanh toán thành công",
+          "Đơn hàng của bạn sẽ được xử lý. Cảm ơn bạn!",
+          [
+            {
+              text: "OK",
+              onPress: () => navigation.navigate("Checkout"), // Quay lại CheckoutScreen
+            },
+          ]
+        );
+      } else if (currentPayment === "QR") {
+        // Tạo Payment Link cho QR
+        const paymentData = {
+          orderId: latestOrderId,
+          decryptionKey: "Sav3CtqBonMF3f41HaoxABIi8NKVUMBU1MOHBi1qmf0=", // Key truyền trực tiếp
+        };
+
+        const paymentResponse = await fetchWithAuth(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/checkout",
+          {
+            method: "POST",
+            body: JSON.stringify(paymentData),
+          }
+        );
+
+        if (!paymentResponse.ok) {
+          throw new Error("Không thể tạo mã QR.");
+        }
+
+        const paymentLink = await paymentResponse.text();
+
+        // Điều hướng đến WebViewScreen để hiển thị QR Code
+        navigation.navigate("WebViewScreen", { url: paymentLink });
       }
-
-      const paymentLink = await paymentResponse.text();
-      console.log("Đường link thanh toán nhận được:", paymentLink);
-
-      if (!paymentLink.startsWith("http")) {
-        throw new Error("Không nhận được liên kết thanh toán hợp lệ.");
-      }
-
-      navigation.navigate("WebViewScreen", { url: paymentLink });
-
-      // Xóa đơn hàng đang chờ
-      await AsyncStorage.removeItem("pendingOrder");
     } catch (error) {
       console.error("Lỗi:", error.message);
       Alert.alert("Lỗi", error.message || "Có lỗi xảy ra khi thanh toán.");
@@ -205,6 +211,17 @@ const PaymentScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!currentPayment) {
+      console.error("Phương thức thanh toán không xác định!");
+      Alert.alert(
+        "Lỗi",
+        "Không xác định được phương thức thanh toán. Vui lòng quay lại và thử lại."
+      );
+      navigation.goBack(); // Quay lại màn hình trước đó
+    }
+  }, [currentPayment]);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.white }}>

@@ -133,7 +133,7 @@ const ProfileScreen = ({ navigation }) => {
         (post) => post.status === "pending"
       );
       const reject = processedPosts.filter(
-        (post) => post.status === "unaccepted"
+        (post) => post.status === "rejected"
       );
 
       setUserPosts(accepted);
@@ -445,7 +445,12 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
 
             {/* Người theo dõi */}
-            <TouchableOpacity style={{ alignItems: "center" }}>
+            <TouchableOpacity
+              style={{ alignItems: "center" }}
+              onPress={() => {
+                navigation.navigate("Follow");
+              }}
+            >
               <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
                 {followersCount}
               </Text>

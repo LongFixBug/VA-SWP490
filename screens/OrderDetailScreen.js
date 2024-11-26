@@ -262,25 +262,40 @@ const OrderDetailScreen = ({ navigation }) => {
   //sua check content
   const checkCommentContent = async (content) => {
     try {
-      const response = await fetchWithAuth(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/checkCommentContent",
-        {
-          method: "POST",
-          body: JSON.stringify({ content }),
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      // Tách nội dung thành từng từ
+      const words = content.split(/\s+/); // Tách theo khoảng trắng
 
-      if (response.ok) {
-        const data = await response.json();
-        return data; // Trả về kết quả từ API
-      } else {
-        console.error("Error checking comment content:", response.status);
-        return null;
+      for (let word of words) {
+        // Gọi API kiểm tra từng từ
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/check-comment-content?Content=${encodeURIComponent(
+            word
+          )}`,
+          {
+            method: "GET", // Phương thức GET
+          }
+        );
+
+        if (!response.ok) {
+          return { success: false, message: "Invalid content detected." };
+        }
+
+        const result = await response.json();
+
+        // Nếu API trả về success là false, dừng kiểm tra và trả về lỗi
+        if (!result.success) {
+          return {
+            success: false,
+            message: `Invalid content detected: "${word}"`,
+          };
+        }
       }
+
+      // Nếu tất cả từ đều hợp lệ
+      return { success: true, message: "Content is valid." };
     } catch (error) {
       console.error("Error checking comment content:", error);
-      return null;
+      return { success: false, message: "Error checking content." };
     }
   };
 

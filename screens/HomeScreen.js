@@ -494,7 +494,9 @@ const HomeScreen = () => {
           }}
         >
           <Icon name="restaurant-outline" size={30} color={COLORS.green} />
-          <Text style={{ fontFamily: FONTS.semiBold }}>Món Ăn</Text>
+          <Text style={{ fontFamily: FONTS.semiBold, textAlign: "center" }}>
+            Món Ăn Cho Bạn
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -510,7 +512,10 @@ const HomeScreen = () => {
           }}
         >
           <Icon name="book-outline" size={30} color={COLORS.green} />
-          <Text style={{ fontFamily: FONTS.semiBold }}>Menu</Text>
+          <Text style={{ fontFamily: FONTS.semiBold, textAlign: "center" }}>
+            {" "}
+            Menu Cho Bạn
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -526,7 +531,9 @@ const HomeScreen = () => {
           }}
         >
           <Icon name="heart-outline" size={30} color={COLORS.green} />
-          <Text style={{ fontFamily: FONTS.semiBold }}>Yêu thích</Text>
+          <Text style={{ fontFamily: FONTS.semiBold, textAlign: "center" }}>
+            Món Ăn Yêu thích
+          </Text>
         </TouchableOpacity>
       </View>
 

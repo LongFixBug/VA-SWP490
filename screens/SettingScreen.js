@@ -106,6 +106,25 @@ const SettingScreen = ({ navigation }) => {
           <TouchableOpacity
             activeOpacity={0.8}
             style={styles.settingAttributeRow}
+            onPress={() => navigation.navigate("Nutrition")}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Icon
+                name="file-tray-outline"
+                size={24}
+                color={COLORS.greySolid}
+              />
+              <Text style={styles.settingText}>Dinh dưỡng đề xuất</Text>
+            </View>
+            <Icon
+              name="chevron-forward-outline"
+              size={24}
+              color={COLORS.grey}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.settingAttributeRow}
             onPress={() => navigation.navigate("ContactUs")}
           >
             <View style={{ flexDirection: "row", alignItems: "center" }}>

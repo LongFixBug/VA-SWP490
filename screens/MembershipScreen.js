@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   ImageBackground,
+  Modal, // Thêm Modal
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -61,6 +62,11 @@ const MembershipScreen = ({ navigation }) => {
   const [membership, setMembership] = useState(null);
   const [tierName, setTierName] = useState("");
   const [nextTier, setNextTier] = useState(null);
+  const [isModalVisible, setModalVisible] = useState(false); // Modal trạng thái
+
+  const toggleModal = () => {
+    setModalVisible(!isModalVisible);
+  };
 
   useEffect(() => {
     const fetchMembershipData = async () => {
@@ -179,8 +185,24 @@ const MembershipScreen = ({ navigation }) => {
               </Text>
             </View>
           </View>
+          {/* Icon bóng đèn */}
+          <TouchableOpacity
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 20,
+              backgroundColor: COLORS.white,
+              borderRadius: 25,
+              padding: 10,
+              marginTop: 30,
+            }}
+            onPress={toggleModal}
+          >
+            <Icon name="bulb-outline" size={30} color={COLORS.green} />
+          </TouchableOpacity>
         </ImageBackground>
       </View>
+
       <View
         style={{
           flex: 1,
@@ -198,6 +220,7 @@ const MembershipScreen = ({ navigation }) => {
             fontSize: 20,
             color: COLORS.greySolid,
             marginTop: 10,
+            marginLeft: 10,
           }}
         >
           CẤP BẬC
@@ -272,6 +295,79 @@ const MembershipScreen = ({ navigation }) => {
           );
         })}
       </View>
+
+      {/* Nội dung Modal */}
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={toggleModal}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}
+        >
+          <View
+            style={{
+              width: "90%",
+              padding: 20,
+              backgroundColor: COLORS.white,
+              borderRadius: 10,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                fontSize: 18,
+                color: COLORS.black,
+                marginBottom: 10,
+              }}
+            >
+              Quy tắc tính điểm
+            </Text>
+            <Text style={{ fontFamily: FONTS.medium, fontSize: 15 }}>
+              1. Mỗi khi đơn hàng hoàn thành giao đến tay khách hàng, khách hàng
+              sẽ được nhận 20 điểm.
+            </Text>
+            <Text
+              style={{ fontFamily: FONTS.medium, fontSize: 15, marginTop: 5 }}
+            >
+              2. Mỗi khi thực hiện feedback thành công, khách hàng được nhận 10
+              điểm.
+            </Text>
+            <Text
+              style={{ fontFamily: FONTS.medium, fontSize: 15, marginTop: 5 }}
+            >
+              3. Mỗi khi bài viết của khách hàng được duyệt, khách hàng được
+              nhận 20 điểm.
+            </Text>
+            <TouchableOpacity
+              onPress={toggleModal}
+              style={{
+                marginTop: 20,
+                alignSelf: "center",
+                padding: 10,
+                backgroundColor: COLORS.green,
+                borderRadius: 5,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  fontSize: 15,
+                  color: COLORS.white,
+                }}
+              >
+                Đóng
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };

@@ -15,8 +15,8 @@ import Header from "../components/Header";
 import * as Linking from "expo-linking";
 
 const ContactUsScreen = ({ navigation }) => {
-  const phoneNumber = "+84 123 456 789";
-  const email = "VA-SWP491";
+  const phoneNumber = "+84 975899130";
+  const email = "VACONTACT@gmail.com";
 
   const makeCall = () => {
     const url = `tel:${phoneNumber}`;

@@ -164,7 +164,10 @@ const NewPostScreen = ({ navigation }) => {
       );
 
       if (response.status === 201 || response.status === 200) {
-        Alert.alert("Thành công", "Bài viết đã được tạo thành công!");
+        Alert.alert(
+          "Thành công",
+          "Bài viết đã được tạo thành công, vui lòng chờ VA duyệt bài!"
+        );
         navigation.goBack();
       } else {
         const responseData = await response.json();

@@ -143,23 +143,100 @@ const AllDishScreen = ({ navigation, route }) => {
     }
   };
 
+  useEffect(() => {
+    const fetchDishesAndIngredients = async () => {
+      try {
+        // Gọi API để lấy danh sách món ăn
+        const dishResponse = await fetchWithAuth(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/alldish"
+        );
+
+        if (!dishResponse.ok) {
+          throw new Error(`Error fetching dishes: ${dishResponse.status}`);
+        }
+
+        const dishes = await dishResponse.json();
+
+        // Tạo danh sách các Promise để lấy nguyên liệu
+        const ingredientPromises = dishes.map(async (dish) => {
+          try {
+            // Gọi API getIngredientByDishId
+            const ingredientResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByDishId/${dish.dishId}`
+            );
+
+            if (!ingredientResponse.ok) {
+              console.warn(
+                `Failed to fetch ingredients for dish ${dish.dishId}`
+              );
+              return { ...dish, ingredients: [] };
+            }
+
+            const ingredients = await ingredientResponse.json();
+
+            // Gọi API getIngredientByIngredientId cho từng nguyên liệu
+            const ingredientDetailsPromises = ingredients.map(async (ing) => {
+              const ingredientDetailResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByIngredientId/${ing.ingredientId}`
+              );
+
+              if (!ingredientDetailResponse.ok) {
+                console.warn(
+                  `Failed to fetch ingredient details for ingredientId ${ing.ingredientId}`
+                );
+                return null;
+              }
+
+              return await ingredientDetailResponse.json();
+            });
+
+            // Chờ tất cả các lời gọi API getIngredientByIngredientId hoàn thành
+            const detailedIngredients = await Promise.all(
+              ingredientDetailsPromises
+            );
+
+            // Lọc bỏ các giá trị null nếu có lỗi
+            const validIngredients = detailedIngredients.filter((item) => item);
+
+            return { ...dish, ingredients: validIngredients };
+          } catch (error) {
+            console.error(
+              `Error fetching ingredients for dish ${dish.dishId}`,
+              error
+            );
+            return { ...dish, ingredients: [] };
+          }
+        });
+
+        // Chờ tất cả các lời gọi API hoàn thành
+        const dishesWithIngredients = await Promise.all(ingredientPromises);
+
+        setAllDishes(dishesWithIngredients);
+        setFilteredDishes(dishesWithIngredients);
+      } catch (error) {
+        console.error("Error fetching dishes or ingredients:", error);
+      }
+    };
+
+    fetchDishesAndIngredients();
+  }, []);
+
   const handleSearch = (text) => {
     setSearchQuery(text);
 
-    const cleanedQuery = text
-      .replace(/[\d.,\/?'";:{}[\]+=_)(*&%$#@!~\\|]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
+    const cleanedQuery = text.trim().toLowerCase();
 
     const filtered = allDishes.filter((dish) => {
-      const dishName = dish.name
-        ?.replace(/[\d.,\/?'";:{}[\]+=_)(*&%$#@!~\\|]/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
+      const dishName = dish.name?.toLowerCase() || "";
+      const ingredientNames =
+        dish.ingredients
+          ?.map((ingredient) => ingredient.name.toLowerCase()) // Lấy `name` từ thông tin nguyên liệu
+          .join(" ") || "";
 
-      return dishName?.includes(cleanedQuery);
+      return (
+        dishName.includes(cleanedQuery) ||
+        ingredientNames.includes(cleanedQuery)
+      );
     });
 
     setFilteredDishes(filtered);

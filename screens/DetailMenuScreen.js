@@ -39,7 +39,7 @@ const DetailMenuScreen = ({ navigation, route }) => {
       <ScrollView
         style={{ flex: 1, backgroundColor: COLORS.white, padding: 10 }}
       >
-        <Text style={styles.menuTitle}>Chi tiết các món ăn</Text>
+        {/* <Text style={styles.menuTitle}>Chi tiết các món ăn</Text> */}
 
         {/* Duyệt qua từng món trong menu */}
         {menu.menuItems.map((dish, index) => (

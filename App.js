@@ -54,6 +54,7 @@ import FollowerScreen from "./screens/FollowerScreen";
 import messaging from "@react-native-firebase/messaging";
 import RecommedDishScreen from "./screens/RecommendDishScreen";
 import NutritionMatchingScreen from "./screens/NutritionMatchingScreen";
+import NutritionArticleDetailScreen from "./screens/NutritionArticleDetailScreen";
 
 const toastConfig = {
   success: (props) => (
@@ -337,7 +338,7 @@ export default function App() {
           setInitialRoute("Login");
         }
       } catch (error) {
-        setInitialRoute("Home"); // không có thông tin token trả về login
+        setInitialRoute("Login"); // không có thông tin token trả về login
       }
     };
 
@@ -412,6 +413,10 @@ export default function App() {
           <Stack.Screen name="Setting" component={SettingScreen} />
           <Stack.Screen name="ContactUs" component={ContactUsScreen} />
           <Stack.Screen name="Nutrition" component={NutritionMatchingScreen} />
+          <Stack.Screen
+            name="NutritionArticle"
+            component={NutritionArticleDetailScreen}
+          />
           <Stack.Screen
             name="NotificationSetting"
             component={NotificationSettingScreen}

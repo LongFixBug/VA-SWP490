@@ -12,170 +12,178 @@ import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Header from "../components/Header";
-import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CartScreen = ({ navigation }) => {
   const [cartItems, setCartItems] = useState([]);
-  const [userId, setUserId] = useState(null);
 
-  const fetchWithAuth = async (url, options = {}) => {
-    const token = await AsyncStorage.getItem("authToken");
+  // Hàm lấy giỏ hàng từ API
+  // Hàm lấy giỏ hàng từ API
+  const fetchCartData = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) return console.error("Không tìm thấy userId");
 
-    if (!token) {
-      console.error("Không tìm thấy token.");
-      throw new Error("Unauthorized: Missing token");
+      const response = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${userId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("authToken")}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      const filteredCart = data.filter((item) => item.quantity > 0); // Chỉ lấy món có số lượng > 0
+
+      // Lấy thông tin chi tiết từng món ăn từ API GetDishByID
+      const detailedCartItems = await Promise.all(
+        filteredCart.map(async (item) => {
+          const dishResponse = await fetch(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${item.dishId}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${await AsyncStorage.getItem(
+                  "authToken"
+                )}`,
+              },
+            }
+          );
+
+          const dishDetails = await dishResponse.json();
+
+          // Kiểm tra và lấy dữ liệu từ AsyncStorage (ưu tiên số lượng đã lưu trước đó)
+          const storedItem = await AsyncStorage.getItem(`cart_${item.cartId}`);
+          const quantity = storedItem
+            ? JSON.parse(storedItem).quantity
+            : item.quantity;
+
+          return {
+            ...item,
+            ...dishDetails, // Thêm thông tin từ GetDishByID
+            quantity, // Sử dụng số lượng từ AsyncStorage nếu có
+          };
+        })
+      );
+
+      setCartItems(detailedCartItems);
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu giỏ hàng:", error);
+    }
+  };
+
+  // Xử lý thay đổi số lượng món ăn
+  const handleQuantityChange = async (item, increment) => {
+    const newQuantity = increment ? item.quantity + 1 : item.quantity - 1;
+
+    if (newQuantity === 0) {
+      try {
+        // Xóa món khỏi server thông qua API
+        await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/removeCartByUserId/${item.cartId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem(
+                "authToken"
+              )}`,
+            },
+          }
+        );
+
+        // Xóa món khỏi AsyncStorage
+        await AsyncStorage.removeItem(`cart_${item.cartId}`);
+
+        // Xóa món khỏi danh sách cartItems
+        setCartItems((prevItems) =>
+          prevItems.filter((cartItem) => cartItem.cartId !== item.cartId)
+        );
+      } catch (error) {
+        console.error("Lỗi khi xóa món ăn:", error);
+      }
+      return;
     }
 
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
+    if (newQuantity > 100) {
+      Alert.alert("Thông báo", "Số lượng tối đa là 100.");
+      return;
+    }
 
+    const updatedCart = cartItems.map((cartItem) =>
+      cartItem.cartId === item.cartId
+        ? { ...cartItem, quantity: newQuantity }
+        : cartItem
+    );
+
+    setCartItems(updatedCart);
+
+    // Cập nhật số lượng mới vào AsyncStorage
+    await AsyncStorage.setItem(
+      `cart_${item.cartId}`,
+      JSON.stringify({ ...item, quantity: newQuantity })
+    );
+  };
+
+  // Xóa món ăn
+  const handleRemoveItem = async (item) => {
     try {
-      const response = await fetch(url, { ...options, headers });
-      if (response.status === 401) {
-        console.error("Token hết hạn hoặc không hợp lệ.");
-      }
-      return response;
+      await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/removeCartByUserId/${item.cartId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("authToken")}`,
+          },
+        }
+      );
+
+      setCartItems((prevItems) =>
+        prevItems.filter((cartItem) => cartItem.cartId !== item.cartId)
+      );
+
+      // Xóa món khỏi AsyncStorage
+      await AsyncStorage.removeItem(`cart_${item.cartId}`);
     } catch (error) {
-      console.error("Error fetching with auth:", error);
-      throw error;
+      console.error("Lỗi khi xóa món ăn:", error);
+    }
+  };
+
+  // Xử lý khi bấm "Tiếp tục"
+  const handleContinue = async () => {
+    try {
+      const promises = cartItems.map(async (item) => {
+        const quantityData = JSON.parse(
+          await AsyncStorage.getItem(`cart_${item.cartId}`)
+        );
+
+        if (quantityData) {
+          await fetch(
+            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/updateDishQuantityByCartId/${item.cartId}?newQuantity=${quantityData.quantity}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${await AsyncStorage.getItem(
+                  "authToken"
+                )}`,
+              },
+            }
+          );
+        }
+      });
+
+      await Promise.all(promises);
+      Alert.alert("Thông báo", "Cập nhật giỏ hàng thành công.");
+      navigation.navigate("Checkout");
+    } catch (error) {
+      console.error("Lỗi khi cập nhật giỏ hàng:", error);
     }
   };
 
   useEffect(() => {
-    const fetchCartData = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem("userId");
-
-        if (storedUserId) {
-          setUserId(storedUserId);
-          console.log("User ID từ AsyncStorage:", storedUserId);
-
-          // Gọi API để lấy giỏ hàng theo userId
-          const cartResponse = await fetchWithAuth(
-            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${storedUserId}`
-          );
-
-          if (cartResponse.ok) {
-            const cartData = await cartResponse.json();
-
-            // Lọc các mục có quantity > 0 và lấy chi tiết cho từng món ăn từ `GetDishByID` API
-            const detailedCartItems = await Promise.all(
-              cartData
-                .filter((item) => item.quantity > 0) // Chỉ giữ lại các mục có quantity > 0
-                .map(async (item) => {
-                  const dishResponse = await fetchWithAuth(
-                    `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${item.dishId}`
-                  );
-
-                  return dishResponse.ok
-                    ? { ...item, ...(await dishResponse.json()) }
-                    : item;
-                })
-            );
-
-            setCartItems(detailedCartItems);
-            console.log("Dữ liệu chi tiết giỏ hàng:", detailedCartItems);
-          } else {
-            console.log(
-              "Lỗi khi lấy dữ liệu giỏ hàng từ API:",
-              cartResponse.status
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy dữ liệu giỏ hàng từ API:", error);
-      }
-    };
-
     fetchCartData();
   }, []);
-
-  const handleQuantityChange = async (item, increment) => {
-    const newQuantity = increment ? item.quantity + 1 : item.quantity - 1;
-    console.log("New Quantity:", newQuantity);
-
-    // Kiểm tra không cho phép quantity nhỏ hơn 0
-    if (newQuantity < 0) {
-      return;
-    }
-
-    try {
-      // Sử dụng fetchWithAuth thay cho axios
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/updateDishQuantityByCartId/${item.cartId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(newQuantity), // Truyền trực tiếp quantity vào body
-        }
-      );
-
-      if (response.ok) {
-        // Cập nhật quantity trong state để phản ánh đúng số lượng sau khi lưu
-        if (newQuantity === 0) {
-          setCartItems((prevItems) =>
-            prevItems.filter((cartItem) => cartItem.cartId !== item.cartId)
-          );
-        } else {
-          setCartItems((prevItems) =>
-            prevItems.map((cartItem) =>
-              cartItem.cartId === item.cartId
-                ? { ...cartItem, quantity: newQuantity }
-                : cartItem
-            )
-          );
-        }
-      } else {
-        console.error(`Lỗi khi cập nhật số lượng cho món ${item.dishId}`);
-        const errorResponse = await response.text();
-        console.error("Thông tin lỗi:", errorResponse);
-      }
-    } catch (error) {
-      console.error(
-        `Lỗi khi cập nhật số lượng món ăn: ${error.message} - cartId: ${item.cartId}, quantity mới: ${newQuantity}`
-      );
-    }
-  };
-
-  const handleRemoveItem = async (item) => {
-    try {
-      // Sử dụng fetchWithAuth để đặt quantity về 0 qua API
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/updateDishQuantityByCartId/${item.cartId}`, // Đưa cartId vào URL
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(0), // Truyền quantity trực tiếp vào body
-        }
-      );
-
-      if (response.ok) {
-        // Loại bỏ món ăn khỏi cartItems trong state
-        setCartItems((prevItems) =>
-          prevItems.filter((cartItem) => cartItem.cartId !== item.cartId)
-        );
-      } else {
-        console.error("Lỗi khi xóa món ăn khỏi giỏ hàng:", response.status);
-        const errorResponse = await response.text();
-        console.error("Thông tin lỗi:", errorResponse);
-      }
-    } catch (error) {
-      console.error("Lỗi khi xóa món ăn khỏi giỏ hàng:", error);
-    }
-  };
-
-  const handleContinue = () => {
-    Alert.alert("Thành công", "Giỏ hàng đã được cập nhật!");
-    navigation.navigate("Checkout");
-  };
 
   return (
     <>

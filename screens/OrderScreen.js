@@ -224,7 +224,7 @@ const OrderScreen = ({ navigation }) => {
           <TouchableOpacity
             onPress={() => {
               saveOrderToStorage(item); // Save the selected order to AsyncStorage
-              navigation.navigate("OrderDetail", { orderId: item.orderId }); // Navigate to OrderDetail with orderId
+              navigation.navigate("OrderDetail", { orderId: item }); // Navigate to OrderDetail with orderId
             }}
             style={styles.orderContainer}
           >

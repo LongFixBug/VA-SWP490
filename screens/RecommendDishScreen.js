@@ -50,14 +50,14 @@ const RecommedDishScreen = ({ navigation, route }) => {
 
       const recommendData = await response.json();
 
-      // Kết hợp dữ liệu feedback để lấy rating
+      // Kết hợp dữ liệu feedback để lấy rating và nguyên liệu
       const detailedDishes = await Promise.all(
         recommendData.map(async (dish) => {
           try {
+            // Lấy đánh giá (feedback)
             const feedbackResponse = await fetchWithAuth(
               `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dish.dishId}`
             );
-
             const feedbackData = await feedbackResponse.json();
             const ratings = feedbackData.map((feedback) => feedback.rating);
             const averageRating =
@@ -68,6 +68,31 @@ const RecommedDishScreen = ({ navigation, route }) => {
                   ).toFixed(1)
                 : "0.0";
 
+            // Lấy danh sách ingredientId từ API getIngredientByDishId
+            const ingredientResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByDishId/${dish.dishId}`
+            );
+
+            const ingredientIds = ingredientResponse.ok
+              ? await ingredientResponse.json()
+              : [];
+
+            // Lấy thông tin chi tiết của từng ingredientId
+            const ingredientDetails = await Promise.all(
+              ingredientIds.map(async (ingredient) => {
+                const ingredientDetailResponse = await fetchWithAuth(
+                  `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByIngredientId/${ingredient.ingredientId}`
+                );
+                return ingredientDetailResponse.ok
+                  ? await ingredientDetailResponse.json()
+                  : null;
+              })
+            );
+
+            // Loại bỏ các giá trị null từ danh sách nguyên liệu
+            const validIngredients = ingredientDetails.filter((item) => item);
+
+            // Trả về thông tin món ăn bao gồm rating và nguyên liệu
             return {
               dishId: dish.dish.dishId,
               imageUrl: dish.dish.imageUrl,
@@ -75,10 +100,11 @@ const RecommedDishScreen = ({ navigation, route }) => {
               price: dish.dish.price,
               dishType: dish.dish.dishType,
               averageRating: parseFloat(averageRating),
+              ingredients: validIngredients, // Thêm nguyên liệu vào dữ liệu món ăn
             };
           } catch (error) {
             console.error(
-              `Error fetching feedback for dishId ${dish.dishId}:`,
+              `Error fetching data for dishId ${dish.dishId}:`,
               error
             );
             return {
@@ -88,6 +114,7 @@ const RecommedDishScreen = ({ navigation, route }) => {
               price: dish.dish.price,
               dishType: dish.dish.dishType,
               averageRating: 0,
+              ingredients: [], // Trả về danh sách nguyên liệu trống nếu lỗi
             };
           }
         })
@@ -138,12 +165,24 @@ const RecommedDishScreen = ({ navigation, route }) => {
   const handleSearch = (text) => {
     setSearchQuery(text);
 
-    const cleanedQuery = text.toLowerCase().trim();
-    const filtered = allDishes.filter((dish) =>
-      dish.dishName?.toLowerCase().includes(cleanedQuery)
-    );
+    const cleanedQuery = text.trim().toLowerCase();
 
-    setFilteredDishes(filtered);
+    // Lọc dữ liệu dựa trên tên món ăn hoặc tên nguyên liệu
+    const filtered = allDishes.filter((dish) => {
+      const dishName = dish.dishName?.toLowerCase() || ""; // Lấy tên món ăn và chuyển thành chữ thường
+      const ingredientNames =
+        dish.ingredients
+          ?.map((ingredient) => ingredient.name.toLowerCase()) // Lấy tên từng nguyên liệu và chuyển thành chữ thường
+          .join(" ") || ""; // Gộp tất cả tên nguyên liệu thành một chuỗi
+
+      // Kiểm tra nếu tên món ăn hoặc tên nguyên liệu khớp với từ khóa tìm kiếm
+      return (
+        dishName.includes(cleanedQuery) ||
+        ingredientNames.includes(cleanedQuery)
+      );
+    });
+
+    setFilteredDishes(filtered); // Cập nhật danh sách món ăn được lọc
   };
 
   useEffect(() => {

@@ -371,8 +371,15 @@ const PostDetailScreen = ({ navigation, route }) => {
                 {post.authorName || "Ẩn danh"}
               </Text>
               <Text style={styles.articleTime}>{post.createdAt}</Text>
+              {/* Hiển thị ngày duyệt bài */}
+              {post.moderateDate && (
+                <Text style={styles.articleModerateDate}>
+                  Ngày duyệt: {new Date(post.moderateDate).toLocaleDateString()}
+                </Text>
+              )}
             </View>
           </View>
+
           {/* Nội dung bài viết */}
           <Text style={styles.articleTitle}>{post.title}</Text>
           <Text style={styles.articleContent}>{post.content}</Text>
@@ -527,7 +534,12 @@ const styles = StyleSheet.create({
   articleContent: { fontFamily: FONTS.medium, fontSize: 14, lineHeight: 22 },
   imageScroll: { marginTop: 10 },
   articleImage: { width: 400, height: 300, borderRadius: 8, marginRight: 10 },
-  commentHeader: { fontFamily: FONTS.semiBold, fontSize: 17, marginTop: 15 },
+  commentHeader: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 17,
+    marginTop: 15,
+    marginLeft: 10,
+  },
   noComments: {
     fontFamily: FONTS.medium,
     fontSize: 14,
@@ -573,6 +585,12 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   modalCloseText: { color: COLORS.white, fontSize: 18, fontWeight: "bold" },
+  articleModerateDate: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: COLORS.grey,
+    marginTop: -10,
+  },
 });
 
 export default PostDetailScreen;

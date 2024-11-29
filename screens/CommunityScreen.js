@@ -41,7 +41,7 @@ const CommunityScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [username, setUsername] = useState("Người dùng");
   const [userImage, setUserImage] = useState("https://via.placeholder.com/55");
-
+  const userRoleCache = {}; // Cache roleId theo userId
   // Fetch articles from the API
 
   const fetchWithAuth = async (url, options = {}) => {
@@ -291,157 +291,239 @@ const CommunityScreen = ({ navigation }) => {
     }
   };
 
-  const renderPost = (item) => (
-    <View
-      style={{
-        backgroundColor: COLORS.white,
-        borderWidth: 1,
-        borderColor: COLORS.greyPastel,
-        padding: 10,
-        borderRadius: 8,
-        marginBottom: 10,
-      }}
-      key={item.articleId}
-    >
-      {/* Thông tin bài viết */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate("PostDetailScreen", { post: item })}
-        activeOpacity={0.8}
-      >
-        <View style={{ flexDirection: "row" }}>
-          <Image
-            source={{
-              uri: item.authorImageUrl || "https://via.placeholder.com/45",
-            }}
-            style={{
-              width: 45,
-              height: 45,
-              borderRadius: 50,
-              marginRight: 10,
-            }}
-          />
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontFamily: FONTS.medium,
-                fontSize: 14,
-              }}
-            >
-              {item.authorName || "Ẩn danh"}
-            </Text>
-            <Text
-              style={{
-                fontFamily: FONTS.medium,
-                fontSize: 12,
-                marginTop: 3,
-                color: COLORS.grey,
-              }}
-            >
-              {item.createdAt}
-            </Text>
-          </View>
-        </View>
-        <View style={{ marginTop: 10 }}>
-          <Text
-            style={{
-              fontFamily: FONTS.semiBold,
-              fontSize: 14,
-              lineHeight: 20,
-            }}
-          >
-            {item.title}
-          </Text>
-          <Text
-            style={{
-              fontFamily: FONTS.medium,
-              fontSize: 13,
-              lineHeight: 22,
-              marginTop: 5,
-            }}
-            numberOfLines={2}
-          >
-            {item.content}
-          </Text>
-        </View>
-      </TouchableOpacity>
+  const navigateToScreen = async () => {
+    try {
+      if (userRoleCache[item.authorId]) {
+        const cachedRoleId = userRoleCache[item.authorId];
+        console.log("Lấy roleId từ cache:", cachedRoleId);
 
-      {/* Cuộn ảnh ngang */}
-      {item.images && item.images.length > 0 && (
-        <ScrollView
-          horizontal
-          style={{ marginTop: 10 }}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 10 }}
-        >
-          {item.images.map((image, index) => (
+        if (cachedRoleId === 5) {
+          navigation.navigate("NutritionArticle", {
+            articleId: item.articleId,
+          });
+        } else {
+          navigation.navigate("PostDetailScreen", { post: item });
+        }
+        return;
+      }
+
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${item.authorId}`
+      );
+
+      if (response.ok) {
+        const userData = await response.json();
+        userRoleCache[item.authorId] = userData.roleId; // Lưu vào cache
+        console.log("Thông tin người viết bài:", userData);
+
+        if (userData.roleId === 5) {
+          navigation.navigate("NutritionArticle", {
+            articleId: item.articleId,
+          });
+        } else {
+          navigation.navigate("PostDetailScreen", { post: item });
+        }
+      } else {
+        console.error(
+          "Không thể lấy thông tin người viết bài:",
+          response.status
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi khi gọi API getUserByID:", error);
+    }
+  };
+
+  const renderPost = (item) => {
+    const navigateToScreen = async () => {
+      try {
+        // Kiểm tra và lấy thông tin tác giả
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${item.authorId}`
+        );
+        const userData = response.ok ? await response.json() : {};
+        const roleId = userData.roleId || 0;
+
+        // Nếu roleId là 5 (chuyên gia), điều hướng tới NutritionArticle
+        if (roleId === 5) {
+          navigation.navigate("NutritionArticle", {
+            articleId: item.articleId,
+          });
+        } else {
+          // Nếu không, điều hướng tới màn hình PostDetail
+          navigation.navigate("PostDetailScreen", { post: item });
+        }
+      } catch (error) {
+        console.error("Error navigating to article screen:", error);
+      }
+    };
+
+    return (
+      <View
+        style={{
+          backgroundColor: COLORS.white,
+          borderWidth: 1,
+          borderColor: COLORS.greyPastel,
+          padding: 10,
+          borderRadius: 8,
+          marginBottom: 10,
+        }}
+        key={item.articleId}
+      >
+        {/* Thông tin bài viết */}
+        <TouchableOpacity onPress={navigateToScreen} activeOpacity={0.8}>
+          <View style={{ flexDirection: "row" }}>
             <Image
-              key={`${item.articleId}-${index}`}
               source={{
-                uri: image.imageUrl, // URL mặc định nếu không có imageUrl
+                uri: item.authorImageUrl || "https://via.placeholder.com/45",
               }}
               style={{
-                width: 150,
-                height: 100,
-                borderRadius: 8,
+                width: 45,
+                height: 45,
+                borderRadius: 50,
                 marginRight: 10,
               }}
             />
-          ))}
-        </ScrollView>
-      )}
-
-      {/* Tương tác thích và bình luận */}
-      <View style={{ flexDirection: "row", marginTop: 10 }}>
-        <TouchableOpacity
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginRight: 20,
-          }}
-          onPress={() => handleLike(item.articleId)}
-        >
-          <IconAnt
-            name={item.liked ? "like1" : "like2"} // Biểu tượng outline hoặc full
-            size={28}
-            color={item.liked ? COLORS.green : COLORS.greySolid} // Đổi màu khi đã like
-          />
-          <Text
-            style={{
-              fontFamily: FONTS.semiBold,
-              fontSize: 16,
-              color: item.liked ? COLORS.green : COLORS.greySolid, // Đổi màu số lượt like
-              marginLeft: 5,
-            }}
-          >
-            {item.likes || 0}
-          </Text>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  fontSize: 14,
+                }}
+              >
+                {item.authorName || "Ẩn danh"}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  fontSize: 12,
+                  marginTop: 3,
+                  color: COLORS.grey,
+                }}
+              >
+                {item.createdAt}
+              </Text>
+              {/* Ngày duyệt bài */}
+              {item.moderateDate && (
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    fontSize: 12,
+                    color: COLORS.grey,
+                    marginTop: -10,
+                  }}
+                >
+                  Ngày duyệt: {new Date(item.moderateDate).toLocaleDateString()}
+                </Text>
+              )}
+            </View>
+          </View>
+          <View style={{ marginTop: 10 }}>
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                fontSize: 14,
+                lineHeight: 20,
+              }}
+            >
+              {item.title}
+            </Text>
+            <Text
+              style={{
+                fontFamily: FONTS.medium,
+                fontSize: 13,
+                lineHeight: 22,
+                marginTop: 5,
+              }}
+              numberOfLines={2}
+            >
+              {item.content}
+            </Text>
+          </View>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginRight: 20,
-          }}
-          onPress={() =>
-            navigation.navigate("PostDetailScreen", { post: item })
-          }
-        >
-          <Icon name="chatbubble-outline" size={27} color={COLORS.greySolid} />
-          <Text
-            style={{
-              fontFamily: FONTS.semiBold,
-              fontSize: 16,
-              color: COLORS.greySolid,
-              marginLeft: 5,
-            }}
+        {/* Cuộn ảnh ngang */}
+        {item.images && item.images.length > 0 && (
+          <ScrollView
+            horizontal
+            style={{ marginTop: 10 }}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 10 }}
           >
-            {item.comments || 0}
-          </Text>
-        </TouchableOpacity>
+            {item.images.map((image, index) => (
+              <Image
+                key={`${item.articleId}-${index}`}
+                source={{
+                  uri: image.imageUrl,
+                }}
+                style={{
+                  width: 150,
+                  height: 100,
+                  borderRadius: 8,
+                  marginRight: 10,
+                }}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Tương tác thích và bình luận */}
+        <View style={{ flexDirection: "row", marginTop: 10 }}>
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginRight: 20,
+            }}
+            onPress={() => handleLike(item.articleId)}
+          >
+            <IconAnt
+              name={item.liked ? "like1" : "like2"} // Biểu tượng outline hoặc full
+              size={28}
+              color={item.liked ? COLORS.green : COLORS.greySolid} // Đổi màu khi đã like
+            />
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                fontSize: 16,
+                color: item.liked ? COLORS.green : COLORS.greySolid, // Đổi màu số lượt like
+                marginLeft: 5,
+              }}
+            >
+              {item.likes || 0}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginRight: 20,
+            }}
+            onPress={() =>
+              navigation.navigate("PostDetailScreen", { post: item })
+            }
+          >
+            <Icon
+              name="chatbubble-outline"
+              size={27}
+              color={COLORS.greySolid}
+            />
+            <Text
+              style={{
+                fontFamily: FONTS.semiBold,
+                fontSize: 16,
+                color: COLORS.greySolid,
+                marginLeft: 5,
+              }}
+            >
+              {item.comments || 0}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <ScrollView

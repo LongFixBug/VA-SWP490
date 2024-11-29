@@ -40,6 +40,7 @@ const OrderDetailScreen = ({ navigation }) => {
   const [isNotificationVisible, setNotificationVisible] = useState(false);
   const bottomSheetRef = useRef();
   const snapPoints = useMemo(() => ["65%"], []);
+  const [paymentDetails, setPaymentDetails] = useState(null);
 
   const handleOpenPress = (dish) => {
     setSelectedDish(dish);
@@ -105,6 +106,7 @@ const OrderDetailScreen = ({ navigation }) => {
           const parsedOrder = JSON.parse(orderData);
           setOrder(parsedOrder);
           fetchOrderDetails(parsedOrder.orderId);
+          fetchPaymentDetails(parsedOrder.orderId);
         }
       } catch (error) {
         console.error("Error fetching order from AsyncStorage:", error);
@@ -341,6 +343,28 @@ const OrderDetailScreen = ({ navigation }) => {
     }
   }, [order, orderDetails]);
 
+  const fetchPaymentDetails = async (orderId) => {
+    try {
+      console.log(`Fetching payment details for orderId: ${orderId}`);
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${orderId}`
+      );
+
+      if (!response.ok) {
+        console.error(
+          `Failed to fetch payment details. Status: ${response.status}`
+        );
+        return;
+      }
+
+      const data = await response.json();
+      console.log("Payment details fetched:", data); // Ghi log dữ liệu trả về
+      setPaymentDetails(data); // Lưu thông tin thanh toán
+    } catch (error) {
+      console.error("Error fetching payment details:", error);
+    }
+  };
+
   return (
     <>
       <Header
@@ -384,6 +408,9 @@ const OrderDetailScreen = ({ navigation }) => {
                 Phí vận chuyển: {order.deliveryFee}đ
               </Text>
               <Text style={styles.infoText}>
+                Số điện thoại: {order.phoneNumber}đ
+              </Text>
+              <Text style={styles.infoText}>
                 Tổng tiền: {order.totalPrice}đ
               </Text>
             </View>
@@ -399,13 +426,40 @@ const OrderDetailScreen = ({ navigation }) => {
         {/* Discount Section */}
         <View style={styles.discountContainer}>
           <Text style={styles.sectionTitle}>Giảm giá</Text>
-          <Text style={styles.discountText}>Thành viên Bạc - 20%</Text>
+          {order?.discountRate === 0.1 && (
+            <Text style={styles.discountText}>
+              Thành viên Silver - Giảm 10%
+            </Text>
+          )}
+          {order?.discountRate === 0.2 && (
+            <Text style={styles.discountText}>Thành viên Gold - Giảm 20%</Text>
+          )}
+          {order?.discountRate === 0.3 && (
+            <Text style={styles.discountText}>
+              Thành viên Platinum - Giảm 30%
+            </Text>
+          )}
+          {!order?.discountRate && (
+            <Text style={styles.discountText}>Không áp dụng giảm giá</Text>
+          )}
+        </View>
+        {/* Notes Section */}
+        <View style={styles.notesContainer}>
+          <Text style={styles.sectionTitle}>Tiền được giảm</Text>
+          <Text style={styles.notesText}>
+            {order?.discountPrice || "0"} vnđ
+          </Text>
         </View>
 
-        {/* Payment Method */}
         <View style={styles.paymentContainer}>
           <Text style={styles.sectionTitle}>Phương thức thanh toán</Text>
-          <Text style={styles.paymentText}>Thanh toán khi nhận hàng</Text>
+          {paymentDetails && paymentDetails.length > 0 ? (
+            <Text style={styles.paymentText}>
+              {paymentDetails[0].paymentMethod || "Phương thức không xác định"}
+            </Text>
+          ) : (
+            <Text style={styles.paymentText}>Đang tải...</Text>
+          )}
         </View>
 
         {/* Dish List */}

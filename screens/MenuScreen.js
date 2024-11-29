@@ -52,49 +52,59 @@ const MenuScreen = ({ navigation }) => {
         return;
       }
 
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenu/${userId}`
-      );
+      const apiEndpoints = [
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuBreakfastForUser/${userId}`,
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuLunchForUser/${userId}`,
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuAfternoonSnackForUser/${userId}`,
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuDinnerForUser/${userId}`,
+      ];
 
-      if (response.ok) {
-        const data = await response.json();
+      const menuTitles = ["Sáng", "Trưa", "Chiều", "Tối"];
+      const menusData = [];
 
-        if (data.length === 0) {
-          console.log("Không có món ăn nào phù hợp với quý khách.");
-          setMenus([]); // Đặt menus thành rỗng để hiển thị thông báo
-          return;
-        }
+      for (let i = 0; i < apiEndpoints.length; i++) {
+        const response = await fetchWithAuth(apiEndpoints[i]);
+        if (response.ok) {
+          const data = await response.json();
 
-        // Chia các món ăn thành các nhóm 5 món (menu)
-        const groupedMenus = [];
-        for (let i = 0; i < data.length; i += 5) {
-          const menuItems = data.slice(i, i + 5); // Lấy 5 món
-          const totalCalories = menuItems.reduce(
-            (sum, item) => sum + item.calories,
+          if (data.length === 0) {
+            console.log(
+              `Không có món ăn nào phù hợp cho menu ${menuTitles[i]}.`
+            );
+            menusData.push({
+              title: `Menu ${menuTitles[i]}`,
+              menuItems: [],
+              totalCalories: 0,
+            });
+            continue;
+          }
+
+          // Tính tổng calories và xử lý ảnh
+          const totalCalories = data.reduce(
+            (sum, item) => sum + (item.calories || 0),
             0
-          ); // Tổng calories của menu
-
-          // Đảm bảo các món có imageUrl hợp lệ
-          const validMenuItems = menuItems.map((item) => ({
+          );
+          const validMenuItems = data.map((item) => ({
             ...item,
             dish: {
               ...item.dish,
-              imageUrl: item.dish?.imageUrl || "https://via.placeholder.com/70", // URL mặc định nếu thiếu
+              imageUrl: item.dish?.imageUrl || "https://via.placeholder.com/70",
             },
           }));
 
-          groupedMenus.push({
+          menusData.push({
+            title: `Menu ${menuTitles[i]}`,
             menuItems: validMenuItems,
             totalCalories,
           });
+        } else {
+          console.log(`Không thể lấy dữ liệu cho menu ${menuTitles[i]}.`);
         }
-
-        setMenus(groupedMenus);
-      } else {
-        console.log("Không có món ăn nào phù hợp với quý khách.");
       }
-    } catch (groupedMenus) {
-      console.log("Không có món ăn nào phù hợp với quý khách.");
+
+      setMenus(menusData);
+    } catch (error) {
+      console.error("Lỗi khi lấy menu:", error);
     } finally {
       setLoading(false);
     }
@@ -129,7 +139,6 @@ const MenuScreen = ({ navigation }) => {
       >
         {menus.map((menu, index) => (
           <View key={index} style={styles.menuCard}>
-            {/* Vùng thông tin menu có thể bấm */}
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => navigation.navigate("DetailMenu", { menu })}
@@ -141,7 +150,7 @@ const MenuScreen = ({ navigation }) => {
                   alignItems: "center",
                 }}
               >
-                <Text style={styles.menuTitle}>Menu {index + 1}</Text>
+                <Text style={styles.menuTitle}>{menu.title}</Text>
                 <Icon name="heart-outline" size={30} color={COLORS.lightGrey} />
               </View>
               <Text style={styles.menuCalories}>
@@ -149,20 +158,19 @@ const MenuScreen = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
 
-            {/* Vùng hiển thị ảnh cuộn ngang */}
             <ScrollView
               horizontal
               contentContainerStyle={{
                 marginTop: 5,
               }}
-              showsHorizontalScrollIndicator={false} // Ẩn thanh cuộn ngang
+              showsHorizontalScrollIndicator={false}
             >
               {menu.menuItems.map((dish, dishIndex) => (
                 <Image
                   key={dishIndex}
                   source={{
                     uri:
-                      dish.dish?.imageUrl || "https://via.placeholder.com/70", // URL mặc định nếu imageUrl là null
+                      dish.dish?.imageUrl || "https://via.placeholder.com/70",
                   }}
                   style={styles.dishImage}
                 />

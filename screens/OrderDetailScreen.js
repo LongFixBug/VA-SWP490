@@ -405,13 +405,11 @@ const OrderDetailScreen = ({ navigation }) => {
                 Địa chỉ: {order.deliveryAddress}
               </Text>
               <Text style={styles.infoText}>
-                Phí vận chuyển: {order.deliveryFee}đ
+                Phí vận chuyển: {order?.deliveryFee?.toLocaleString() || "0"}{" "}
+                vnđ
               </Text>
               <Text style={styles.infoText}>
-                Số điện thoại: {order.phoneNumber}đ
-              </Text>
-              <Text style={styles.infoText}>
-                Tổng tiền: {order.totalPrice}đ
+                Số điện thoại: {order.phoneNumber}
               </Text>
             </View>
           </View>
@@ -446,8 +444,9 @@ const OrderDetailScreen = ({ navigation }) => {
         {/* Notes Section */}
         <View style={styles.notesContainer}>
           <Text style={styles.sectionTitle}>Tiền được giảm</Text>
+
           <Text style={styles.notesText}>
-            {order?.discountPrice || "0"} vnđ
+            {order?.discountPrice?.toLocaleString() || "0"} vnđ
           </Text>
         </View>
 
@@ -485,7 +484,10 @@ const OrderDetailScreen = ({ navigation }) => {
                   {item.dish.name}
                 </Text>
                 <Text style={styles.textDishType}>{item.dish.dishType}</Text>
-                <Text style={styles.textDishPrice}>{item.price}đ</Text>
+
+                <Text style={styles.textDishPrice}>
+                  {item.price?.toLocaleString()} vnđ
+                </Text>
                 <View style={styles.quantityContainer}>
                   <Text style={styles.textQuantity}>
                     Số lượng: x{item.quantity}
@@ -509,7 +511,9 @@ const OrderDetailScreen = ({ navigation }) => {
         <View style={{ alignItems: "flex-end", padding: 10 }}>
           <Text style={styles.totalText}>
             Tổng tiền:{" "}
-            <Text style={styles.totalPrice}>{order?.totalPrice}đ</Text>
+            <Text style={styles.totalPrice}>
+              {order?.totalPrice?.toLocaleString()} vnđ
+            </Text>
           </Text>
         </View>
 

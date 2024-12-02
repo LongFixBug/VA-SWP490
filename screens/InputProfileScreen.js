@@ -43,6 +43,8 @@ const InputProfileScreen = ({ navigation, route }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [height, setHeight] = useState(""); // New state for height
   const [weight, setWeight] = useState(""); // New state for weight
+  const [heightError, setHeightError] = useState("");
+  const [weightError, setWeightError] = useState("");
   const [profession, setProfession] = useState("Đang đi học");
   const [activityLevel, setActivityLevel] = useState("Cao");
   const [goal, setGoal] = useState("Tăng cân");
@@ -96,6 +98,10 @@ const InputProfileScreen = ({ navigation, route }) => {
   ];
 
   const handleRegister = async () => {
+    // Kiểm tra chiều cao và cân nặng
+    if (!validateHeightAndWeight()) {
+      return; // Dừng nếu kiểm tra không hợp lệ
+    }
     // Kiểm tra địa chỉ
     if (!province || !selectedDistrict || !address.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ địa chỉ!");
@@ -297,6 +303,12 @@ const InputProfileScreen = ({ navigation, route }) => {
   const handleDobChange = (input) => {
     setDobInput(input);
 
+    // Kiểm tra nếu trường nhập rỗng
+    if (!input.trim()) {
+      setErrorDoB(""); // Không hiển thị lỗi nếu trường rỗng
+      return;
+    }
+
     // Validate format
     if (!validateDOB(input)) {
       setErrorDoB("Ngày hoặc tháng không tồn tại (định dạng: dd/mm/yyyy).");
@@ -312,7 +324,7 @@ const InputProfileScreen = ({ navigation, route }) => {
     const currentMonth = today.getMonth() + 1; // `getMonth` is 0-based
     const currentDay = today.getDate();
     const minYear = currentYear - 100; // Minimum year (100 years ago)
-    const maxAllowedYear = currentYear - 9; // Maximum year (at least 10 years old)
+    const maxAllowedYear = currentYear - 10; // Maximum year (at least 10 years old)
 
     // Validate year range (too far in the past)
     if (year < minYear) {
@@ -357,6 +369,53 @@ const InputProfileScreen = ({ navigation, route }) => {
 
     // Clear errors if valid
     setErrorDoB("");
+  };
+
+  const handleHeightChange = (input) => {
+    setHeight(input);
+
+    if (!input.trim()) {
+      setHeightError(""); // Không hiển thị lỗi nếu trường rỗng
+      return;
+    }
+    const value = parseFloat(input);
+    if (isNaN(value) || value < 50 || value > 250) {
+      setHeightError("Chiều cao phải từ 50-250 cm.");
+    } else {
+      setHeightError("");
+    }
+  };
+
+  const handleWeightChange = (input) => {
+    setWeight(input);
+
+    if (!input.trim()) {
+      setWeightError(""); // Không hiển thị lỗi nếu trường rỗng
+      return;
+    }
+    const value = parseFloat(input);
+    if (isNaN(value) || value < 10 || value > 200) {
+      setWeightError("Cân nặng phải từ 10-200 kg.");
+    } else {
+      setWeightError("");
+    }
+  };
+
+  const validateHeightAndWeight = () => {
+    const heightValue = parseFloat(height);
+    const weightValue = parseFloat(weight);
+
+    if (isNaN(heightValue) || heightValue < 50 || heightValue > 250) {
+      Alert.alert("Lỗi", "Chiều cao phải nằm trong khoảng từ 50-250 cm.");
+      return false;
+    }
+
+    if (isNaN(weightValue) || weightValue < 10 || weightValue > 200) {
+      Alert.alert("Lỗi", "Cân nặng phải nằm trong khoảng từ 10-200 kg.");
+      return false;
+    }
+
+    return true;
   };
 
   const radioButtonsPreferences = [
@@ -555,34 +614,44 @@ const InputProfileScreen = ({ navigation, route }) => {
               />
             </View>
           </View>
-          <View
-            style={{ flexDirection: "row", justifyContent: "space-between" }}
-          >
-            <View style={[styles.attributeRow, { width: "45%" }]}>
-              <Text style={styles.textTitle}>Chiều cao (cm):</Text>
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Nhập chiều cao"
-                  value={height}
-                  placeholderTextColor={COLORS.lightGrey}
-                  onChangeText={setHeight}
-                  keyboardType="numeric"
-                />
+          <View>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
+              {/* Input chiều cao */}
+              <View style={[styles.attributeRow, { width: "45%" }]}>
+                <Text style={styles.textTitle}>Chiều cao (cm):</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Nhập chiều cao"
+                    value={height}
+                    placeholderTextColor={COLORS.lightGrey}
+                    onChangeText={handleHeightChange}
+                    keyboardType="numeric"
+                  />
+                </View>
+                {heightError ? (
+                  <Text style={styles.errorText}>{heightError}</Text>
+                ) : null}
               </View>
-            </View>
 
-            <View style={[styles.attributeRow, { width: "50%" }]}>
-              <Text style={styles.textTitle}>Cân nặng (kg):</Text>
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Nhập cân nặng"
-                  value={weight}
-                  placeholderTextColor={COLORS.lightGrey}
-                  onChangeText={setWeight}
-                  keyboardType="numeric"
-                />
+              {/* Input cân nặng */}
+              <View style={[styles.attributeRow, { width: "50%" }]}>
+                <Text style={styles.textTitle}>Cân nặng (kg):</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Nhập cân nặng"
+                    value={weight}
+                    placeholderTextColor={COLORS.lightGrey}
+                    onChangeText={handleWeightChange}
+                    keyboardType="numeric"
+                  />
+                </View>
+                {weightError ? (
+                  <Text style={styles.errorText}>{weightError}</Text>
+                ) : null}
               </View>
             </View>
           </View>
@@ -895,5 +964,31 @@ const styles = StyleSheet.create({
   },
   attributeRow: {
     marginBottom: 15,
+  },
+  attributeRow: {
+    marginBottom: 15,
+  },
+  textTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 15,
+    marginBottom: 5,
+    color: COLORS.black,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderColor: COLORS.lightGrey,
+  },
+  textInput: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    width: "100%",
+    paddingVertical: 5,
+  },
+  errorText: {
+    color: COLORS.red,
+    fontFamily: FONTS.medium,
+    marginTop: 5,
   },
 });

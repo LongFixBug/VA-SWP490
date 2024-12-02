@@ -63,6 +63,7 @@ const MembershipScreen = ({ navigation }) => {
   const [tierName, setTierName] = useState("");
   const [nextTier, setNextTier] = useState(null);
   const [isModalVisible, setModalVisible] = useState(false); // Modal trạng thái
+  const [isDiscount, setIsDiscount] = useState(false);
 
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
@@ -323,48 +324,111 @@ const MembershipScreen = ({ navigation }) => {
               style={{
                 fontFamily: FONTS.bold,
                 fontSize: 18,
-                color: COLORS.black,
+                color: COLORS.green,
                 marginBottom: 10,
               }}
             >
-              Quy tắc tính điểm
+              {isDiscount ? "Quy tắc giảm giá" : "Quy tắc tính điểm"}
             </Text>
-            <Text style={{ fontFamily: FONTS.medium, fontSize: 15 }}>
-              1. Mỗi khi đơn hàng hoàn thành giao đến tay khách hàng, khách hàng
-              sẽ được nhận 20 điểm.
-            </Text>
-            <Text
-              style={{ fontFamily: FONTS.medium, fontSize: 15, marginTop: 5 }}
-            >
-              2. Mỗi khi thực hiện feedback thành công, khách hàng được nhận 10
-              điểm.
-            </Text>
-            <Text
-              style={{ fontFamily: FONTS.medium, fontSize: 15, marginTop: 5 }}
-            >
-              3. Mỗi khi bài viết của khách hàng được duyệt, khách hàng được
-              nhận 20 điểm.
-            </Text>
-            <TouchableOpacity
-              onPress={toggleModal}
+
+            {isDiscount ? (
+              <>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 15 }}>
+                  1. Số tiền được discount sẽ là discount trên giá trị món ăn
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    fontSize: 15,
+                    marginTop: 5,
+                  }}
+                >
+                  2. Thành viên Gold được giảm giá 20% trên mỗi đơn hàng.
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    fontSize: 15,
+                    marginTop: 5,
+                  }}
+                >
+                  3. Thành viên Platinum được giảm giá 30% trên mỗi đơn hàng.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 15 }}>
+                  1. Mỗi khi đơn hàng hoàn thành giao đến tay khách hàng, khách
+                  hàng sẽ được nhận 20 điểm.
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    fontSize: 15,
+                    marginTop: 5,
+                  }}
+                >
+                  2. Mỗi khi thực hiện feedback thành công, khách hàng được nhận
+                  10 điểm.
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    fontSize: 15,
+                    marginTop: 5,
+                  }}
+                >
+                  3. Mỗi khi bài viết của khách hàng được duyệt, khách hàng được
+                  nhận 20 điểm.
+                </Text>
+              </>
+            )}
+
+            <View
               style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
                 marginTop: 20,
-                alignSelf: "center",
-                padding: 10,
-                backgroundColor: COLORS.green,
-                borderRadius: 5,
               }}
             >
-              <Text
+              <TouchableOpacity
+                onPress={() => setIsDiscount(!isDiscount)}
                 style={{
-                  fontFamily: FONTS.bold,
-                  fontSize: 15,
-                  color: COLORS.white,
+                  padding: 10,
+                  backgroundColor: COLORS.blue,
+                  borderRadius: 5,
                 }}
               >
-                Đóng
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={{
+                    fontFamily: FONTS.bold,
+                    fontSize: 15,
+                    color: COLORS.white,
+                  }}
+                >
+                  {isDiscount ? "Quy tắc tính điểm" : "Quy tắc giảm giá"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={toggleModal}
+                style={{
+                  padding: 10,
+                  backgroundColor: COLORS.green,
+                  borderRadius: 5,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: FONTS.bold,
+                    fontSize: 15,
+                    color: COLORS.white,
+                  }}
+                >
+                  Đóng
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

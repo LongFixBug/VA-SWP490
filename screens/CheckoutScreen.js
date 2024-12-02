@@ -419,9 +419,9 @@ const CheckoutScreen = ({ navigation }) => {
         }
 
         console.log("[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công.");
-      } else if (paymentDetail?.paymentMethod === "PayOs") {
+      } else if (paymentDetail?.paymentMethod === "PayOS") {
         console.log(
-          "[DEBUG] Phương thức thanh toán là PayOs. Kiểm tra trạng thái thanh toán."
+          "[DEBUG] Phương thức thanh toán là PayOS. Kiểm tra trạng thái thanh toán."
         );
 
         if (paymentDetail?.paymentStatus === "completed") {

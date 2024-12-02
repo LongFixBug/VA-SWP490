@@ -244,8 +244,12 @@ const OrderScreen = ({ navigation }) => {
                 )}
               </Text>
               <Text style={styles.orderTotal}>
-                Tổng tiền: {item.totalPrice}đ
+                Tổng tiền:{" "}
+                {item.totalPrice
+                  ? `${item.totalPrice.toLocaleString()} vnđ`
+                  : "0.000 đ"}
               </Text>
+
               <Text
                 style={{
                   ...styles.orderStatus,

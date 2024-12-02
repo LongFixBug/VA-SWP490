@@ -395,7 +395,7 @@ const HomeScreen = () => {
           alignItems: "center",
         }}
       >
-        <View style={{ width: "50%" }}>
+        <View style={{ width: "50%", marginLeft: -18 }}>
           <Text
             style={{
               fontFamily: FONTS.bold,

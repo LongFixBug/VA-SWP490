@@ -55,7 +55,11 @@ import messaging from "@react-native-firebase/messaging";
 import RecommedDishScreen from "./screens/RecommendDishScreen";
 import NutritionMatchingScreen from "./screens/NutritionMatchingScreen";
 import NutritionArticleDetailScreen from "./screens/NutritionArticleDetailScreen";
-
+const HomeStack = createStackNavigator();
+const OrderStack = createStackNavigator();
+const CommunityStack = createStackNavigator();
+const NotificationStack = createStackNavigator();
+const ProfileStack = createStackNavigator();
 const toastConfig = {
   success: (props) => (
     <BaseToast
@@ -93,185 +97,250 @@ const toastConfig = {
   ),
 };
 
-const TabRoute = ({ userId }) => {
-  return (
-    <View style={{ flex: 1, backgroundColor: COLORS.white }}>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarActiveTintColor: COLORS.white,
-          tabBarInactiveTintColor: COLORS.greySolid,
-          tabBarLabelStyle: {
-            display: "none",
-          },
-          tabBarStyle: {
-            backgroundColor: COLORS.white,
-            height: 60,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-          },
-        })}
-      >
-        <Tab.Screen
-          name="Trang chủ"
-          component={HomeScreen}
-          initialParams={{ userId }}
-          options={{
-            tabBarIcon: ({ focused, color, size }) => {
-              return focused ? (
-                <View
-                  style={{
-                    backgroundColor: COLORS.green,
-                    borderRadius: 50,
-                    padding: 20,
-                    marginTop: -40,
-                    shadowColor: COLORS.green,
-                    shadowOffset: {
-                      width: 0,
-                      height: 5,
-                    },
-                    shadowOpacity: 0.25,
-                    elevation: 4,
-                  }}
-                >
-                  <Icon name="home" color={color} size={size} />
-                </View>
-              ) : (
-                <Icon name="home-outline" color={color} size={28} />
-              );
-            },
-            headerShown: false,
-          }}
-        />
-        <Tab.Screen
-          name="Đơn hàng"
-          component={OrderScreen}
-          options={{
-            tabBarIcon: ({ focused, color, size }) => {
-              return focused ? (
-                <View
-                  style={{
-                    backgroundColor: COLORS.green,
-                    borderRadius: 50,
-                    padding: 20,
-                    marginTop: -40,
-                    shadowColor: COLORS.white,
-                    shadowOffset: {
-                      width: 0,
-                      height: 5,
-                    },
-                    shadowOpacity: 0.25,
-                    elevation: 4,
-                  }}
-                >
-                  <Icon name="albums" color={color} size={size} />
-                </View>
-              ) : (
-                <Icon name="albums-outline" color={color} size={28} />
-              );
-            },
-            headerShown: false,
-          }}
-        />
-        <Tab.Screen
-          name="Cộng đồng"
-          component={CommunityScreen}
-          options={{
-            tabBarIcon: ({ focused, color, size }) => {
-              return focused ? (
-                <View
-                  style={{
-                    backgroundColor: COLORS.green,
-                    borderRadius: 50,
-                    padding: 20,
-                    marginTop: -40,
-                    shadowColor: COLORS.green,
-                    shadowOffset: {
-                      width: 0,
-                      height: 5,
-                    },
-                    shadowOpacity: 0.25,
-                    elevation: 4,
-                  }}
-                >
-                  <Icon name="people" color={color} size={size} />
-                </View>
-              ) : (
-                <Icon name="people-outline" color={color} size={28} />
-              );
-            },
-            headerShown: false,
-          }}
-        />
-        <Tab.Screen
-          name="Thông báo"
-          component={NotificationScreen}
-          initialParams={{ userId }}
-          options={{
-            tabBarIcon: ({ focused, color, size }) => {
-              return focused ? (
-                <View
-                  style={{
-                    backgroundColor: COLORS.green,
-                    borderRadius: 50,
-                    padding: 20,
-                    marginTop: -40,
-                    shadowColor: COLORS.green,
-                    shadowOffset: {
-                      width: 0,
-                      height: 5,
-                    },
-                    shadowOpacity: 0.25,
-                    elevation: 4,
-                  }}
-                >
-                  <Icon name="notifications" color={color} size={size} />
-                </View>
-              ) : (
-                <Icon name="notifications-outline" color={color} size={28} />
-              );
-            },
-            tabBarBadge: 8,
-            tabBarBadgeStyle: {
-              fontFamily: FONTS.semiBold,
-            },
+const HomeStackScreen = () => (
+  <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <HomeStack.Screen name="Home" component={HomeScreen} />
+    <HomeStack.Screen
+      name="DishDetail"
+      component={DishDetailScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="AllDishes"
+      component={AllDishScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="Recommend"
+      component={RecommedDishScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="RecommendDish"
+      component={RecommedDishScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="NutritionMatching"
+      component={NutritionMatchingScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="Menu"
+      component={MenuScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="DetailMenu"
+      component={DetailMenuScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="Cart"
+      component={CartScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="Checkout"
+      component={CheckoutScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="Favourite"
+      component={FavouriteScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    {/* Thêm các màn hình khác liên quan đến Home */}
+  </HomeStack.Navigator>
+);
 
-            headerShown: false,
-          }}
-        />
-        <Tab.Screen
-          name="Tài khoản"
-          component={ProfileScreen}
-          options={{
-            tabBarIcon: ({ focused, color, size }) => {
-              return focused ? (
-                <View
-                  style={{
-                    backgroundColor: COLORS.green,
-                    borderRadius: 50,
-                    padding: 20,
-                    marginTop: -40,
-                    shadowColor: COLORS.green,
-                    shadowOffset: {
-                      width: 0,
-                      height: 5,
-                    },
-                    shadowOpacity: 0.25,
-                    elevation: 4,
-                  }}
-                >
-                  <Icon name="person" color={color} size={size} />
-                </View>
-              ) : (
-                <Icon name="person-outline" color={color} size={28} />
-              );
-            },
-            headerShown: false,
-          }}
-        />
-      </Tab.Navigator>
-    </View>
-  );
-};
+const OrderStackScreen = () => (
+  <OrderStack.Navigator screenOptions={{ headerShown: false }}>
+    <OrderStack.Screen name="Order" component={OrderScreen} />
+    <OrderStack.Screen name="OrderDetail" component={OrderDetailScreen} />
+
+    {/* Thêm các màn hình khác liên quan đến Order */}
+  </OrderStack.Navigator>
+);
+
+const CommunityStackScreen = () => (
+  <CommunityStack.Navigator screenOptions={{ headerShown: false }}>
+    <CommunityStack.Screen name="Community" component={CommunityScreen} />
+    <CommunityStack.Screen name="NewPost" component={NewPostScreen} />
+    <CommunityStack.Screen name="PostDetail" component={PostDetailScreen} />
+    {/* Thêm các màn hình khác liên quan đến Community */}
+  </CommunityStack.Navigator>
+);
+
+const NotificationStackScreen = () => (
+  <NotificationStack.Navigator screenOptions={{ headerShown: false }}>
+    <NotificationStack.Screen
+      name="Notification"
+      component={NotificationScreen}
+    />
+    <NotificationStack.Screen
+      name="NotificationSetting"
+      component={NotificationSettingScreen}
+    />
+    {/* Thêm các màn hình khác liên quan đến Notification */}
+  </NotificationStack.Navigator>
+);
+const ProfileStackScreen = () => (
+  <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+    <ProfileStack.Screen name="Profile" component={ProfileScreen} />
+    <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
+    <ProfileStack.Screen name="Setting" component={SettingScreen} />
+    <ProfileStack.Screen name="ContactUs" component={ContactUsScreen} />
+    <ProfileStack.Screen name="Membership" component={MembershipScreen} />
+    {/* Thêm các màn hình khác liên quan đến Profile */}
+  </ProfileStack.Navigator>
+);
+
+const TabRoute = () => (
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      tabBarActiveTintColor: COLORS.white,
+      tabBarInactiveTintColor: COLORS.greySolid,
+      tabBarLabelStyle: { display: "none" },
+      tabBarStyle: {
+        backgroundColor: COLORS.white,
+        height: 60,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+      },
+    })}
+  >
+    <Tab.Screen
+      name="Trang chủ"
+      component={HomeStackScreen}
+      options={{
+        tabBarIcon: ({ focused, color, size }) => (
+          <View
+            style={{
+              backgroundColor: focused ? COLORS.green : COLORS.transparent,
+              borderRadius: 50, // Giữ hình dạng tròn
+              padding: 15, // Tăng giá trị này để làm hình tròn lớn hơn
+              marginTop: -10, // Điều chỉnh khoảng cách để phù hợp
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon
+              name={focused ? "home" : "home-outline"}
+              color={focused ? COLORS.white : COLORS.greySolid}
+              size={size}
+            />
+          </View>
+        ),
+        headerShown: false,
+      }}
+    />
+
+    <Tab.Screen
+      name="Đơn hàng"
+      component={OrderStackScreen}
+      options={{
+        tabBarIcon: ({ focused, color, size }) => (
+          <View
+            style={{
+              backgroundColor: focused ? COLORS.green : COLORS.transparent,
+              borderRadius: 50,
+              padding: 15,
+              marginTop: -10,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon
+              name={focused ? "albums" : "albums-outline"}
+              color={focused ? COLORS.white : COLORS.greySolid}
+              size={size}
+            />
+          </View>
+        ),
+        headerShown: false,
+      }}
+    />
+
+    <Tab.Screen
+      name="Cộng đồng"
+      component={CommunityStackScreen}
+      options={{
+        tabBarIcon: ({ focused, color, size }) => (
+          <View
+            style={{
+              backgroundColor: focused ? COLORS.green : COLORS.transparent,
+              borderRadius: 50,
+              padding: 15,
+              marginTop: -10,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon
+              name={focused ? "people" : "people-outline"}
+              color={focused ? COLORS.white : COLORS.greySolid}
+              size={size}
+            />
+          </View>
+        ),
+        headerShown: false,
+      }}
+    />
+
+    <Tab.Screen
+      name="Thông báo"
+      component={NotificationStackScreen}
+      options={{
+        tabBarIcon: ({ focused, color, size }) => (
+          <View
+            style={{
+              backgroundColor: focused ? COLORS.green : COLORS.transparent,
+              borderRadius: 50,
+              padding: 15,
+              marginTop: -10,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon
+              name={focused ? "notifications" : "notifications-outline"}
+              color={focused ? COLORS.white : COLORS.greySolid}
+              size={size}
+            />
+          </View>
+        ),
+        headerShown: false,
+      }}
+    />
+
+    <Tab.Screen
+      name="Tài khoản"
+      component={ProfileStackScreen}
+      options={{
+        tabBarIcon: ({ focused, color, size }) => (
+          <View
+            style={{
+              backgroundColor: focused ? COLORS.green : COLORS.transparent,
+              borderRadius: 50,
+              padding: 20,
+              marginTop: -10,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon
+              name={focused ? "person" : "person-outline"}
+              color={focused ? COLORS.white : COLORS.greySolid}
+              size={size}
+            />
+          </View>
+        ),
+        headerShown: false,
+      }}
+    />
+  </Tab.Navigator>
+);
 
 const requestPermission = async () => {
   const authStatus = await messaging().requestPermission();
@@ -338,7 +407,7 @@ export default function App() {
           setInitialRoute("Login");
         }
       } catch (error) {
-        setInitialRoute("Login"); // không có thông tin token trả về login
+        setInitialRoute("Home"); // không có thông tin token trả về login
       }
     };
 
@@ -388,6 +457,7 @@ export default function App() {
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="InputOTP" component={InputOTPScreen} />
           <Stack.Screen name="Home" component={TabRoute} />
+          <Stack.Screen name="Main" component={TabRoute} />
           <Stack.Screen name="Order" component={OrderScreen} />
           <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
           <Stack.Screen

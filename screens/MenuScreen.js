@@ -13,10 +13,12 @@ import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Header from "../components/Header";
-
+import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
+import Toast from "react-native-toast-message";
 const MenuScreen = ({ navigation }) => {
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -55,7 +57,7 @@ const MenuScreen = ({ navigation }) => {
       const apiEndpoints = [
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuBreakfastForUser/${userId}`,
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuLunchForUser/${userId}`,
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuAfternoonSnackForUser/${userId}`,
+
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuDinnerForUser/${userId}`,
       ];
 
@@ -111,8 +113,78 @@ const MenuScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    fetchMenus();
+    const fetchUserId = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (storedUserId) {
+          setUserId(storedUserId); // Lưu `userId` vào state
+        } else {
+          console.error("Không tìm thấy User ID trong AsyncStorage.");
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy User ID:", error);
+      }
+    };
+
+    fetchUserId();
+    fetchMenus(); // Lấy danh sách menus
   }, []);
+
+  const handleAddMenuToCart = async (menuItems) => {
+    if (!userId) {
+      console.error("User ID không tồn tại.");
+      return;
+    }
+
+    try {
+      const addDishPromises = menuItems.map(async (dish) => {
+        const dishData = {
+          userId: parseInt(userId), // Chuyển thành số nguyên
+          dishId: dish.dish?.dishId || dish.dishId,
+          quantity: 1, // Số lượng mặc định là 1
+        };
+
+        // Gọi API thêm món vào giỏ hàng
+        const response = await fetchWithAuth(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/addToCart",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(dishData),
+          }
+        );
+
+        if (!response.ok) {
+          console.error(
+            `Lỗi khi thêm món ${dish.dish?.name || "Không rõ"} vào giỏ hàng`,
+            response.status
+          );
+          throw new Error(
+            `Không thể thêm món ${dish.dish?.name || "Không rõ"} vào giỏ hàng`
+          );
+        }
+      });
+
+      // Thực hiện tất cả các API call song song
+      await Promise.all(addDishPromises);
+
+      // Hiển thị thông báo thành công
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: "Tất cả món ăn trong menu đã được thêm vào giỏ hàng!",
+      });
+    } catch (error) {
+      console.error("Lỗi khi thêm menu vào giỏ hàng:", error);
+      Toast.show({
+        type: "error",
+        text1: "Thất bại",
+        text2: "Đã xảy ra lỗi khi thêm menu vào giỏ hàng.",
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -176,6 +248,17 @@ const MenuScreen = ({ navigation }) => {
                 />
               ))}
             </ScrollView>
+
+            {/* Add to Cart Button */}
+            <TouchableOpacity
+              style={styles.addToCartButton}
+              onPress={() => handleAddMenuToCart(menu.menuItems)}
+            >
+              <Icon1 name="cart-plus" size={20} color={COLORS.white} />
+              <Text style={{ color: COLORS.white, marginLeft: 5 }}>
+                Thêm vào giỏ
+              </Text>
+            </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
@@ -216,5 +299,19 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
     borderRadius: 8,
     marginLeft: 10,
+  },
+  addToCartButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.green,
+    paddingVertical: 10,
+    marginTop: 10,
+    borderRadius: 5,
+  },
+  addToCartText: {
+    fontFamily: FONTS.semiBold,
+    color: COLORS.white,
+    marginLeft: 5,
   },
 });

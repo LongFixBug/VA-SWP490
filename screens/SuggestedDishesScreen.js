@@ -12,39 +12,6 @@ import { useNavigation } from "@react-navigation/native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 
-// Đây là mock data, sau này bạn sẽ thay thế nó bằng dữ liệu từ API
-const foodItems = [
-  {
-    id: "1",
-    name: "Tên món ăn 1",
-    price: "30.000 vnd",
-    rating: 5.0,
-    comments: "999 bình luận",
-  },
-  {
-    id: "2",
-    name: "Tên món ăn 2",
-    price: "30.000 vnd",
-    rating: 4.5,
-    comments: "888 bình luận",
-  },
-  {
-    id: "3",
-    name: "Tên món ăn 3",
-    price: "40.000 vnd",
-    rating: 4.8,
-    comments: "765 bình luận",
-  },
-  {
-    id: "4",
-    name: "Tên món ăn 4",
-    price: "50.000 vnd",
-    rating: 4.9,
-    comments: "543 bình luận",
-  },
-  // Thêm các món ăn khác ở đây nếu cần
-];
-
 const SuggestedDishesScreen = () => {
   const navigation = useNavigation();
 

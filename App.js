@@ -1,4 +1,5 @@
-import { StatusBar } from "expo-status-bar";
+// import { StatusBar } from "expo-status-bar";
+import { StatusBar } from "react-native";
 import { StyleSheet, View } from "react-native";
 
 import Icon from "react-native-vector-icons/Ionicons";
@@ -55,6 +56,8 @@ import messaging from "@react-native-firebase/messaging";
 import RecommedDishScreen from "./screens/RecommendDishScreen";
 import NutritionMatchingScreen from "./screens/NutritionMatchingScreen";
 import NutritionArticleDetailScreen from "./screens/NutritionArticleDetailScreen";
+import LoginWithPhone from "./screens/LoginWithPhone"; // Đảm bảo import đúng file
+
 const HomeStack = createStackNavigator();
 const OrderStack = createStackNavigator();
 const CommunityStack = createStackNavigator();
@@ -447,6 +450,11 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <StatusBar
+        backgroundColor="transparent"
+        barStyle="dark-content"
+        translucent={true}
+      />
       <NavigationContainer>
         <Stack.Navigator
           screenOptions={{ headerShown: false }}
@@ -483,6 +491,7 @@ export default function App() {
           <Stack.Screen name="Setting" component={SettingScreen} />
           <Stack.Screen name="ContactUs" component={ContactUsScreen} />
           <Stack.Screen name="Nutrition" component={NutritionMatchingScreen} />
+          <Stack.Screen name="LoginWithPhone" component={LoginWithPhone} />
           <Stack.Screen
             name="NutritionArticle"
             component={NutritionArticleDetailScreen}

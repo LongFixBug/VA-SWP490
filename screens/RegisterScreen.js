@@ -60,7 +60,11 @@ const RegisterScreen = ({ navigation }) => {
       const otp = await sendOTP(formattedPhone);
       if (otp) {
         setOtpSent(true);
-        navigation.navigate("InputOTP", { phone: formattedPhone, otp: otp });
+        navigation.navigate("InputOTP", {
+          phone: formattedPhone,
+          otp: otp,
+          fromScreen: "Login",
+        });
       }
     } else {
       setNoti("Có lỗi xảy ra khi kiểm tra số điện thoại!");

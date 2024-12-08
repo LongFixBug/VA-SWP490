@@ -69,10 +69,9 @@ const LoginScreen = ({ navigation }) => {
         routes: [{ name: "Home" }],
       });
     } catch (error) {
-      console.error("Login error:", error);
       Alert.alert(
-        "Lỗi",
-        "Đăng nhập thất bại! Vui lòng kiểm tra thông tin hoặc thử lại sau."
+        "Đăng nhập thất bại",
+        "Vui lòng kiểm tra thông tin hoặc thử lại sau."
       );
     } finally {
       setLoading(false);

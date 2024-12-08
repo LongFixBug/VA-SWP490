@@ -12,6 +12,8 @@ import FONTS from "../constants/font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../components/Header";
 
+// NutritionMatchingScreen.js
+
 function NutritionMatchingScreen({ navigation }) {
   const [nutritionData, setNutritionData] = useState(null);
   const [userName, setUserName] = useState(""); // Thêm state cho tên người dùng
@@ -27,6 +29,29 @@ function NutritionMatchingScreen({ navigation }) {
       ...options.headers,
     };
     return fetch(url, { ...options, headers });
+  };
+
+  // Hàm gọi API cập nhật tiêu chí
+  const updateMatchingCriteria = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) {
+        throw new Error("Không tìm thấy User ID.");
+      }
+
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/matchCriteria/${userId}`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Lỗi khi cập nhật tiêu chí: ${response.statusText}`);
+      }
+      console.log("Tiêu chí đã được cập nhật thành công.");
+    } catch (error) {
+      console.error("Lỗi khi cập nhật tiêu chí:", error.message);
+      Alert.alert("Lỗi", error.message || "Không thể cập nhật tiêu chí.");
+    }
   };
 
   // Hàm fetch dữ liệu dinh dưỡng
@@ -71,7 +96,12 @@ function NutritionMatchingScreen({ navigation }) {
   };
 
   useEffect(() => {
-    fetchNutritionData();
+    const fetchData = async () => {
+      setLoading(true);
+      await updateMatchingCriteria(); // Gọi API cập nhật tiêu chí
+      await fetchNutritionData(); // Gọi API lấy dữ liệu dinh dưỡng
+    };
+    fetchData();
   }, []);
 
   // Nếu đang load
@@ -116,7 +146,8 @@ function NutritionMatchingScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.nutritionBox}>
           <Text style={styles.boxHeader}>
-            Khách hàng {userName ? `${userName}` : ""}
+            Dinh dưỡng cần trong ngày dành cho khách hàng{" "}
+            {userName ? `${userName}` : ""}
           </Text>
           {Object.entries(nutritionData).map(([key, value]) => (
             <View style={styles.nutritionRow} key={key}>

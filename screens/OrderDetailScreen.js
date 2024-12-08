@@ -229,7 +229,7 @@ const OrderDetailScreen = ({ navigation }) => {
 
       if (response.ok) {
         await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/EditCustomer/membership/changePoint/${order?.userId}/20`,
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/EditCustomer/membership/changePoint/${order?.userId}/10`,
           {
             method: "PUT",
           }

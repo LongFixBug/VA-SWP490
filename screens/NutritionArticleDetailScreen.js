@@ -18,7 +18,11 @@ import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Toast from "react-native-toast-message";
 import ImageViewer from "react-native-image-zoom-viewer";
-
+import { RenderHTML } from "react-native-render-html";
+import { Dimensions } from "react-native";
+import { HTMLElementModel } from "react-native-render-html";
+const { width } = Dimensions.get("window");
+import { WebView } from "react-native-webview";
 const NutritionArticleDetailScreen = ({ route, navigation }) => {
   const { articleId } = route.params;
   const [article, setArticle] = useState(null);
@@ -280,6 +284,75 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  const replaceOembedWithIframe = (htmlContent) => {
+    if (!htmlContent) return htmlContent;
+
+    const div = document.createElement("div");
+    div.innerHTML = htmlContent;
+
+    const oembedElements = div.querySelectorAll("oembed");
+    oembedElements.forEach((oembed) => {
+      const url = oembed.getAttribute("url");
+      if (url && url.includes("youtube.com/watch")) {
+        const videoId = new URL(url).searchParams.get("v");
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("width", "560");
+        iframe.setAttribute("height", "315");
+        iframe.setAttribute("src", `https://www.youtube.com/embed/${videoId}`);
+        iframe.setAttribute("frameborder", "0");
+        iframe.setAttribute(
+          "allow",
+          "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        );
+        iframe.setAttribute("allowfullscreen", "true");
+
+        oembed.replaceWith(iframe);
+      }
+    });
+
+    return div.innerHTML;
+  };
+
+  // Định nghĩa custom renderer cho thẻ oembed
+  const customRenderers = {
+    oembed: ({ TDefaultRenderer, tnode }) => {
+      const oembedUrl = tnode.attributes.url;
+
+      if (!oembedUrl) return null;
+
+      // Hiển thị video YouTube bằng WebView
+      if (oembedUrl.includes("youtube.com") || oembedUrl.includes("youtu.be")) {
+        return (
+          <WebView
+            source={{ uri: oembedUrl }}
+            style={{
+              width: "100%",
+              height: 200,
+              marginVertical: 10,
+            }}
+            javaScriptEnabled={true}
+            allowsFullscreenVideo={true}
+          />
+        );
+      }
+
+      // Hiển thị thông báo nếu không phải YouTube
+      return <Text>Unsupported embed format</Text>;
+    },
+  };
+
+  // Định nghĩa mô hình cho thẻ oembed
+  const customHTMLElementModels = {
+    oembed: HTMLElementModel.fromCustomModel({
+      tagName: "oembed",
+      mixedUAStyles: {
+        width: "100%",
+        height: 200,
+      },
+      contentModel: "void",
+    }),
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -306,7 +379,8 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
             <Image
               source={{
                 uri:
-                  article?.authorImageUrl || "https://via.placeholder.com/45",
+                  article?.authorImageUrl ||
+                  "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740",
               }}
               style={styles.authorImage}
             />
@@ -331,11 +405,54 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
           </View>
 
           <Text style={styles.articleTitle}>
-            {article?.title || "Không có tiêu đề"}
+            <RenderHTML
+              contentWidth={width}
+              source={{ html: article?.title || "<p>Không có nội dung</p>" }}
+              customHTMLElementModels={customHTMLElementModels}
+              tagsStyles={{
+                p: {
+                  fontFamily: FONTS.medium,
+                  fontSize: 14,
+                  color: COLORS.black,
+                },
+                h1: {
+                  fontFamily: FONTS.semiBold,
+                  fontSize: 20,
+                  color: COLORS.black,
+                },
+              }}
+            />
           </Text>
-          <Text style={styles.articleContent}>
-            {article?.content || "Không có nội dung"}
-          </Text>
+          <RenderHTML
+            contentWidth={width}
+            source={{ html: article?.content || "<p>Không có nội dung</p>" }}
+            customHTMLElementModels={customHTMLElementModels}
+            renderers={customRenderers}
+            ignoredDomTags={["iframe"]} // Loại bỏ thẻ iframe nếu không hỗ trợ
+            tagsStyles={{
+              p: {
+                fontFamily: FONTS.medium,
+                fontSize: 14,
+                color: COLORS.black,
+              },
+              h1: {
+                fontFamily: FONTS.semiBold,
+                fontSize: 20,
+                color: COLORS.black,
+              },
+            }}
+          />
+
+          {/* Nếu có URL YouTube riêng */}
+          {article?.youtubeUrl && (
+            <WebView
+              source={{ uri: article.youtubeUrl }}
+              style={{ width: "100%", height: 200, marginTop: 10 }}
+              javaScriptEnabled={true}
+              allowsFullscreenVideo={true}
+            />
+          )}
+
           {/* First Article Image */}
           {articleImages.length > 0 && (
             <Image
@@ -347,7 +464,31 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
         {/* Article Bodies */}
         {articleBodies.map((body, index) => (
           <View key={index} style={styles.bodySection}>
-            <Text style={styles.bodyContent}>{body.content}</Text>
+            <RenderHTML
+              contentWidth={width}
+              source={{
+                html: body?.content || "<p>Không có nội dung</p>",
+              }}
+              customHTMLElementModels={customHTMLElementModels}
+              // renderers={{
+              //   oembed: ({ TDefaultRenderer, tnode }) => (
+              //     <Text style={{ color: "red" }}>{tnode.data}</Text>
+              //   ),
+              // }}
+              tagsStyles={{
+                p: {
+                  fontFamily: FONTS.medium,
+                  fontSize: 14,
+                  color: COLORS.black,
+                },
+                h1: {
+                  fontFamily: FONTS.semiBold,
+                  fontSize: 20,
+                  color: COLORS.black,
+                },
+              }}
+            />
+
             {body.imageUrl && (
               <Image source={{ uri: body.imageUrl }} style={styles.bodyImage} />
             )}

@@ -234,7 +234,9 @@ const CartScreen = ({ navigation }) => {
                 />
               </View>
               <Text style={styles.textDishType}>{item.dishType}</Text>
-              <Text style={styles.textDishPrice}>{item.price}đ</Text>
+              <Text style={styles.textDishPrice}>
+                {item.price ? `${item.price.toLocaleString()} vnđ` : "0.000 đ"}
+              </Text>
               <View style={styles.quantityContainer}>
                 <TouchableOpacity
                   onPress={() => handleQuantityChange(item, false)}
@@ -261,11 +263,10 @@ const CartScreen = ({ navigation }) => {
           >
             <Text style={styles.totalAmountText}>Tổng số tiền:</Text>
             <Text style={styles.totalAmountValue}>
-              {cartItems.reduce(
-                (total, item) => total + item.price * item.quantity,
-                0
-              )}
-              đ
+              {cartItems
+                .reduce((total, item) => total + item.price * item.quantity, 0)
+                .toLocaleString()}
+              vnđ
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

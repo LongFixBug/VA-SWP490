@@ -234,31 +234,67 @@ const PaymentScreen = ({ navigation, route }) => {
       <View style={styles.content}>
         <View style={styles.rulesContainer}>
           <Text style={styles.rulesHeader}>Quy định thanh toán:</Text>
-          <Text style={styles.rulesText}>
-            1/ Khi bạn chọn thanh toán QR CODE cho đơn hàng này, sau khi thanh
-            toán thành công nếu bạn hủy đơn hàng thì phải liên hệ cho VA qua
-            những phương thức ở trang "Contact Us" để VA kịp thời hỗ trợ việc
-            hoàn tiền.
-          </Text>
-          <Text style={styles.rulesText}>
-            2/ Nếu bạn không liên hệ cho VA thì sẽ mất vài ngày để có thể xử lý.
-          </Text>
-          <TouchableOpacity onPress={() => navigation.navigate("ContactUs")}>
-            <Text
-              style={[
-                styles.rulesText,
-                { color: COLORS.green, textDecorationLine: "underline" },
-              ]}
-            >
-              3/ Truy cập "Contact Us" ở đây.
+          {currentPayment === "QR" ? (
+            <>
+              <Text style={styles.rulesText}>
+                1/ Khi bạn chọn thanh toán QR CODE cho đơn hàng này, sau khi
+                thanh toán thành công nếu bạn hủy đơn hàng thì phải liên hệ cho
+                VA qua những phương thức ở trang "Contact Us" để VA kịp thời hỗ
+                trợ việc hoàn tiền.
+              </Text>
+              <Text style={styles.rulesText}>
+                2/ Nếu bạn không liên hệ cho VA thì sẽ mất vài ngày để có thể xử
+                lý.
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("ContactUs")}
+              >
+                <Text
+                  style={[
+                    styles.rulesText,
+                    { color: COLORS.green, textDecorationLine: "underline" },
+                  ]}
+                >
+                  3/ Truy cập "Contact Us" ở đây.
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : currentPayment === "COD" ? (
+            <>
+              <Text style={styles.rulesText}>
+                1/ Món ăn giao tới khách hàng sẽ không thể hoàn trả.
+              </Text>
+              <Text style={styles.rulesText}>
+                2/ Shipper giao tới, khách hàng nhận món ăn xong mới thanh toán
+                cho shipper.
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("ContactUs")}
+              >
+                <Text
+                  style={[
+                    styles.rulesText,
+                    { color: COLORS.green, textDecorationLine: "underline" },
+                  ]}
+                >
+                  3/ Nếu có vấn đề , thắc mắc về thanh hãy truy cập "Contact Us"
+                  ở đây để liên hệ với VA.
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.rulesText}>
+              Không xác định được phương thức thanh toán. Vui lòng quay lại và
+              thử lại.
             </Text>
-          </TouchableOpacity>
+          )}
         </View>
+
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.green} />
         ) : (
           <Text style={styles.loadingText}>
-            Nhấn "Xác nhận thanh toán" để tạo mã QR
+            Nhấn "Xác nhận thanh toán" để thực hiện thanh toán
           </Text>
         )}
         <Text style={styles.totalText}>

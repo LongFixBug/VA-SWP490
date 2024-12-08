@@ -747,7 +747,20 @@ const CheckoutScreen = ({ navigation }) => {
                 <Text style={styles.textDishType}>
                   {item.dishType || "Món ăn"}
                 </Text>
-                <Text style={styles.textDishPrice}>{item.price}đ</Text>
+                {/* Tính và hiển thị giá tiền sau giảm giá */}
+                <Text style={styles.textDishPrice}>
+                  {item.price.toLocaleString()}vnđ{" "}
+                  {discountRate > 0 && (
+                    <Text
+                      style={{
+                        color: COLORS.grey,
+                        textDecorationLine: "line-through",
+                      }}
+                    >
+                      - {(item.price * discountRate).toLocaleString()}vnđ
+                    </Text>
+                  )}
+                </Text>
                 <View style={styles.quantityContainer}>
                   <Text style={styles.textBold}>x{item.quantity}</Text>
                 </View>

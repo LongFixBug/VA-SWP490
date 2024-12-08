@@ -63,7 +63,7 @@ const RegisterScreen = ({ navigation }) => {
         navigation.navigate("InputOTP", {
           phone: formattedPhone,
           otp: otp,
-          fromScreen: "Login",
+          fromScreen: "Register",
         });
       }
     } else {

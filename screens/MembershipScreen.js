@@ -343,7 +343,7 @@ const MembershipScreen = ({ navigation }) => {
                     marginTop: 5,
                   }}
                 >
-                  2. Thành viên Gold được giảm giá 20% trên mỗi đơn hàng.
+                  2. Discount không được dùng trong 7 ngày sẽ tự động hết hạn
                 </Text>
                 <Text
                   style={{
@@ -352,7 +352,8 @@ const MembershipScreen = ({ navigation }) => {
                     marginTop: 5,
                   }}
                 >
-                  3. Thành viên Platinum được giảm giá 30% trên mỗi đơn hàng.
+                  3. Discount sẽ được làm mới sau 30 ngày từ ngày sử dụng hoặc
+                  hết hạn
                 </Text>
               </>
             ) : (

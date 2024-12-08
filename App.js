@@ -6,6 +6,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import Icon1 from "react-native-vector-icons/SimpleLineIcons";
 import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LogBox } from "react-native";
 
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -100,6 +101,9 @@ const toastConfig = {
   ),
 };
 
+LogBox.ignoreLogs([
+  "Warning: TNodeChildrenRenderer: Support for defaultProps will be removed",
+]);
 const HomeStackScreen = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="Home" component={HomeScreen} />

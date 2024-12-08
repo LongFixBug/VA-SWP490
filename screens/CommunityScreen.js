@@ -19,7 +19,9 @@ import Icon from "react-native-vector-icons/Ionicons";
 import IconAnt from "react-native-vector-icons/AntDesign";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const windowWidth = Dimensions.get("window").width;
+import { RenderHTML } from "react-native-render-html";
+// import { Dimensions } from "react-native";
+const { width } = Dimensions.get("window");
 
 const dataTabView = [
   {
@@ -337,26 +339,34 @@ const CommunityScreen = ({ navigation }) => {
   const renderPost = (item) => {
     const navigateToScreen = async () => {
       try {
-        // Kiểm tra và lấy thông tin tác giả
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${item.authorId}`
         );
         const userData = response.ok ? await response.json() : {};
         const roleId = userData.roleId || 0;
 
-        // Nếu roleId là 5 (chuyên gia), điều hướng tới NutritionArticle
         if (roleId === 5) {
           navigation.navigate("NutritionArticle", {
             articleId: item.articleId,
           });
         } else {
-          // Nếu không, điều hướng tới màn hình PostDetail
           navigation.navigate("PostDetailScreen", { post: item });
         }
       } catch (error) {
         console.error("Error navigating to article screen:", error);
       }
     };
+
+    // Helper function to strip HTML tags and truncate text
+    const stripAndTruncateHTML = (html, maxLength) => {
+      const plainText = html.replace(/<[^>]+>/g, ""); // Strip HTML tags
+      return plainText.length > maxLength
+        ? plainText.slice(0, maxLength) + "..."
+        : plainText;
+    };
+
+    const truncatedTitle = stripAndTruncateHTML(item.title || "", 50); // Truncate title to 50 characters
+    const truncatedContent = stripAndTruncateHTML(item.content || "", 100); // Truncate content to 100 characters
 
     return (
       <View
@@ -370,8 +380,8 @@ const CommunityScreen = ({ navigation }) => {
         }}
         key={item.articleId}
       >
-        {/* Thông tin bài viết */}
         <TouchableOpacity onPress={navigateToScreen} activeOpacity={0.8}>
+          {/* Header */}
           <View style={{ flexDirection: "row" }}>
             <Image
               source={{
@@ -403,14 +413,12 @@ const CommunityScreen = ({ navigation }) => {
               >
                 {item.createdAt}
               </Text>
-              {/* Ngày duyệt bài */}
               {item.moderateDate && (
                 <Text
                   style={{
                     fontFamily: FONTS.medium,
                     fontSize: 12,
                     color: COLORS.grey,
-                    marginTop: -10,
                   }}
                 >
                   Ngày duyệt: {new Date(item.moderateDate).toLocaleDateString()}
@@ -418,31 +426,38 @@ const CommunityScreen = ({ navigation }) => {
               )}
             </View>
           </View>
+
+          {/* Title and Content */}
           <View style={{ marginTop: 10 }}>
+            {/* Render Truncated Title */}
             <Text
               style={{
                 fontFamily: FONTS.semiBold,
                 fontSize: 14,
                 lineHeight: 20,
+                color: COLORS.black,
               }}
+              numberOfLines={1} // Limit title to 1 line
             >
-              {item.title}
+              {truncatedTitle}
             </Text>
+            {/* Render Truncated Content */}
             <Text
               style={{
                 fontFamily: FONTS.medium,
                 fontSize: 13,
                 lineHeight: 22,
+                color: COLORS.black,
                 marginTop: 5,
               }}
-              numberOfLines={2}
+              numberOfLines={2} // Truncate content to 2 lines with ...
             >
-              {item.content}
+              {truncatedContent}
             </Text>
           </View>
         </TouchableOpacity>
 
-        {/* Cuộn ảnh ngang */}
+        {/* Images Carousel */}
         {item.images && item.images.length > 0 && (
           <ScrollView
             horizontal
@@ -467,7 +482,7 @@ const CommunityScreen = ({ navigation }) => {
           </ScrollView>
         )}
 
-        {/* Tương tác thích và bình luận */}
+        {/* Interactions */}
         <View style={{ flexDirection: "row", marginTop: 10 }}>
           <TouchableOpacity
             style={{
@@ -478,15 +493,15 @@ const CommunityScreen = ({ navigation }) => {
             onPress={() => handleLike(item.articleId)}
           >
             <IconAnt
-              name={item.liked ? "like1" : "like2"} // Biểu tượng outline hoặc full
+              name={item.liked ? "like1" : "like2"}
               size={28}
-              color={item.liked ? COLORS.green : COLORS.greySolid} // Đổi màu khi đã like
+              color={item.liked ? COLORS.green : COLORS.greySolid}
             />
             <Text
               style={{
                 fontFamily: FONTS.semiBold,
                 fontSize: 16,
-                color: item.liked ? COLORS.green : COLORS.greySolid, // Đổi màu số lượt like
+                color: item.liked ? COLORS.green : COLORS.greySolid,
                 marginLeft: 5,
               }}
             >
@@ -500,9 +515,7 @@ const CommunityScreen = ({ navigation }) => {
               alignItems: "center",
               marginRight: 20,
             }}
-            onPress={() =>
-              navigation.navigate("PostDetailScreen", { post: item })
-            }
+            onPress={navigateToScreen}
           >
             <Icon
               name="chatbubble-outline"

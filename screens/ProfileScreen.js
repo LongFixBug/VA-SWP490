@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  Modal,
 } from "react-native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
@@ -25,6 +26,24 @@ const ProfileScreen = ({ navigation }) => {
   const [followersCount, setFollowersCount] = useState(0);
   const [rejectedPosts, setRejectedPosts] = useState([]);
   const [activeTab, setActiveTab] = useState("accepted"); // Thêm state activeTab
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [rankData, setRankData] = useState({});
+  const [nextRank, setNextRank] = useState({});
+  const toggleModal = () => setModalVisible(!isModalVisible);
+
+  // Dữ liệu rank tĩnh (hoặc bạn có thể lấy từ API)
+  const rankColors = {
+    Bronze: "#CD7F32",
+    Silver: "#C0C0C0",
+    Gold: "#FFD700",
+    Platinum: "#1b93e3",
+  };
+  const memberTier = [
+    { id: "Bronze", name: "Bronze", point: 0 },
+    { id: "Silver", name: "Silver", point: 500 },
+    { id: "Gold", name: "Gold", point: 1000 },
+    { id: "Platinum", name: "Platinum", point: 2000 },
+  ];
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -92,6 +111,88 @@ const ProfileScreen = ({ navigation }) => {
       throw error;
     }
   };
+
+  const fetchMembershipTier = async (tierId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membershipTier/${tierId}`
+      );
+
+      if (!response.ok) {
+        console.error(`API membershipTier Error: ${response.status}`);
+        throw new Error(`API membershipTier Error: ${response.statusText}`);
+      }
+
+      const tierData = await response.json();
+      console.log("Tier Data:", tierData);
+      return tierData;
+    } catch (error) {
+      console.error("Error fetching membershipTier data:", error.message);
+      throw error;
+    }
+  };
+
+  const fetchUserRank = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem("userId");
+      if (!storedUserId) {
+        console.warn("Không tìm thấy User ID.");
+        return;
+      }
+
+      // Gọi API membership
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${storedUserId}`
+      );
+
+      if (!response.ok) {
+        console.error(`API membership Error: ${response.status}`);
+        throw new Error(`API membership Error: ${response.statusText}`);
+      }
+
+      const membershipData = await response.json();
+      console.log("Membership Data:", membershipData);
+
+      // Gọi API membershipTier
+      const tierResponse = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membershipTier/${membershipData.tierId}`
+      );
+
+      if (!tierResponse.ok) {
+        console.error(`API membershipTier Error: ${tierResponse.status}`);
+        throw new Error(`API membershipTier Error: ${tierResponse.statusText}`);
+      }
+
+      const tierData = await tierResponse.json();
+      console.log("Tier Data:", tierData);
+
+      // Cập nhật rankData và nextRank
+      setRankData({
+        name: tierData.tierName,
+        points: membershipData.accumulatedPoints,
+        discountRate: tierData.discountRate,
+      });
+
+      const nextTier = memberTier.find(
+        (tier) => tier.point > membershipData.accumulatedPoints
+      );
+
+      if (nextTier) {
+        setNextRank({
+          name: nextTier.name,
+          requiredPoints: nextTier.point - membershipData.accumulatedPoints,
+        });
+      } else {
+        setNextRank(null); // Không có cấp tiếp theo
+      }
+    } catch (error) {
+      console.error("Error fetching rank data:", error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserRank();
+  }, []);
 
   const fetchUserPosts = async () => {
     try {
@@ -375,12 +476,22 @@ const ProfileScreen = ({ navigation }) => {
               marginBottom: 10,
             }}
           />
+
           <Text
             style={{ fontFamily: FONTS.bold, fontSize: 20, marginBottom: 10 }}
           >
             {userData.username || "Người dùng"}
           </Text>
-
+          <TouchableOpacity
+            style={{
+              alignItems: "center",
+              flexDirection: "row",
+              position: "relative",
+            }}
+            onPress={toggleModal}
+          >
+            <Icon name="trophy" size={28} color={rankColors[rankData.name]} />
+          </TouchableOpacity>
           {/* Tabs */}
           <View
             style={{
@@ -460,6 +571,70 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
+        {/* Modal */}
+        <Modal
+          visible={isModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={toggleModal}
+        >
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.5)",
+            }}
+          >
+            <View
+              style={{
+                width: "90%",
+                backgroundColor: COLORS.white,
+                padding: 20,
+                borderRadius: 10,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: FONTS.bold,
+                  fontSize: 18,
+                  marginBottom: 10,
+                }}
+              >
+                Thông tin xếp hạng
+              </Text>
+              <Text>Điểm hiện tại: {rankData.points || 0}</Text>
+              <Text>
+                Xếp hạng hiện tại: {rankData.name || "Không xác định"}
+              </Text>
+              {rankData.discountRate && (
+                <Text>
+                  Giảm giá: {Math.round(rankData.discountRate * 100)}%
+                </Text>
+              )}
+              {nextRank ? (
+                <Text>
+                  Cần thêm {nextRank.requiredPoints} điểm để đạt {nextRank.name}
+                </Text>
+              ) : (
+                <Text>Đã đạt cấp cao nhất!</Text>
+              )}
+              <TouchableOpacity
+                onPress={toggleModal}
+                style={{
+                  backgroundColor: COLORS.green,
+                  padding: 10,
+                  borderRadius: 5,
+                  marginTop: 20,
+                }}
+              >
+                <Text style={{ textAlign: "center", color: COLORS.white }}>
+                  Đóng
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Danh sách bài viết */}
         <View style={{ marginTop: 10, marginBottom: 20 }}>

@@ -47,7 +47,7 @@ import EditProfileScreen from "./screens/EditProfileScreen";
 import WebViewScreen from "./screens/WebViewScreen";
 import SettingScreen from "./screens/SettingScreen";
 import NotificationScreen from "./screens/NotificationScreen";
-
+import UserProfileScreen from "./screens/UserProfileScreen"; // Adjust the path
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
 // import { UserProvider } from "./context/UserContext";
@@ -104,6 +104,9 @@ const toastConfig = {
 LogBox.ignoreLogs([
   "Warning: TNodeChildrenRenderer: Support for defaultProps will be removed",
 ]);
+LogBox.ignoreLogs([
+  "Warning: bound renderChildren: Support for defaultProps will be removed from function components in a future major release. Use JavaScript default parameters instead.",
+]);
 const HomeStackScreen = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="Home" component={HomeScreen} />
@@ -157,6 +160,21 @@ const HomeStackScreen = () => (
       component={FavouriteScreen}
       options={{ unmountOnBlur: true }}
     />
+    <HomeStack.Screen
+      name="Payment"
+      component={PaymentScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="WebViewScreen"
+      component={WebViewScreen}
+      options={{ unmountOnBlur: true }}
+    />
+    <HomeStack.Screen
+      name="Order"
+      component={OrderScreen}
+      options={{ unmountOnBlur: true }}
+    />
     {/* Thêm các màn hình khác liên quan đến Home */}
   </HomeStack.Navigator>
 );
@@ -165,7 +183,7 @@ const OrderStackScreen = () => (
   <OrderStack.Navigator screenOptions={{ headerShown: false }}>
     <OrderStack.Screen name="Order" component={OrderScreen} />
     <OrderStack.Screen name="OrderDetail" component={OrderDetailScreen} />
-
+    <OrderStack.Screen name="WebViewScreen" component={WebViewScreen} />
     {/* Thêm các màn hình khác liên quan đến Order */}
   </OrderStack.Navigator>
 );
@@ -496,6 +514,10 @@ export default function App() {
           <Stack.Screen name="ContactUs" component={ContactUsScreen} />
           <Stack.Screen name="Nutrition" component={NutritionMatchingScreen} />
           <Stack.Screen name="LoginWithPhone" component={LoginWithPhone} />
+          <Stack.Screen
+            name="UserProfileScreen"
+            component={UserProfileScreen}
+          />
           <Stack.Screen
             name="NutritionArticle"
             component={NutritionArticleDetailScreen}

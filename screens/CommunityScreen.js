@@ -87,6 +87,30 @@ const CommunityScreen = ({ navigation }) => {
     }
   };
 
+  const fetchArticleImages = async (articleId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${articleId}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        return data.map((item) => item.imageUrl); // Return array of image URLs
+      } else {
+        console.error(
+          `Error fetching article images for article ID ${articleId}:`,
+          response.status
+        );
+        return [];
+      }
+    } catch (error) {
+      console.error(
+        `Error fetching article images for article ID ${articleId}:`,
+        error
+      );
+      return [];
+    }
+  };
+
   const fetchArticles = async () => {
     try {
       // Gọi API để lấy bài viết của "Cộng đồng" và "Chuyên gia"
@@ -137,12 +161,21 @@ const CommunityScreen = ({ navigation }) => {
                 ? await userResponse.json()
                 : { username: "Ẩn danh", imageUrl: "" };
 
-              // Gọi API lấy ảnh bài viết
-              const imageResponse = await fetchWithAuth(
-                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${post.articleId}`
+              // Trích xuất link ảnh từ nội dung bài viết
+              const contentImageLinks = extractImageLinksFromContent(
+                post.content
               );
-              const images = imageResponse.ok ? await imageResponse.json() : [];
 
+              // Fetch article images using the new function
+              const articleImageLinks = await fetchArticleImages(
+                post.articleId
+              );
+
+              // Combine content images with images fetched by API (prioritize article images if they are available)
+              const images =
+                articleImageLinks.length > 0
+                  ? articleImageLinks
+                  : contentImageLinks;
               // Kết hợp tất cả dữ liệu vào bài viết
               return {
                 ...post,
@@ -152,7 +185,7 @@ const CommunityScreen = ({ navigation }) => {
                 authorName: userData.username || "Ẩn danh",
                 authorImageUrl:
                   userData.imageUrl || "https://via.placeholder.com/45",
-                images: images.filter((img) => img.imageUrl), // Chỉ lấy ảnh hợp lệ
+                images: images, // Use the combined list
               };
             } catch (error) {
               console.error(`Lỗi khi xử lý bài viết ${post.articleId}:`, error);
@@ -166,13 +199,17 @@ const CommunityScreen = ({ navigation }) => {
       const processedCommunityPosts = await processPosts(communityData);
       const processedExpertPosts = await processPosts(expertData);
 
-      // Lọc bài viết có trạng thái "accepted"
-      setCommunityPosts(
-        processedCommunityPosts.filter((post) => post?.status === "accepted")
-      );
-      setExpertPosts(
-        processedExpertPosts.filter((post) => post?.status === "accepted")
-      );
+      // Lọc bài viết có trạng thái "accepted" và sắp xếp giảm dần theo articleId
+      const sortedCommunityPosts = processedCommunityPosts
+        .filter((post) => post?.status === "accepted")
+        .sort((a, b) => b.articleId - a.articleId);
+
+      const sortedExpertPosts = processedExpertPosts
+        .filter((post) => post?.status === "accepted")
+        .sort((a, b) => b.articleId - a.articleId);
+
+      setCommunityPosts(sortedCommunityPosts);
+      setExpertPosts(sortedExpertPosts);
     } catch (error) {
       console.error("Lỗi khi lấy dữ liệu bài viết:", error);
     } finally {
@@ -238,10 +275,33 @@ const CommunityScreen = ({ navigation }) => {
           else setExpertPosts(updatedPosts);
         }
       } else {
-        console.warn("Bạn đã like bài viết này, không cần thực hiện thêm.");
+        // Nếu đã like, gọi API để unlike
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/deleteArticleLikeByUserId`,
+          {
+            method: "DELETE",
+            body: JSON.stringify({
+              articleId,
+              userId: userId,
+            }),
+          }
+        );
+
+        if (response.ok) {
+          const updatedPosts = [...posts];
+          updatedPosts[postIndex] = {
+            ...post,
+            liked: false, // Đánh dấu chưa like
+            likes: post.likes - 1, // Giảm số lượt like
+          };
+
+          // Cập nhật danh sách bài viết
+          if (currentTabView === 1) setCommunityPosts(updatedPosts);
+          else setExpertPosts(updatedPosts);
+        }
       }
     } catch (error) {
-      console.error("Lỗi khi xử lý nút like:", error);
+      console.error("Lỗi khi xử lý nút like/unlike:", error);
     }
   };
 
@@ -336,6 +396,17 @@ const CommunityScreen = ({ navigation }) => {
     }
   };
 
+  // Hàm trích xuất link ảnh từ nội dung HTML
+  const extractImageLinksFromContent = (content) => {
+    const imageLinks = [];
+    const regex = /<img.*?src=["'](.*?)["']/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      imageLinks.push(match[1]);
+    }
+    return imageLinks;
+  };
+
   const renderPost = (item) => {
     const navigateToScreen = async () => {
       try {
@@ -367,6 +438,7 @@ const CommunityScreen = ({ navigation }) => {
 
     const truncatedTitle = stripAndTruncateHTML(item.title || "", 50); // Truncate title to 50 characters
     const truncatedContent = stripAndTruncateHTML(item.content || "", 100); // Truncate content to 100 characters
+    const imageHeight = 300; // Set a constant height for images
 
     return (
       <View
@@ -377,6 +449,7 @@ const CommunityScreen = ({ navigation }) => {
           padding: 10,
           borderRadius: 8,
           marginBottom: 10,
+          width: "100%", // Take full width for each post
         }}
         key={item.articleId}
       >
@@ -419,6 +492,7 @@ const CommunityScreen = ({ navigation }) => {
                     fontFamily: FONTS.medium,
                     fontSize: 12,
                     color: COLORS.grey,
+                    marginTop: -15,
                   }}
                 >
                   Ngày duyệt: {new Date(item.moderateDate).toLocaleDateString()}
@@ -460,28 +534,25 @@ const CommunityScreen = ({ navigation }) => {
         {/* Images Carousel */}
         {item.images && item.images.length > 0 && (
           <ScrollView
-            horizontal
-            style={{ marginTop: 10 }}
+            horizontal={item.images.length > 1}
+            style={{ marginTop: 10, height: imageHeight }}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 10 }}
           >
             {item.images.map((image, index) => (
               <Image
                 key={`${item.articleId}-${index}`}
-                source={{
-                  uri: image.imageUrl,
-                }}
+                source={{ uri: image }}
                 style={{
-                  width: 150,
-                  height: 100,
+                  width: item.images.length > 1 ? 250 : "100%",
+                  height: item.images.length > 1 ? "100%" : imageHeight,
                   borderRadius: 8,
-                  marginRight: 10,
+                  marginRight: item.images.length > 1 ? 10 : 0,
+                  resizeMode: "cover",
                 }}
               />
             ))}
           </ScrollView>
         )}
-
         {/* Interactions */}
         <View style={{ flexDirection: "row", marginTop: 10 }}>
           <TouchableOpacity

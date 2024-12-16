@@ -28,6 +28,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
+  const [postImages, setPostImages] = useState([]);
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -42,22 +43,21 @@ const PostDetailScreen = ({ navigation, route }) => {
 
   const showToast = (type, title, message) => {
     Toast.show({
-      type: type, // Loại thông báo: 'success', 'error', 'info'
-      text1: title, // Tiêu đề thông báo
-      text2: message, // Nội dung thông báo
+      type: type,
+      text1: title,
+      text2: message,
     });
   };
 
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        // Gọi API lấy bình luận
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`
         );
         const commentsData = await response.json();
 
-        // Gọi API getUserByID để lấy avatar cho từng người dùng trong bình luận
+        // Lấy avatar người dùng cho từng comment
         const commentsWithUserDetails = await Promise.all(
           commentsData.map(async (comment) => {
             try {
@@ -66,18 +66,11 @@ const PostDetailScreen = ({ navigation, route }) => {
               );
               const userData = await userResponse.json();
 
-              // Log ra userId và avatarUrl
-              console.log(
-                `userId: ${comment.userId}, avatarUrl: ${
-                  userData.imageUrl || "https://via.placeholder.com/35"
-                }`
-              );
-
-              // Trả về dữ liệu bình luận cùng avatar
               return {
                 ...comment,
                 avatarUrl:
-                  userData.imageUrl || "https://via.placeholder.com/35", // Avatar mặc định nếu không có
+                  userData.imageUrl || "https://via.placeholder.com/35",
+                userName: userData.username || "Ẩn danh",
               };
             } catch (error) {
               console.error(
@@ -86,13 +79,13 @@ const PostDetailScreen = ({ navigation, route }) => {
               );
               return {
                 ...comment,
-                avatarUrl: "https://via.placeholder.com/35", // Avatar mặc định nếu API thất bại
+                avatarUrl: "https://via.placeholder.com/35",
+                userName: "Ẩn danh",
               };
             }
           })
         );
 
-        // Cập nhật state với dữ liệu bình luận kèm thông tin người dùng
         setComments(commentsWithUserDetails);
       } catch (error) {
         console.error("Error fetching comments:", error);
@@ -104,7 +97,6 @@ const PostDetailScreen = ({ navigation, route }) => {
     fetchComments();
   }, [post.articleId]);
 
-  //lay du lieu like ,cmt
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -137,12 +129,31 @@ const PostDetailScreen = ({ navigation, route }) => {
     fetchInitialData();
   }, [post.articleId]);
 
-  //like
+  // Lấy ảnh của bài viết từ API
+  useEffect(() => {
+    const fetchArticleImages = async () => {
+      try {
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${post.articleId}`
+        );
+        const imagesData = await response.json();
+        setPostImages(imagesData);
+      } catch (error) {
+        console.error("Error fetching article images:", error);
+      }
+    };
+
+    if (post.articleId) {
+      fetchArticleImages();
+    }
+  }, [post.articleId]);
+
   const handleLike = async () => {
     try {
       const userId = await AsyncStorage.getItem("userId");
 
       if (!liked) {
+        // Chưa like -> gọi API like
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/createArticleLike`,
           {
@@ -158,10 +169,18 @@ const PostDetailScreen = ({ navigation, route }) => {
         if (response.ok) {
           setLiked(true);
           setLikes((prev) => prev + 1);
+          showToast("success", "Thành công", "Bạn đã thích bài viết này!");
+        } else {
+          showToast(
+            "error",
+            "Lỗi",
+            "Không thể thích bài viết. Vui lòng thử lại."
+          );
         }
       } else {
+        // Đã like -> gọi API unlike
         const response = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/removeArticleLike`,
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/deleteArticleLikeByUserId`,
           {
             method: "DELETE",
             body: JSON.stringify({
@@ -174,73 +193,31 @@ const PostDetailScreen = ({ navigation, route }) => {
         if (response.ok) {
           setLiked(false);
           setLikes((prev) => Math.max(prev - 1, 0));
+          showToast("success", "Thành công", "Bạn đã bỏ thích bài viết này!");
+        } else {
+          showToast(
+            "error",
+            "Lỗi",
+            "Không thể bỏ thích bài viết. Vui lòng thử lại."
+          );
         }
       }
     } catch (error) {
-      console.error("Lỗi khi xử lý like:", error);
+      console.error("Lỗi khi xử lý like/unlike:", error);
+      showToast("error", "Lỗi", "Đã xảy ra lỗi, vui lòng thử lại sau.");
     }
   };
 
-  // const handlePostComment = async () => {
-  //   if (newComment.trim()) {
-  //     try {
-  //       // Lấy thông tin người dùng hiện tại từ AsyncStorage
-  //       const storedUserData = await AsyncStorage.getItem("userData");
-  //       const parsedUserData = storedUserData ? JSON.parse(storedUserData) : {};
-
-  //       const userId =
-  //         parsedUserData.userId || (await AsyncStorage.getItem("userId"));
-  //       const userName = parsedUserData.username || "Ẩn danh";
-  //       const avatarUrl =
-  //         parsedUserData.imageUrl || "https://via.placeholder.com/35";
-
-  //       // Gửi bình luận lên API
-  //       const response = await fetchWithAuth(
-  //         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment`,
-  //         {
-  //           method: "POST",
-  //           body: JSON.stringify({
-  //             content: newComment,
-  //             userId: userId,
-  //             articleId: post.articleId,
-  //           }),
-  //         }
-  //       );
-
-  //       if (response.ok) {
-  //         // Thêm bình luận mới vào danh sách bình luận
-  //         const newCommentData = {
-  //           content: newComment,
-  //           userId: userId,
-  //           articleId: post.articleId,
-  //           userName: userName,
-  //           avatarUrl: avatarUrl, // Đảm bảo avatar được hiển thị ngay
-  //         };
-
-  //         setComments((prevComments) => [newCommentData, ...prevComments]);
-  //         setNewComment(""); // Reset nội dung bình luận
-  //         setCommentCount((prev) => prev + 1); // Tăng số lượng bình luận
-  //       }
-  //     } catch (error) {
-  //       console.error("Error posting comment:", error);
-  //     }
-  //   }
-  // };
-
-  //checkcomment
   const checkCommentContent = async (content) => {
     try {
-      // Tách nội dung thành từng từ
-      const words = content.split(/\s+/); // Tách theo khoảng trắng
-
+      const words = content.split(/\s+/);
       for (let word of words) {
-        // Gọi API kiểm tra từng từ
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/check-comment-content?Content=${encodeURIComponent(
             word
           )}`,
           {
-            method: "GET", // Phương thức GET
+            method: "GET",
           }
         );
 
@@ -249,8 +226,6 @@ const PostDetailScreen = ({ navigation, route }) => {
         }
 
         const result = await response.json();
-
-        // Nếu API trả về success là false, dừng kiểm tra và trả về lỗi
         if (!result.success) {
           return {
             success: false,
@@ -258,8 +233,6 @@ const PostDetailScreen = ({ navigation, route }) => {
           };
         }
       }
-
-      // Nếu tất cả từ đều hợp lệ
       return { success: true, message: "Content is valid." };
     } catch (error) {
       console.error("Error checking comment content:", error);
@@ -270,11 +243,9 @@ const PostDetailScreen = ({ navigation, route }) => {
   const handlePostComment = async () => {
     if (newComment.trim()) {
       try {
-        // Gọi API kiểm tra nội dung bình luận
         const checkResult = await checkCommentContent(newComment);
 
         if (!checkResult.success) {
-          // Hiển thị thông báo lỗi dựa trên message từ API
           let toastMessage =
             "Bình luận của bạn không hợp lệ, hãy bình luận lại nhé!";
           if (
@@ -291,10 +262,9 @@ const PostDetailScreen = ({ navigation, route }) => {
           }
 
           showToast("error", "Lỗi bình luận", toastMessage);
-          return; // Dừng xử lý nếu nội dung không hợp lệ
+          return;
         }
 
-        // Tiếp tục gửi bình luận nếu nội dung hợp lệ
         const storedUserData = await AsyncStorage.getItem("userData");
         const parsedUserData = storedUserData ? JSON.parse(storedUserData) : {};
 
@@ -326,8 +296,8 @@ const PostDetailScreen = ({ navigation, route }) => {
           };
 
           setComments((prevComments) => [newCommentData, ...prevComments]);
-          setNewComment(""); // Reset nội dung bình luận
-          setCommentCount((prev) => prev + 1); // Tăng số lượng bình luận
+          setNewComment("");
+          setCommentCount((prev) => prev + 1);
 
           showToast("success", "Thành công", "Bình luận đã được đăng!");
         } else {
@@ -360,18 +330,33 @@ const PostDetailScreen = ({ navigation, route }) => {
         <View style={styles.articleInfo}>
           {/* Thông tin tác giả */}
           <View style={{ flexDirection: "row" }}>
-            <Image
-              source={{
-                uri: post.authorImageUrl || "https://via.placeholder.com/45",
-              }}
-              style={styles.authorImage}
-            />
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("UserProfileScreen", {
+                  userId: post.authorId,
+                })
+              }
+            >
+              <Image
+                source={{
+                  uri: post.authorImageUrl || "https://via.placeholder.com/45",
+                }}
+                style={styles.authorImage}
+              />
+            </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={styles.authorName}>
-                {post.authorName || "Ẩn danh"}
-              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate("UserProfileScreen", {
+                    userId: post.authorId,
+                  })
+                }
+              >
+                <Text style={styles.authorName}>
+                  {post.authorName || "Ẩn danh"}
+                </Text>
+              </TouchableOpacity>
               <Text style={styles.articleTime}>{post.createdAt}</Text>
-              {/* Hiển thị ngày duyệt bài */}
               {post.moderateDate && (
                 <Text style={styles.articleModerateDate}>
                   Ngày duyệt: {new Date(post.moderateDate).toLocaleDateString()}
@@ -386,8 +371,8 @@ const PostDetailScreen = ({ navigation, route }) => {
 
           {/* Hình ảnh bài viết */}
           <ScrollView horizontal style={styles.imageScroll}>
-            {post.images &&
-              post.images.map((image, index) => (
+            {postImages &&
+              postImages.map((image, index) => (
                 <TouchableOpacity
                   key={index}
                   onPress={() => {
@@ -402,8 +387,8 @@ const PostDetailScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
               ))}
           </ScrollView>
-          {/* like - comment */}
-          {/* like - comment */}
+
+          {/* Like - Comment */}
           {post.status === "accepted" && (
             <View
               style={{
@@ -412,7 +397,6 @@ const PostDetailScreen = ({ navigation, route }) => {
                 alignItems: "center",
               }}
             >
-              {/* Nút like */}
               <TouchableOpacity
                 style={{
                   flexDirection: "row",
@@ -438,7 +422,6 @@ const PostDetailScreen = ({ navigation, route }) => {
                 </Text>
               </TouchableOpacity>
 
-              {/* Nút comment */}
               <TouchableOpacity
                 style={{ flexDirection: "row", alignItems: "center" }}
                 onPress={() => {}}
@@ -463,7 +446,7 @@ const PostDetailScreen = ({ navigation, route }) => {
           )}
         </View>
 
-        {/* Khu vực hiển thị bình luận */}
+        {/* Khu vực bình luận */}
         <View>
           <Text style={styles.commentHeader}>Bình luận</Text>
           {loadingComments ? (
@@ -473,12 +456,28 @@ const PostDetailScreen = ({ navigation, route }) => {
           ) : (
             comments.map((item, index) => (
               <View key={index} style={styles.comment}>
-                <Image
-                  source={{ uri: item.avatarUrl }}
-                  style={styles.commentAvatar}
-                />
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate("UserProfileScreen", {
+                      userId: item.userId,
+                    })
+                  }
+                >
+                  <Image
+                    source={{ uri: item.avatarUrl }}
+                    style={styles.commentAvatar}
+                  />
+                </TouchableOpacity>
                 <View style={styles.commentContent}>
-                  <Text style={styles.commentAuthor}>{item.userName}</Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate("UserProfileScreen", {
+                        userId: item.userId,
+                      })
+                    }
+                  >
+                    <Text style={styles.commentAuthor}>{item.userName}</Text>
+                  </TouchableOpacity>
                   <View style={styles.commentBox}>
                     <Text style={styles.commentText}>{item.content}</Text>
                   </View>
@@ -489,7 +488,7 @@ const PostDetailScreen = ({ navigation, route }) => {
         </View>
       </ScrollView>
 
-      {/* Input để nhập bình luận */}
+      {/* Input bình luận */}
       <View style={styles.commentInputContainer}>
         <TextInput
           style={styles.commentInput}
@@ -502,10 +501,9 @@ const PostDetailScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Toast Message */}
       <Toast />
 
-      {/* Modal hiển thị ảnh */}
+      {/* Modal xem ảnh */}
       <Modal visible={imageView} transparent>
         <View style={styles.modalContainer}>
           <TouchableOpacity
@@ -515,7 +513,7 @@ const PostDetailScreen = ({ navigation, route }) => {
             <Text style={styles.modalCloseText}>Đóng</Text>
           </TouchableOpacity>
           <ImageViewer
-            imageUrls={post.images.map((img) => ({ url: img.imageUrl }))}
+            imageUrls={postImages.map((img) => ({ url: img.imageUrl }))}
             index={selectedpictureOfArticle}
           />
         </View>
@@ -547,7 +545,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   loadingText: { fontFamily: FONTS.medium, fontSize: 14, textAlign: "center" },
-  comment: { flexDirection: "row", marginTop: 15 },
+  comment: { flexDirection: "row", marginTop: 15, marginHorizontal: 10 },
   commentAvatar: { height: 35, width: 35, borderRadius: 50 },
   commentContent: { marginLeft: 8, flex: 1 },
   commentAuthor: { fontFamily: FONTS.semiBold, marginBottom: 5 },

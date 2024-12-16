@@ -7,8 +7,8 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
-  Modal,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -23,20 +23,18 @@ import { Dimensions } from "react-native";
 import { HTMLElementModel } from "react-native-render-html";
 const { width } = Dimensions.get("window");
 import { WebView } from "react-native-webview";
+
 const NutritionArticleDetailScreen = ({ route, navigation }) => {
   const { articleId } = route.params;
   const [article, setArticle] = useState(null);
-  const [articleBodies, setArticleBodies] = useState([]);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
-  const [imageView, setImageView] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [articleImages, setArticleImages] = useState([]); // Lưu hình ảnh từ API mới
-  const [loadingComments, setLoadingComments] = useState(true); // Định nghĩa loadingComments
+  const [fullScreenImage, setFullScreenImage] = useState(null);
+  const [loadingComments, setLoadingComments] = useState(true);
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -50,83 +48,82 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
 
   const fetchArticleDetails = async () => {
     try {
-      setLoadingComments(true); // Start loading comments
-      // Fetch the main article
+      setLoadingComments(true);
       const articleResponse = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/${articleId}`
       );
-
-      // Fetch article bodies
-      const articleBodiesResponse = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleBodies/getArticleBodyByArticleId/${articleId}`
-      );
-
-      // Fetch article images
-      const articleImagesResponse = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${articleId}`
-      );
-
-      // Fetch likes
       const likesResponse = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/getArticleLikeByArticleId/${articleId}`
       );
-
       const userId = await AsyncStorage.getItem("userId");
-
-      // Xử lý likes
       if (likesResponse.ok) {
         const likesData = await likesResponse.json();
-        setLikes(likesData.length || 0); // Mặc định 0 nếu không có lượt like
+        setLikes(likesData.length || 0);
         setLiked(likesData.some((like) => like.userId === parseInt(userId)));
       } else {
-        setLikes(0); // Mặc định nếu không có dữ liệu
+        setLikes(0);
       }
-
-      // Fetch comments
       const commentsResponse = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${articleId}`
       );
-
       if (commentsResponse.ok) {
         const commentsData = await commentsResponse.json();
-        setComments(commentsData || []); // Mặc định mảng rỗng nếu không có bình luận
-        setCommentCount(commentsData.length || 0);
+        const enrichedComments = await Promise.all(
+          commentsData.map(async (comment) => {
+            try {
+              const userResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${comment.userId}`
+              );
+              const userData = await userResponse.json();
+              return {
+                ...comment,
+                userName: userData.username || "Ẩn danh",
+                avatarUrl:
+                  userData.imageUrl || "https://via.placeholder.com/35",
+              };
+            } catch (error) {
+              console.error(
+                `Error fetching user details for userId ${comment.userId}:`,
+                error
+              );
+              return {
+                ...comment,
+                userName: "Ẩn danh",
+                avatarUrl: "https://via.placeholder.com/35",
+              };
+            }
+          })
+        );
+        setComments(enrichedComments || []);
+        setCommentCount(enrichedComments.length || 0);
       } else {
-        setComments([]); // Mặc định nếu không có dữ liệu
+        setComments([]);
         setCommentCount(0);
       }
-
-      // Validate and update article details
       if (articleResponse.ok) {
         const articleData = await articleResponse.json();
-        setArticle(articleData || {}); // Nếu không có dữ liệu, gán object rỗng
+        const processedContent = await processArticleContent(
+          articleData.content
+        );
+        setArticle({ ...articleData, processedContent } || {});
       } else {
-        setArticle({}); // Nếu lỗi, gán giá trị mặc định
-      }
-
-      // Xử lý article bodies
-      if (articleBodiesResponse.ok) {
-        const articleBodiesData = await articleBodiesResponse.json();
-        setArticleBodies(articleBodiesData || []); // Nếu không có dữ liệu, gán mảng rỗng
-      } else if (articleBodiesResponse.status === 404) {
-        setArticleBodies([]); // Không báo lỗi nếu không có nội dung
-      }
-
-      // Xử lý article images
-      if (articleImagesResponse.ok) {
-        const articleImagesData = await articleImagesResponse.json();
-        setArticleImages(articleImagesData || []); // Nếu không có dữ liệu, gán mảng rỗng
-      } else if (articleImagesResponse.status === 404) {
-        setArticleImages([]); // Không báo lỗi nếu không có ảnh
+        setArticle({});
       }
     } catch (error) {
       console.error("Error fetching article details:", error);
     } finally {
       setLoading(false);
-      setLoadingComments(false); // End loading comments
+      setLoadingComments(false);
     }
   };
-
+  const processArticleContent = async (htmlContent) => {
+    if (!htmlContent) return htmlContent;
+    let processedHtml = htmlContent.replace(
+      /<\/figure>(?=<p>)/g,
+      "</figure><br /><p>"
+    );
+    return processedHtml;
+  };
   useEffect(() => {
     fetchArticleDetails();
   }, [articleId]);
@@ -134,53 +131,71 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
   const handleLike = async () => {
     try {
       const userId = await AsyncStorage.getItem("userId");
+      if (!userId) {
+        console.error("Không tìm thấy userId trong AsyncStorage.");
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Bạn cần đăng nhập để thực hiện hành động này.",
+        });
+        return;
+      }
       const url = liked
-        ? `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/removeArticleLike`
+        ? `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/deleteArticleLikeByUserId`
         : `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/createArticleLike`;
-
       const method = liked ? "DELETE" : "POST";
-
+      const bodyData = {
+        articleId,
+        userId,
+        likeDate: new Date().toISOString(),
+      };
       const response = await fetchWithAuth(url, {
         method,
-        body: JSON.stringify({
-          articleId,
-          userId,
-          likeDate: new Date().toISOString(),
-        }),
+        body: JSON.stringify(bodyData),
       });
-
       if (response.ok) {
         setLiked(!liked);
-        setLikes((prev) => (liked ? prev - 1 : prev + 1));
+        setLikes((prev) => (liked ? Math.max(prev - 1, 0) : prev + 1));
+        Toast.show({
+          type: "success",
+          text1: "Thành công",
+          text2: liked
+            ? "Bạn đã bỏ thích bài viết này!"
+            : "Bạn đã thích bài viết này!",
+        });
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể thực hiện hành động. Vui lòng thử lại.",
+        });
       }
     } catch (error) {
-      console.error("Error handling like:", error);
+      console.error("Lỗi khi xử lý like/unlike:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Đã xảy ra lỗi, vui lòng thử lại sau.",
+      });
     }
   };
 
   const checkCommentContent = async (content) => {
     try {
-      // Tách nội dung thành từng từ
-      const words = content.split(/\s+/); // Tách theo khoảng trắng
-
+      const words = content.split(/\s+/);
       for (let word of words) {
-        // Gọi API kiểm tra từng từ
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/check-comment-content?Content=${encodeURIComponent(
             word
           )}`,
           {
-            method: "GET", // Phương thức GET
+            method: "GET",
           }
         );
-
         if (!response.ok) {
           return { success: false, message: "Invalid content detected." };
         }
-
         const result = await response.json();
-
-        // Nếu API trả về success là false, dừng kiểm tra và trả về lỗi
         if (!result.success) {
           return {
             success: false,
@@ -188,8 +203,6 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
           };
         }
       }
-
-      // Nếu tất cả từ đều hợp lệ
       return { success: true, message: "Content is valid." };
     } catch (error) {
       console.error("Error checking comment content:", error);
@@ -200,11 +213,8 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
   const handlePostComment = async () => {
     if (newComment.trim()) {
       try {
-        // Gọi API kiểm tra nội dung bình luận
         const checkResult = await checkCommentContent(newComment);
-
         if (!checkResult.success) {
-          // Hiển thị thông báo lỗi nếu nội dung không hợp lệ
           let toastMessage =
             "Bình luận của bạn không hợp lệ, hãy bình luận lại nhé!";
           if (checkResult.message.includes("adult language")) {
@@ -214,7 +224,6 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
             toastMessage =
               "Bạn sử dụng ngôn từ bạo lực, hãy bình luận lại nhé!";
           }
-
           Toast.show({
             type: "error",
             text1: "Lỗi bình luận",
@@ -222,8 +231,6 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
           });
           return;
         }
-
-        // Tiếp tục gửi bình luận nếu nội dung hợp lệ
         const userId = await AsyncStorage.getItem("userId");
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment`,
@@ -236,25 +243,24 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
             }),
           }
         );
-
         if (response.ok) {
-          // Kiểm tra và xử lý nếu API không trả về JSON
-          const responseText = await response.text(); // Lấy response dưới dạng text
-          const newCommentData = responseText
-            ? JSON.parse(responseText) // Nếu có dữ liệu JSON, parse nó
-            : {
-                content: newComment,
-                userId,
-                articleId,
-                userName: "Ẩn danh",
-                avatarUrl: "https://via.placeholder.com/35", // Avatar mặc định
-              };
-
-          // Thêm bình luận vào danh sách và reset nội dung input
+          const storedUserData = await AsyncStorage.getItem("userData");
+          const parsedUserData = storedUserData
+            ? JSON.parse(storedUserData)
+            : {};
+          const userName = parsedUserData.username || "Ẩn danh";
+          const avatarUrl =
+            parsedUserData.imageUrl || "https://via.placeholder.com/35";
+          const newCommentData = {
+            content: newComment,
+            userId,
+            articleId,
+            userName,
+            avatarUrl,
+          };
           setComments((prev) => [newCommentData, ...prev]);
           setNewComment("");
           setCommentCount((prev) => prev + 1);
-
           Toast.show({
             type: "success",
             text1: "Thành công",
@@ -286,10 +292,8 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
 
   const replaceOembedWithIframe = (htmlContent) => {
     if (!htmlContent) return htmlContent;
-
     const div = document.createElement("div");
     div.innerHTML = htmlContent;
-
     const oembedElements = div.querySelectorAll("oembed");
     oembedElements.forEach((oembed) => {
       const url = oembed.getAttribute("url");
@@ -309,18 +313,12 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
         oembed.replaceWith(iframe);
       }
     });
-
     return div.innerHTML;
   };
-
-  // Định nghĩa custom renderer cho thẻ oembed
   const customRenderers = {
     oembed: ({ TDefaultRenderer, tnode }) => {
       const oembedUrl = tnode.attributes.url;
-
       if (!oembedUrl) return null;
-
-      // Hiển thị video YouTube bằng WebView
       if (oembedUrl.includes("youtube.com") || oembedUrl.includes("youtu.be")) {
         return (
           <WebView
@@ -335,13 +333,9 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
           />
         );
       }
-
-      // Hiển thị thông báo nếu không phải YouTube
       return <Text>Unsupported embed format</Text>;
     },
   };
-
-  // Định nghĩa mô hình cho thẻ oembed
   const customHTMLElementModels = {
     oembed: HTMLElementModel.fromCustomModel({
       tagName: "oembed",
@@ -361,6 +355,12 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
       </View>
     );
   }
+  const handleImagePress = (src) => {
+    setFullScreenImage(src);
+  };
+  const closeFullScreenImage = () => {
+    setFullScreenImage(null);
+  };
 
   return (
     <>
@@ -388,23 +388,16 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
               <Text style={styles.authorName}>
                 {article?.authorName || "Ẩn danh"}
               </Text>
-              {/* <Text style={styles.articleDate}>
-                Ngày đăng:{" "}
-                {article?.createdAt
-                  ? new Date(article.createdAt).toLocaleDateString()
-                  : "Không rõ"}
-              </Text> */}
-
-              {/* {article?.moderateDate && (
+              {article?.moderateDate && (
                 <Text style={styles.articleModerateDate}>
                   Ngày duyệt:{" "}
                   {new Date(article.moderateDate).toLocaleDateString()}
                 </Text>
-              )} */}
+              )}
             </View>
           </View>
 
-          <Text style={styles.articleTitle}>
+          <View style={styles.titleContainer}>
             <RenderHTML
               contentWidth={width}
               source={{ html: article?.title || "<p>Không có nội dung</p>" }}
@@ -414,34 +407,57 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
                   fontFamily: FONTS.medium,
                   fontSize: 14,
                   color: COLORS.black,
+                  marginBottom: 10,
                 },
                 h1: {
                   fontFamily: FONTS.semiBold,
                   fontSize: 20,
                   color: COLORS.black,
+                  marginBottom: 10,
                 },
               }}
             />
-          </Text>
-          <RenderHTML
-            contentWidth={width}
-            source={{ html: article?.content || "<p>Không có nội dung</p>" }}
-            customHTMLElementModels={customHTMLElementModels}
-            renderers={customRenderers}
-            ignoredDomTags={["iframe"]} // Loại bỏ thẻ iframe nếu không hỗ trợ
-            tagsStyles={{
-              p: {
-                fontFamily: FONTS.medium,
-                fontSize: 14,
-                color: COLORS.black,
-              },
-              h1: {
-                fontFamily: FONTS.semiBold,
-                fontSize: 20,
-                color: COLORS.black,
-              },
-            }}
-          />
+          </View>
+
+          {/* Render Image from content */}
+          {article?.content && (
+            <TouchableOpacity
+              onPress={() => handleImagePress(article?.content)}
+            >
+              <View style={styles.contentContainer}>
+                <RenderHTML
+                  contentWidth={width}
+                  source={{
+                    html:
+                      article?.processedContent || "<p>Không có nội dung</p>",
+                  }}
+                  customHTMLElementModels={customHTMLElementModels}
+                  renderers={customRenderers}
+                  ignoredDomTags={["iframe"]}
+                  tagsStyles={{
+                    p: {
+                      fontFamily: FONTS.medium,
+                      fontSize: 14,
+                      color: COLORS.black,
+                      marginBottom: 10,
+                    },
+                    h1: {
+                      fontFamily: FONTS.semiBold,
+                      fontSize: 20,
+                      color: COLORS.black,
+                      marginBottom: 10,
+                    },
+                    img: {
+                      marginTop: 10,
+                      width: "100%", // Đảm bảo ảnh không quá kích thước cha
+                      height: "auto",
+                      resizeMode: "contain",
+                    },
+                  }}
+                />
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Nếu có URL YouTube riêng */}
           {article?.youtubeUrl && (
@@ -452,51 +468,11 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
               allowsFullscreenVideo={true}
             />
           )}
-
-          {/* First Article Image */}
-          {articleImages.length > 0 && (
-            <Image
-              source={{ uri: articleImages[0]?.imageUrl }}
-              style={styles.articleImage}
-            />
-          )}
         </View>
-        {/* Article Bodies */}
-        {articleBodies.map((body, index) => (
-          <View key={index} style={styles.bodySection}>
-            <RenderHTML
-              contentWidth={width}
-              source={{
-                html: body?.content || "<p>Không có nội dung</p>",
-              }}
-              customHTMLElementModels={customHTMLElementModels}
-              // renderers={{
-              //   oembed: ({ TDefaultRenderer, tnode }) => (
-              //     <Text style={{ color: "red" }}>{tnode.data}</Text>
-              //   ),
-              // }}
-              tagsStyles={{
-                p: {
-                  fontFamily: FONTS.medium,
-                  fontSize: 14,
-                  color: COLORS.black,
-                },
-                h1: {
-                  fontFamily: FONTS.semiBold,
-                  fontSize: 20,
-                  color: COLORS.black,
-                },
-              }}
-            />
-
-            {body.imageUrl && (
-              <Image source={{ uri: body.imageUrl }} style={styles.bodyImage} />
-            )}
-          </View>
-        ))}
         {/* Nút hành động */}
         <View style={styles.actions}>
-          <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
+          {/* Nút like */}
+          <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
             <IconAnt
               name={liked ? "like1" : "like2"}
               size={24}
@@ -504,7 +480,9 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
             />
             <Text style={styles.actionText}>{likes || 0}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+
+          {/* Nút comment */}
+          <TouchableOpacity style={styles.actionButton} onPress={() => {}}>
             <Icon
               name="chatbubble-outline"
               size={24}
@@ -541,6 +519,27 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
           )}
         </View>
       </ScrollView>
+      {/* Modal hiển thị ảnh full màn hình */}
+      <Modal
+        visible={!!fullScreenImage}
+        transparent={true}
+        onRequestClose={closeFullScreenImage}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={closeFullScreenImage}
+          >
+            <Icon name="close-circle-outline" size={30} color={COLORS.white} />
+          </TouchableOpacity>
+
+          <ImageViewer
+            imageUrls={[{ url: fullScreenImage }]}
+            enableSwipeDown={true}
+            onSwipeDown={closeFullScreenImage}
+          />
+        </View>
+      </Modal>
 
       {/* Input để nhập bình luận */}
       <View style={styles.commentInputContainer}>
@@ -589,16 +588,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.grey,
   },
-  articleTitle: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 20,
-    marginVertical: 10,
-  },
-  articleContent: {
-    fontFamily: FONTS.medium,
-    fontSize: 14,
-    lineHeight: 22,
+  titleContainer: {
     marginBottom: 10,
+  },
+  contentContainer: {
+    marginBottom: 15,
+    flex: 1,
+  },
+  imageContainer: {
+    marginBottom: 16,
   },
   articleImage: {
     width: "100%",
@@ -613,21 +611,25 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: 14,
     lineHeight: 22,
+    marginVertical: 10,
   },
   bodyImage: {
     width: "100%",
     height: 200,
     borderRadius: 8,
+    resizeMode: "contain",
     marginTop: 10,
   },
   actions: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    marginTop: 10,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
+    marginRight: 20,
   },
   actionText: {
     fontFamily: FONTS.medium,
@@ -697,6 +699,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.grey,
     marginTop: 2,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+  },
+  fullScreenImage: {
+    width: "100%",
+    height: "100%",
   },
 });
 

@@ -68,12 +68,23 @@ const CheckoutScreen = ({ navigation }) => {
 
   const parseAddress = (fullAddress) => {
     if (!fullAddress) return { province: "", district: "", address: "" };
-    const parts = fullAddress.split(", ");
-    return {
-      province: parts[0] || "",
-      district: parts[1] || "",
-      address: parts[2] || "",
-    };
+
+    const parts = fullAddress.split(",");
+    const province = parts[parts.length - 1]?.trim();
+    const district = parts[parts.length - 2]?.trim();
+    let address = "";
+    for (let i = 0; i < parts.length - 2; i++) {
+      address += parts[i].trim();
+      if (i < parts.length - 3) {
+        address += ", ";
+      }
+    }
+
+    console.log("Province:", province);
+    console.log("District:", district);
+    console.log("Address:", address);
+
+    return { province, district, address };
   };
 
   const { province, district, address } = parseAddress(deliveryInfo.address);
@@ -103,100 +114,47 @@ const CheckoutScreen = ({ navigation }) => {
     getUserIdFromStorage();
   }, []);
 
-  const fetchCoordinates = async (address) => {
-    if (!address) {
-      console.error("Địa chỉ không hợp lệ.");
-      return null;
-    }
-
+  const fetchDeliveryFee = async () => {
     try {
-      // Gọi OpenCage Geocoder API
+      console.log("fetchDeliveryFee called");
+      console.log("deliveryInfo.address:", deliveryInfo.address);
+      const parsedAddress = parseAddress(deliveryInfo.address);
+      const queryParams = new URLSearchParams({
+        pick_province: "Hồ Chí Minh",
+        pick_district: "Quận 9",
+        province: parsedAddress.province || "Hồ Chí Minh",
+        district: parsedAddress.district || "Quận 12",
+        address: parsedAddress.address || "338/10 Đ. Lê Thị Riêng",
+        weight: 1000,
+        value: totalPrice,
+      }).toString();
+
+      console.log("Province for API:", parsedAddress.province);
+      console.log("District for API:", parsedAddress.district);
+      console.log("Address for API:", parsedAddress.address);
+
       const response = await fetch(
-        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-          address
-        )}&key=8c52d2ca976a45b08c2b774e6167ca75`
-      );
-
-      if (!response.ok) {
-        throw new Error("Không thể gọi OpenCage API.");
-      }
-
-      const data = await response.json();
-      console.log("OpenCage API response:", data);
-
-      // Kiểm tra kết quả và lấy tọa độ
-      if (data.results && data.results.length > 0) {
-        const { lat, lng } = data.results[0].geometry;
-        console.log("Tọa độ:", { latitude: lat, longitude: lng });
-        return { latitude: lat, longitude: lng };
-      } else {
-        console.error("Không tìm thấy tọa độ cho địa chỉ này.");
-        return null;
-      }
-    } catch (error) {
-      console.error("Lỗi khi gọi OpenCage API:", error.message);
-      return null;
-    }
-  };
-
-  const fetchDeliveryFee = async (customerAddress) => {
-    try {
-      console.log("Địa chỉ khách hàng:", customerAddress);
-
-      // Store's fixed location (FPT University, District 9)
-      const shopLocation = {
-        latitude: 10.84102,
-        longitude: 106.80606,
-      };
-
-      // Get customer coordinates from their address
-      const customerLocation = await fetchCoordinates(customerAddress);
-      if (!customerLocation) {
-        Alert.alert("Lỗi", "Không thể lấy tọa độ từ địa chỉ khách hàng.");
-        return;
-      }
-      console.log("Tọa độ khách hàng:", customerLocation);
-
-      const shippingFeePayload = {
-        shopLocation,
-        customerLocation,
-        shippingFeeUnit: 100,
-      };
-      console.log(
-        "Payload gửi đến API tính phí giao hàng:",
-        shippingFeePayload
-      );
-
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/calculate-shipping-fee`,
+        `https://services.giaohangtietkiem.vn/services/shipment/fee?${queryParams}`,
         {
-          method: "POST",
-          body: JSON.stringify(shippingFeePayload),
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            token: "35j4uHBQNjODAEOrWBlA23Sscp3TicIQ0k4mN2",
+          },
         }
       );
 
-      // Lấy phản hồi dạng text
-      const responseText = await response.text();
-      console.log("Phản hồi từ API:", responseText);
+      const data = await response.json();
+      console.log("Dữ liệu phí giao hàng:", data);
 
-      if (!response.ok) {
-        console.error("Response status:", response.status);
-        throw new Error("Không thể tính phí giao hàng.");
-      }
-
-      // Xử lý nếu phản hồi là một số
-      const shippingFee = parseFloat(responseText); // Chuyển thành số thực
-      if (!isNaN(shippingFee)) {
-        console.log("Phí giao hàng:", shippingFee);
-        setDeliveryFee(shippingFee);
-        setFinalPrice(totalPrice - totalPrice * discountRate + shippingFee);
+      if (data && data.fee) {
+        setDeliveryFee(data.fee.fee);
+        setFinalPrice(totalPrice - totalPrice * discountRate + data.fee.fee);
       } else {
-        console.error("Phản hồi không phải là số hợp lệ:", responseText);
-        throw new Error("Phản hồi không hợp lệ từ API tính phí.");
+        Alert.alert("Lỗi", "Không thể lấy phí giao hàng.");
       }
     } catch (error) {
-      console.error("Lỗi khi tính phí giao hàng:", error.message);
-      Alert.alert("Lỗi", "Không thể tính phí giao hàng.");
+      console.error("Lỗi khi lấy phí giao hàng:", error);
     }
   };
 
@@ -222,10 +180,8 @@ const CheckoutScreen = ({ navigation }) => {
       console.log("Delivery info:", data);
       setDeliveryInfo(data);
 
-      // Tính phí giao hàng sau khi nhận được thông tin
-      if (data.address) {
-        await fetchDeliveryFee(data.address);
-      }
+      // No longer calling fetchDeliveryFee here
+      // await fetchDeliveryFee();
     } catch (error) {
       console.error("Error fetching delivery info:", error.message);
       Alert.alert(
@@ -261,11 +217,19 @@ const CheckoutScreen = ({ navigation }) => {
 
       setDetailedCartItems(items);
       setTotalPrice(total);
-      setFinalPrice(total - total * discountRate); // Tính tổng sau chiết khấu
+
+      // Removed setFinalPrice call
     } catch (error) {
       console.error("Error fetching cart details:", error);
     }
   };
+
+  useEffect(() => {
+    //Call the fetchDeliveryFee here
+    if (deliveryInfo && deliveryInfo.address && totalPrice > 0) {
+      fetchDeliveryFee();
+    }
+  }, [deliveryInfo, totalPrice]);
 
   useEffect(() => {
     // Tính toán tổng tiền sau khi chọn mức giảm giá

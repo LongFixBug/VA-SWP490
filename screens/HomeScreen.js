@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   TextInput,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
@@ -33,6 +34,11 @@ const HomeScreen = () => {
   const [userData, setUserData] = useState(null);
 
   const [cartCount, setCartCount] = useState(0);
+  const [groupedDishes, setGroupedDishes] = useState({
+    "Món chính": [],
+    "Khai vị": [],
+    "Đồ uống": [],
+  });
 
   const rankColors = {
     Bronze: "#333300", // Bronze color
@@ -307,6 +313,17 @@ const HomeScreen = () => {
       );
 
       setDishes(dishesWithRatings);
+
+      // Filter and group dishes by dishType
+      const grouped = dishesWithRatings.reduce((acc, dish) => {
+        if (["Món chính", "Khai vị", "Đồ uống"].includes(dish.dishType)) {
+          acc[dish.dishType] = [...(acc[dish.dishType] || []), dish];
+        }
+        return acc;
+      }, {});
+
+      setGroupedDishes(grouped);
+
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dishes:", error);
@@ -368,6 +385,53 @@ const HomeScreen = () => {
 
     return unsubscribe; // Dọn dẹp listener khi component unmount
   }, [navigation, userId]);
+
+  const renderDishItem = ({ item }) => (
+    <TouchableOpacity
+      onPress={() => navigation.navigate("DishDetail", { dishId: item.dishId })}
+    >
+      <View style={styles.gridItem}>
+        <Image
+          source={{
+            uri: item.imageUrl || "https://via.placeholder.com/150",
+          }}
+          style={{
+            width: "100%",
+            height: 100,
+            resizeMode: "cover",
+          }}
+        />
+        <View style={{ padding: 5 }}>
+          {/* Tên món ăn */}
+          <Text
+            style={styles.textNameDish}
+            numberOfLines={1} // Giới hạn 1 dòng
+            ellipsizeMode="tail" // Thêm "..." nếu tên quá dài
+          >
+            {item.name || "Tên món ăn"}
+          </Text>
+
+          {/* Loại món ăn */}
+          <Text style={styles.textDishType}>
+            {item.dishType || "Loại món ăn"}
+          </Text>
+
+          {/* Rating và Giá */}
+          <View style={styles.ratingAndPrice}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={styles.star}>⭐</Text>
+              <Text style={styles.rating}>
+                {item.averageRating?.toFixed(1) || "0.0"}
+              </Text>
+            </View>
+            <Text style={styles.price}>
+              {item.price ? `${item.price.toLocaleString()} vnđ` : "0.000 đ"}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
@@ -585,67 +649,33 @@ const HomeScreen = () => {
           Đang tải dữ liệu...
         </Text>
       ) : (
-        <FlatList
-          data={dishes}
-          keyExtractor={(item, index) =>
-            item.dishId ? item.dishId.toString() : index.toString()
-          }
-          numColumns={2}
-          columnWrapperStyle={{ justifyContent: "space-between" }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() =>
-                navigation.navigate("DishDetail", { dishId: item.dishId })
-              }
-            >
-              <View style={styles.gridItem}>
-                <Image
-                  source={{
-                    uri: item.imageUrl || "https://via.placeholder.com/150",
-                  }}
-                  style={{
-                    width: "100%",
-                    height: 100,
-                    resizeMode: "cover",
-                  }}
-                />
-                <View style={{ padding: 5 }}>
-                  {/* Tên món ăn */}
-                  <Text
-                    style={styles.textNameDish}
-                    numberOfLines={1} // Giới hạn 1 dòng
-                    ellipsizeMode="tail" // Thêm "..." nếu tên quá dài
+        <ScrollView>
+          {
+            //Define the order here
+            ["Món chính", "Khai vị", "Đồ uống"].map((dishType) => {
+              if (
+                !groupedDishes[dishType] ||
+                groupedDishes[dishType].length === 0
+              )
+                return null;
+              return (
+                <View key={dishType} style={{ marginBottom: 2 }}>
+                  <Text style={styles.dishTypeTitle}>{dishType}</Text>
+                  <ScrollView
+                    horizontal={true}
+                    showsHorizontalScrollIndicator={false}
                   >
-                    {item.name || "Tên món ăn"}
-                  </Text>
-
-                  {/* Loại món ăn */}
-                  <Text style={styles.textDishType}>
-                    {item.dishType || "Loại món ăn"}
-                  </Text>
-
-                  {/* Rating và Giá */}
-                  <View style={styles.ratingAndPrice}>
-                    <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                      <Text style={styles.star}>⭐</Text>
-                      <Text style={styles.rating}>
-                        {item.averageRating?.toFixed(1) || "0.0"}
-                      </Text>
-                    </View>
-                    <Text style={styles.price}>
-                      {item.price
-                        ? `${item.price.toLocaleString()} vnđ`
-                        : "0.000 đ"}
-                    </Text>
-                  </View>
+                    {groupedDishes[dishType].map((dish, index) => (
+                      <View key={dish.dishId}>
+                        {renderDishItem({ item: dish })}
+                      </View>
+                    ))}
+                  </ScrollView>
                 </View>
-              </View>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ flexGrow: 1 }}
-        />
+              );
+            })
+          }
+        </ScrollView>
       )}
     </View>
   );
@@ -724,7 +754,6 @@ const styles = StyleSheet.create({
     borderColor: "#E0E0E0",
     marginRight: 20,
   },
-
   dishHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -734,6 +763,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
+    marginLeft: 2,
   },
   viewAll: {
     fontSize: 14,
@@ -804,6 +834,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.black,
     fontFamily: FONTS.bold,
+  },
+  dishTypeTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.white,
+    // marginBottom: 10,
+    marginTop: 10,
+    marginLeft: 2,
   },
 });
 

@@ -19,6 +19,8 @@ const MenuScreen = ({ navigation }) => {
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
+  // State để theo dõi trạng thái loading của từng menu
+  const [menuLoading, setMenuLoading] = useState({});
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -46,6 +48,65 @@ const MenuScreen = ({ navigation }) => {
     }
   };
 
+  // Hàm fetch lại menu
+  const refetchMenu = async (menuType, index) => {
+    setMenuLoading({ ...menuLoading, [index]: true }); // Bắt đầu loading cho menu cụ thể
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) {
+        console.error("Không tìm thấy userId trong AsyncStorage.");
+        return;
+      }
+
+      let apiUrl;
+      switch (menuType) {
+        case "Sáng":
+          apiUrl = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuBreakfastForUser/${userId}`;
+          break;
+        case "Trưa":
+          apiUrl = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuLunchForUser/${userId}`;
+          break;
+        case "Chiều":
+          apiUrl = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuDinnerForUser/${userId}`;
+          break;
+        default:
+          console.error("Loại menu không hợp lệ.");
+          return;
+      }
+
+      const response = await fetchWithAuth(apiUrl);
+      if (response.ok) {
+        const data = await response.json();
+        const totalCalories = data.reduce(
+          (sum, item) => sum + (item.calories || 0),
+          0
+        );
+        const validMenuItems = data.map((item) => ({
+          ...item,
+          dish: {
+            ...item.dish,
+            imageUrl: item.dish?.imageUrl || "https://via.placeholder.com/70",
+          },
+        }));
+
+        // Cập nhật lại state menus
+        setMenus((prevMenus) =>
+          prevMenus.map((menu, i) =>
+            i === index
+              ? { ...menu, menuItems: validMenuItems, totalCalories }
+              : menu
+          )
+        );
+      } else {
+        console.log(`Không thể lấy dữ liệu cho menu ${menuType}.`);
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy lại menu:", error);
+    } finally {
+      setMenuLoading({ ...menuLoading, [index]: false }); // Kết thúc loading
+    }
+  };
+
   const fetchMenus = async () => {
     try {
       const userId = await AsyncStorage.getItem("userId");
@@ -61,7 +122,7 @@ const MenuScreen = ({ navigation }) => {
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuDinnerForUser/${userId}`,
       ];
 
-      const menuTitles = ["Sáng", "Trưa", "Chiều", "Tối"];
+      const menuTitles = ["Sáng", "Trưa", "Chiều"];
       const menusData = [];
 
       for (let i = 0; i < apiEndpoints.length; i++) {
@@ -211,20 +272,48 @@ const MenuScreen = ({ navigation }) => {
       >
         {menus.map((menu, index) => (
           <View key={index} style={styles.menuCard}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => navigation.navigate("DetailMenu", { menu })}
+              >
+                <Text style={styles.menuTitle}>{menu.title}</Text>
+              </TouchableOpacity>
+              {/* Thêm icon reload vào đây */}
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <TouchableOpacity
+                  onPress={() => refetchMenu(menu.title.split(" ")[1], index)}
+                  style={{ marginRight: 10 }}
+                >
+                  {menuLoading[index] ? (
+                    <ActivityIndicator size="small" color={COLORS.green} />
+                  ) : (
+                    <Icon name="reload" size={25} color={COLORS.green} />
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    /* Xử lý logic yêu thích ở đây */
+                  }}
+                >
+                  <Icon
+                    name="heart-outline"
+                    size={30}
+                    color={COLORS.lightGrey}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => navigation.navigate("DetailMenu", { menu })}
             >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={styles.menuTitle}>{menu.title}</Text>
-                <Icon name="heart-outline" size={30} color={COLORS.lightGrey} />
-              </View>
               <Text style={styles.menuCalories}>
                 Tổng calories: {menu.totalCalories} kcal
               </Text>

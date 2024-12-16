@@ -150,10 +150,9 @@ const OrderDetailScreen = ({ navigation }) => {
             text: "Có",
             onPress: async () => {
               const response = await fetchWithAuth(
-                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${order.orderId}`,
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${order.orderId}?newStatus=cancel`,
                 {
                   method: "PUT",
-                  body: JSON.stringify("cancel"),
                 }
               );
               if (response.ok) {

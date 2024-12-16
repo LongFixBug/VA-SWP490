@@ -176,7 +176,7 @@ const PaymentScreen = ({ navigation, route }) => {
           [
             {
               text: "OK",
-              onPress: () => navigation.navigate("Checkout"), // Quay lại CheckoutScreen
+              onPress: () => navigation.navigate("Order"), // Quay lại CheckoutScreen
             },
           ]
         );
@@ -184,7 +184,7 @@ const PaymentScreen = ({ navigation, route }) => {
         // Tạo Payment Link cho QR
         const paymentData = {
           orderId: latestOrderId,
-          decryptionKey: "Sav3CtqBonMF3f41HaoxABIi8NKVUMBU1MOHBi1qmf0=", // Key truyền trực tiếp
+          decryptionKey: "Sav3CtqBonMF3f41HaoxABIi8NKVUMBU1MOHBi1qmf0=",
         };
 
         const paymentResponse = await fetchWithAuth(

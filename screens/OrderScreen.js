@@ -8,12 +8,18 @@ import {
   StatusBar,
   Image,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  fetchLatestOrderId,
+  fetchOrderDetailsAndUpdateStatus,
+  fetchAndUpdateDiscountHistory,
+} from "../utils/checkoutLogic"; // Đường dẫn file logic
 
 const dataTabViewOrder = [
   { id: 0, name: "Tất cả" },
@@ -29,7 +35,7 @@ const OrderScreen = ({ navigation }) => {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [userId, setUserId] = useState(null);
-
+  const [refreshing, setRefreshing] = useState(false); // State để theo dõi trạng thái refresh
   const orderStatus = {
     pending: { color: COLORS.yellow, text: "Chờ xác nhận" },
     processing: { color: COLORS.orange, text: "Đang xử lí" },
@@ -83,6 +89,377 @@ const OrderScreen = ({ navigation }) => {
     getUserId();
   }, []);
 
+  // const handlePostPaymentLogic = async () => {
+  //   try {
+  //     if (!userId) throw new Error("Không tìm thấy User ID.");
+
+  //     const latestOrderId = await fetchLatestOrderId(userId);
+  //     await fetchOrderDetailsAndUpdateStatus(latestOrderId);
+  //     await fetchAndUpdateDiscountHistory(userId);
+
+  //     Alert.alert("Thông báo", "Xử lý sau thanh toán hoàn tất.");
+  //     navigation.navigate("Order");
+  //   } catch (error) {
+  //     Alert.alert("Lỗi", error.message || "Xử lý sau thanh toán thất bại.");
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   // Gọi hàm logic khi vào trang Order
+  //   handlePostPaymentLogic();
+  // }, []);
+
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     const fetchDataOnFocus = async () => {
+  //       try {
+  //         // Lấy userId từ AsyncStorage
+  //         const storedUserId = await AsyncStorage.getItem("userId");
+
+  //         if (!storedUserId) {
+  //           console.log("Không tìm thấy User ID.");
+  //           Alert.alert("Thông báo", "Bạn cần đăng nhập lại để tiếp tục.", [
+  //             {
+  //               text: "OK",
+  //               onPress: () => navigation.navigate("Login"), // Điều hướng về màn hình đăng nhập
+  //             },
+  //           ]);
+  //           return; // Dừng logic tại đây nếu không có userId
+  //         }
+
+  //         // Nếu có userId, cập nhật state và tiếp tục xử lý
+  //         setUserId(storedUserId);
+
+  //         // Song song: Fetch dữ liệu đơn hàng và kiểm tra trạng thái thanh toán
+  //         const [orderFetchPromise, latestOrderPromise] =
+  //           await Promise.allSettled([
+  //             fetchOrders(storedUserId), // Tải danh sách đơn hàng
+  //             fetchLatestOrderId(storedUserId).then((latestOrderId) => {
+  //               if (latestOrderId) {
+  //                 return fetchOrderDetailsAndUpdateStatus(latestOrderId);
+  //               }
+  //             }),
+  //           ]);
+
+  //         // Kiểm tra kết quả Promise
+  //         if (orderFetchPromise.status === "rejected") {
+  //           console.log(
+  //             "Lỗi khi tải danh sách đơn hàng:",
+  //             orderFetchPromise.reason
+  //           );
+  //         }
+
+  //         if (latestOrderPromise.status === "rejected") {
+  //           console.log(
+  //             "Lỗi khi xử lý đơn hàng mới nhất:",
+  //             latestOrderPromise.reason
+  //           );
+  //         }
+  //       } catch (error) {
+  //         console.log("Lỗi khi tải dữ liệu khi focus lại trang:", error);
+  //       }
+  //     };
+
+  //     // Gọi hàm tải dữ liệu
+  //     fetchDataOnFocus();
+  //   }, [navigation, currentTabViewOrder]) // Lắng nghe sự thay đổi của navigation và currentTabViewOrder
+  // );
+
+  const clearCart = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) {
+        console.error("[DEBUG] Không tìm thấy userId.");
+        return;
+      }
+
+      console.log("[DEBUG] userId:", userId);
+
+      // Step 1: Get the latest order for the user
+      const ordersResponse = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("authToken")}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!ordersResponse.ok) {
+        const errorText = await ordersResponse.text();
+        console.error("[DEBUG] Lỗi khi lấy danh sách đơn hàng:", errorText);
+        throw new Error("Không thể lấy danh sách đơn hàng.");
+      }
+
+      const orders = await ordersResponse.json();
+
+      // Find the latest order
+      const latestOrder = orders.reduce((latest, current) => {
+        return new Date(current.orderDate) > new Date(latest.orderDate)
+          ? current
+          : latest;
+      }, orders[0]);
+
+      if (!latestOrder) {
+        console.log("[DEBUG] Không tìm thấy đơn hàng mới nhất.");
+        return;
+      }
+
+      console.log("[DEBUG] Đơn hàng mới nhất:", latestOrder);
+
+      // Step 2: Get order details for the latest order
+      const orderDetailResponse = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderDetailByOrderId/${latestOrder.orderId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("authToken")}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!orderDetailResponse.ok) {
+        const errorText = await orderDetailResponse.text();
+        console.error("[DEBUG] Lỗi khi lấy chi tiết đơn hàng:", errorText);
+        throw new Error("Không thể lấy chi tiết đơn hàng.");
+      }
+
+      const orderDetails = await orderDetailResponse.json();
+      const paidDishIds = orderDetails.map((detail) => detail.dishId);
+      console.log("[DEBUG] Danh sách dishId đã thanh toán:", paidDishIds);
+
+      // Step 3: Get cart items for the user
+      const cartResponse = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${userId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("authToken")}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!cartResponse.ok) {
+        const errorText = await cartResponse.text();
+        console.error("[DEBUG] Lỗi khi lấy giỏ hàng:", errorText);
+        throw new Error("Không thể lấy danh sách giỏ hàng.");
+      }
+
+      const cartItems = await cartResponse.json();
+      console.log("[DEBUG] Danh sách giỏ hàng:", cartItems);
+
+      // Step 4: Filter cart items to delete based on paid dishId
+      const cartIdsToDelete = cartItems
+        .filter((cart) => paidDishIds.includes(cart.dishId))
+        .map((cart) => cart.cartId);
+
+      console.log("[DEBUG] Danh sách cartId cần xóa:", cartIdsToDelete);
+
+      // Step 5: Delete each cart item and check response
+      for (const cartId of cartIdsToDelete) {
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/removeCartByUserId/${cartId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem(
+                "authToken"
+              )}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[DEBUG] Lỗi khi xóa cartId ${cartId}:`, errorText);
+        } else {
+          const contentType = response.headers.get("Content-Type");
+          const result =
+            contentType && contentType.includes("application/json")
+              ? await response.json()
+              : await response.text(); // Read as text if not JSON
+
+          if (result === "Cart deleted successfully") {
+            console.log(`[DEBUG] Xóa cartId ${cartId} thành công.`);
+          } else {
+            console.error(
+              `[DEBUG] Phản hồi không mong đợi khi xóa cartId ${cartId}:`,
+              result
+            );
+          }
+        }
+      }
+
+      console.log("[DEBUG] Hoàn tất xóa giỏ hàng.");
+    } catch (error) {
+      console.error("[DEBUG] Lỗi khi xóa giỏ hàng:", error.message);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchDataOnFocus = async () => {
+        try {
+          // Lấy userId từ AsyncStorage
+          const storedUserId = await AsyncStorage.getItem("userId");
+
+          if (!storedUserId) {
+            console.log("Không tìm thấy User ID.");
+            Alert.alert("Thông báo", "Bạn cần đăng nhập lại để tiếp tục.", [
+              {
+                text: "OK",
+                onPress: () => navigation.navigate("Login"), // Điều hướng về màn hình đăng nhập
+              },
+            ]);
+            return; // Dừng logic tại đây nếu không có userId
+          }
+
+          // Nếu có userId, cập nhật state và tiếp tục xử lý
+          setUserId(storedUserId);
+
+          // Lấy orderId mới nhất
+          const latestOrderId = await fetchLatestOrderId(storedUserId);
+
+          if (latestOrderId) {
+            console.log(
+              "[DEBUG] Bắt đầu kiểm tra trạng thái đơn hàng. Order ID:",
+              latestOrderId
+            );
+
+            // Kiểm tra chi tiết thanh toán
+            const paymentDetailResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${latestOrderId}`
+            );
+
+            if (!paymentDetailResponse.ok) {
+              const errorText = await paymentDetailResponse.text();
+              console.error(
+                "[DEBUG] Lỗi từ API kiểm tra thanh toán:",
+                errorText
+              );
+              throw new Error("Không thể kiểm tra trạng thái thanh toán.");
+            }
+
+            const paymentDetails = await paymentDetailResponse.json();
+            console.log("[DEBUG] Kết quả thanh toán từ API:", paymentDetails);
+
+            const paymentDetail = paymentDetails[0];
+
+            if (
+              (paymentDetail?.paymentMethod === "PayOS" &&
+                paymentDetail?.paymentStatus === "completed") ||
+              (paymentDetail?.paymentMethod === "COD" &&
+                paymentDetail?.paymentStatus === "pending")
+            ) {
+              console.log("[DEBUG] Thanh toán thành công. Xóa giỏ hàng...");
+
+              // Gọi hàm xóa giỏ hàng
+              await clearCart();
+
+              //  Alert.alert(
+              //    "Thông báo",
+              //    "Thanh toán thành công! Giỏ hàng đã được xóa."
+              //  );
+            }
+
+            if (paymentDetail?.paymentMethod === "COD") {
+              console.log("[DEBUG] Phương thức thanh toán là COD.");
+
+              // Cập nhật trạng thái đơn hàng thành "pending"
+              await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}?newStatus=pending`,
+                { method: "PUT", headers: { Accept: "*/*" } }
+              );
+
+              console.log(
+                "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công."
+              );
+            } else if (
+              paymentDetail?.paymentMethod === "PayOS" &&
+              paymentDetail?.paymentStatus === "completed"
+            ) {
+              console.log("[DEBUG] Thanh toán PayOS đã hoàn tất.");
+
+              // Cập nhật trạng thái đơn hàng thành "pending"
+              await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}?newStatus=pending`,
+                { method: "PUT", headers: { Accept: "*/*" } }
+              );
+
+              console.log(
+                "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công."
+              );
+            } else {
+              console.log(
+                "[DEBUG] Trạng thái thanh toán chưa hoàn tất hoặc phương thức không hợp lệ."
+              );
+              return;
+            }
+
+            // Xử lý giảm giá
+            const ordersResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${storedUserId}`
+            );
+
+            if (ordersResponse.ok) {
+              const orders = await ordersResponse.json();
+
+              // Tìm đơn hàng trạng thái 'pending'
+              const latestOrder = orders
+                .filter((order) => order.status === "pending")
+                .reduce((latest, current) => {
+                  return new Date(current.orderDate) >
+                    new Date(latest.orderDate)
+                    ? current
+                    : latest;
+                }, orders[0]);
+
+              if (latestOrder) {
+                const discountRate = latestOrder.discountRate;
+                let tierId = 0;
+
+                if (discountRate === 0.1) tierId = 2;
+                else if (discountRate === 0.2) tierId = 3;
+                else if (discountRate === 0.3) tierId = 4;
+
+                if (tierId > 0) {
+                  console.log(
+                    `[DEBUG] Đơn hàng sử dụng giảm giá ${discountRate * 100}%.`
+                  );
+
+                  // Cập nhật lịch sử giảm giá
+                  await fetchWithAuth(
+                    `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history/inactive/${storedUserId}/${tierId}`,
+                    { method: "PUT", headers: { Accept: "*/*" } }
+                  );
+
+                  console.log("[DEBUG] Trạng thái giảm giá đã được cập nhật.");
+                }
+              }
+            }
+          }
+
+          // Gọi lại hàm tải danh sách đơn hàng
+          await fetchOrders(storedUserId);
+        } catch (error) {
+          console.log("[DEBUG] Lỗi trong quá trình xử lý:", error.message);
+          Alert.alert(
+            "Lỗi",
+            error.message || "Có lỗi xảy ra trong quá trình xử lý đơn hàng."
+          );
+        }
+      };
+
+      // Gọi hàm tải dữ liệu
+      fetchDataOnFocus();
+    }, [navigation, currentTabViewOrder]) // Lắng nghe sự thay đổi của navigation và currentTabViewOrder
+  );
+
   const fetchOrders = async (userId) => {
     try {
       const response = await fetchWithAuth(
@@ -90,7 +467,7 @@ const OrderScreen = ({ navigation }) => {
       );
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Error fetching orders:", errorData);
+        console.log("Error fetching orders:", errorData);
         return;
       }
       const data = await response.json();
@@ -175,13 +552,21 @@ const OrderScreen = ({ navigation }) => {
   }, [currentTabViewOrder, orders]);
 
   // Automatically refresh orders when the screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      if (userId) {
-        fetchOrders(userId);
-      }
-    }, [userId, currentTabViewOrder])
-  );
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     if (userId) {
+  //       fetchOrders(userId);
+  //     }
+  //   }, [userId, currentTabViewOrder])
+  // );
+
+  const handleRefresh = async () => {
+    setRefreshing(true); // Bắt đầu trạng thái loading
+    if (userId) {
+      await fetchOrders(userId); // Gọi lại hàm tải dữ liệu đơn hàng
+    }
+    setRefreshing(false); // Kết thúc trạng thái loading
+  };
 
   return (
     <>
@@ -263,6 +648,8 @@ const OrderScreen = ({ navigation }) => {
         )}
         keyExtractor={(item) => item.orderId.toString()}
         style={styles.flatList}
+        onRefresh={handleRefresh} // Thêm hàm xử lý refresh
+        refreshing={refreshing} // Kiểm tra trạng thái refresh
       />
     </>
   );

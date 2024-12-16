@@ -18,7 +18,6 @@ const CartScreen = ({ navigation }) => {
   const [cartItems, setCartItems] = useState([]);
 
   // Hàm lấy giỏ hàng từ API
-  // Hàm lấy giỏ hàng từ API
   const fetchCartData = async () => {
     try {
       const userId = await AsyncStorage.getItem("userId");
@@ -152,6 +151,19 @@ const CartScreen = ({ navigation }) => {
 
   // Xử lý khi bấm "Tiếp tục"
   const handleContinue = async () => {
+    if (cartItems.length === 0) {
+      Alert.alert(
+        "Thông báo",
+        "Bạn chưa thêm món ăn vào giỏ hàng, hãy chọn những món ăn bạn yêu thích nhé!",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("Home"), // Quay lại trang Home
+          },
+        ]
+      );
+      return;
+    }
     try {
       const promises = cartItems.map(async (item) => {
         const quantityData = JSON.parse(

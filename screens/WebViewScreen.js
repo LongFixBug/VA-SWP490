@@ -1,24 +1,32 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef } from "react";
 import { WebView } from "react-native-webview";
-import { Alert, View, Text, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 const WebViewScreen = ({ navigation, route }) => {
   const { url } = route.params;
+  const webViewRef = useRef(null);
 
   const handleNavigationChange = (navState) => {
     const currentUrl = navState.url;
 
-    // Phát hiện hành động "Hủy"
+    // Phát hiện URL chứa từ khóa "cancel"
     if (currentUrl.includes("cancel")) {
-      Alert.alert("Thông báo", "Cám ơn bạn đã sử dụng dịch vụ");
-      navigation.goBack(); // Quay lại trang trước
+      // Ngăn không cho WebView điều hướng
+      if (webViewRef.current) {
+        webViewRef.current.stopLoading();
+      }
+
+      // Điều hướng trực tiếp về Checkout
+      navigation.navigate("Checkout");
     }
   };
 
   return (
     <WebView
+      ref={webViewRef}
       source={{ uri: url }}
-      onNavigationStateChange={handleNavigationChange} // Lắng nghe thay đổi URL
+      onNavigationStateChange={handleNavigationChange} // Lắng nghe sự thay đổi của URL
+      startInLoadingState={true} // Hiển thị trạng thái tải ban đầu
     />
   );
 };
@@ -28,17 +36,6 @@ export default WebViewScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "#fff",
-  },
-  successText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  countdownText: {
-    fontSize: 18,
-    color: "#555",
   },
 });

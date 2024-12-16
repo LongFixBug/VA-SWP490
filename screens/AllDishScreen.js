@@ -8,6 +8,7 @@ import {
   TextInput,
   ScrollView,
   FlatList,
+  Modal, // Import Modal
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import COLORS from "../constants/color";
@@ -22,6 +23,10 @@ const AllDishScreen = ({ navigation, route }) => {
   const [filteredDishes, setFilteredDishes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [ratings, setRatings] = useState({});
+
+  // State mới cho filter
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [selectedFilterOption, setSelectedFilterOption] = useState(null); // Giá trị null cho lần đầu
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -166,7 +171,7 @@ const AllDishScreen = ({ navigation, route }) => {
             );
 
             if (!ingredientResponse.ok) {
-              console.warn(
+              console.log(
                 `Failed to fetch ingredients for dish ${dish.dishId}`
               );
               return { ...dish, ingredients: [] };
@@ -181,7 +186,7 @@ const AllDishScreen = ({ navigation, route }) => {
               );
 
               if (!ingredientDetailResponse.ok) {
-                console.warn(
+                console.log(
                   `Failed to fetch ingredient details for ingredientId ${ing.ingredientId}`
                 );
                 return null;
@@ -250,6 +255,56 @@ const AllDishScreen = ({ navigation, route }) => {
     { id: 4, name: "Đồ uống", dishType: "Đồ uống" },
   ];
 
+  // Hàm xử lý khi chọn filter option
+  const handleFilterOptionSelect = (option) => {
+    setSelectedFilterOption(option);
+    setIsFilterModalVisible(false); // Đóng modal khi chọn xong
+    sortDishes(option); // Gọi hàm sắp xếp
+  };
+
+  const sortDishes = (option) => {
+    let sortedDishes = [...filteredDishes];
+    switch (option) {
+      case "rating_high_to_low":
+        sortedDishes.sort((a, b) => {
+          const ratingA = ratings[a.dishId] || 0;
+          const ratingB = ratings[b.dishId] || 0;
+          return ratingB - ratingA; // Sắp xếp giảm dần theo rating
+        });
+        break;
+      case "rating_low_to_high":
+        sortedDishes.sort((a, b) => {
+          const ratingA = ratings[a.dishId] || 0;
+          const ratingB = ratings[b.dishId] || 0;
+          return ratingA - ratingB; // Sắp xếp tăng dần theo rating
+        });
+        break;
+      case "price_low_to_high":
+        sortedDishes.sort((a, b) => {
+          const priceA = a.price || 0;
+          const priceB = b.price || 0;
+          return priceA - priceB;
+        }); // Sắp xếp tăng dần theo giá
+        break;
+      case "price_high_to_low":
+        sortedDishes.sort((a, b) => {
+          const priceA = a.price || 0;
+          const priceB = b.price || 0;
+          return priceB - priceA; // Sắp xếp giảm dần theo giá
+        });
+        break;
+      case "a-z":
+        sortedDishes.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        break;
+      case "z-a":
+        sortedDishes.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+        break;
+      default:
+        break; // Không sắp xếp nếu không có option nào được chọn
+    }
+    setFilteredDishes(sortedDishes);
+  };
+
   return (
     <>
       <View style={styles.top}>
@@ -302,6 +357,7 @@ const AllDishScreen = ({ navigation, route }) => {
               backgroundColor: COLORS.grey,
               marginRight: 10,
             }}
+            onPress={() => setIsFilterModalVisible(true)} // Mở modal
           >
             <Icon name="filter" size={24} color={COLORS.white} />
           </TouchableOpacity>
@@ -345,6 +401,59 @@ const AllDishScreen = ({ navigation, route }) => {
           </ScrollView>
         </View>
       </View>
+
+      {/* Modal chứa các option filter */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackground}
+          activeOpacity={1}
+          onPress={() => setIsFilterModalVisible(false)} // Close modal when tap outside
+        >
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("rating_high_to_low")}
+            >
+              <Text style={styles.filterOptionText}>Rating: Cao đến thấp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("rating_low_to_high")}
+            >
+              <Text style={styles.filterOptionText}>Rating: Thấp đến cao</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("price_low_to_high")}
+            >
+              <Text style={styles.filterOptionText}>Giá: Thấp đến cao</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("price_high_to_low")}
+            >
+              <Text style={styles.filterOptionText}>Giá: Cao đến thấp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("a-z")}
+            >
+              <Text style={styles.filterOptionText}>A-Z</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("z-a")}
+            >
+              <Text style={styles.filterOptionText}>Z-A</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <FlatList
         data={filteredDishes}
@@ -471,5 +580,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.black,
     fontFamily: FONTS.bold,
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+  },
+  filterOption: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: COLORS.lightGrey,
+  },
+  filterOptionText: {
+    fontSize: 16,
+    fontFamily: FONTS.medium,
   },
 });

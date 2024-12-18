@@ -15,12 +15,15 @@ import FONTS from "../constants/font";
 import Header from "../components/Header";
 import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
 import Toast from "react-native-toast-message";
+
 const MenuScreen = ({ navigation }) => {
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
-  // State để theo dõi trạng thái loading của từng menu
   const [menuLoading, setMenuLoading] = useState({});
+  const [favoriteLoading, setFavoriteLoading] = useState({});
+  // Mảng boolean đánh dấu trạng thái yêu thích theo index
+  const [favoriteMenusByIndex, setFavoriteMenusByIndex] = useState([]);
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -48,9 +51,130 @@ const MenuScreen = ({ navigation }) => {
     }
   };
 
-  // Hàm fetch lại menu
-  const refetchMenu = async (menuType, index) => {
-    setMenuLoading({ ...menuLoading, [index]: true }); // Bắt đầu loading cho menu cụ thể
+  const handleFavoriteMenu = async (menu, index) => {
+    if (!userId) {
+      console.error("User ID không tồn tại.");
+      return;
+    }
+
+    // Nếu menu này đã được yêu thích rồi thì không làm gì
+    if (favoriteMenusByIndex[index]) {
+      return;
+    }
+
+    const key = `fav-loading-${index}`;
+    setFavoriteLoading((prevLoading) => ({ ...prevLoading, [key]: true }));
+
+    try {
+      await createFavoriteMenu(menu);
+      // Thành công thì đánh dấu menu tại index này đã yêu thích
+      setFavoriteMenusByIndex((prev) => {
+        const newArr = [...prev];
+        newArr[index] = true;
+        return newArr;
+      });
+    } catch (error) {
+      console.error("Lỗi khi thêm menu vào yêu thích:", error);
+      Toast.show({
+        type: "error",
+        text1: "Thất bại",
+        text2: "Đã xảy ra lỗi khi thêm menu vào yêu thích.",
+      });
+    } finally {
+      setFavoriteLoading((prevLoading) => ({ ...prevLoading, [key]: false }));
+    }
+  };
+
+  const createFavoriteMenu = async (menu) => {
+    try {
+      const totalCalories = menu.menuItems.reduce(
+        (sum, item) => sum + (item.calories || 0),
+        0
+      );
+      const totalProtein = menu.menuItems.reduce(
+        (sum, item) => sum + (item.protein || 0),
+        0
+      );
+      const totalFat = menu.menuItems.reduce(
+        (sum, item) => sum + (item.fat || 0),
+        0
+      );
+      const totalCarbs = menu.menuItems.reduce(
+        (sum, item) => sum + (item.carbs || 0),
+        0
+      );
+
+      const createMenuResponse = await fetchWithAuth(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/createFavoriteMenu",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            userId: parseInt(userId),
+            menuName: menu.title,
+            menuDescription: `Calories: ${totalCalories} kcal, Protein: ${totalProtein}g, Fat: ${totalFat}g, Carbs: ${totalCarbs}g`,
+          }),
+        }
+      );
+      if (!createMenuResponse.ok) {
+        console.error("Failed to create favorite menu.");
+        return;
+      }
+
+      const allMenuResponse = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/allMenuByUserId/${userId}`
+      );
+
+      if (!allMenuResponse.ok) {
+        console.error("Failed to fetch all favorite menus after creating.");
+        return;
+      }
+
+      const allMenuData = await allMenuResponse.json();
+      const newMenuId = allMenuData.reduce((maxId, m) => {
+        return Math.max(maxId, m.menuId);
+      }, 0);
+
+      const addDishPromises = menu.menuItems.map(async (item) => {
+        const dishData = {
+          menuId: newMenuId,
+          dishId: item.dish?.dishId || item.dishId,
+        };
+        const response = await fetchWithAuth(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/favorites/createDishForFavoriteMenu",
+          {
+            method: "POST",
+            body: JSON.stringify(dishData),
+          }
+        );
+        if (!response.ok) {
+          console.error(
+            `Lỗi khi thêm món ${
+              item.dish?.name || "Không rõ"
+            } vào menu yêu thích`,
+            response.status
+          );
+          throw new Error(
+            `Không thể thêm món ${
+              item.dish?.name || "Không rõ"
+            } vào menu yêu thích`
+          );
+        }
+      });
+      await Promise.all(addDishPromises);
+
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: "Menu đã được thêm vào yêu thích!",
+      });
+    } catch (error) {
+      console.error("Lỗi khi tạo menu yêu thích:", error);
+      throw error;
+    }
+  };
+
+  const refetchMenu = async (menuType, index, menuId) => {
+    setMenuLoading({ ...menuLoading, [index]: true });
     try {
       const userId = await AsyncStorage.getItem("userId");
       if (!userId) {
@@ -66,14 +190,13 @@ const MenuScreen = ({ navigation }) => {
         case "Trưa":
           apiUrl = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuLunchForUser/${userId}`;
           break;
-        case "Chiều":
+        case "Tối":
           apiUrl = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuDinnerForUser/${userId}`;
           break;
         default:
           console.error("Loại menu không hợp lệ.");
           return;
       }
-
       const response = await fetchWithAuth(apiUrl);
       if (response.ok) {
         const data = await response.json();
@@ -88,13 +211,16 @@ const MenuScreen = ({ navigation }) => {
             imageUrl: item.dish?.imageUrl || "https://via.placeholder.com/70",
           },
         }));
-
-        // Cập nhật lại state menus
         setMenus((prevMenus) =>
-          prevMenus.map((menu, i) =>
+          prevMenus.map((m, i) =>
             i === index
-              ? { ...menu, menuItems: validMenuItems, totalCalories }
-              : menu
+              ? {
+                  ...m,
+                  menuItems: validMenuItems,
+                  totalCalories,
+                  menuId: data[0]?.menuId,
+                }
+              : m
           )
         );
       } else {
@@ -103,7 +229,7 @@ const MenuScreen = ({ navigation }) => {
     } catch (error) {
       console.error("Lỗi khi lấy lại menu:", error);
     } finally {
-      setMenuLoading({ ...menuLoading, [index]: false }); // Kết thúc loading
+      setMenuLoading({ ...menuLoading, [index]: false });
     }
   };
 
@@ -118,31 +244,25 @@ const MenuScreen = ({ navigation }) => {
       const apiEndpoints = [
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuBreakfastForUser/${userId}`,
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuLunchForUser/${userId}`,
-
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuDinnerForUser/${userId}`,
       ];
 
-      const menuTitles = ["Sáng", "Trưa", "Chiều"];
+      const menuTitles = ["Sáng", "Trưa", "Tối"];
       const menusData = [];
 
       for (let i = 0; i < apiEndpoints.length; i++) {
         const response = await fetchWithAuth(apiEndpoints[i]);
         if (response.ok) {
           const data = await response.json();
-
           if (data.length === 0) {
-            console.log(
-              `Không có món ăn nào phù hợp cho menu ${menuTitles[i]}.`
-            );
             menusData.push({
               title: `Menu ${menuTitles[i]}`,
               menuItems: [],
               totalCalories: 0,
+              menuId: -1,
             });
             continue;
           }
-
-          // Tính tổng calories và xử lý ảnh
           const totalCalories = data.reduce(
             (sum, item) => sum + (item.calories || 0),
             0
@@ -159,6 +279,7 @@ const MenuScreen = ({ navigation }) => {
             title: `Menu ${menuTitles[i]}`,
             menuItems: validMenuItems,
             totalCalories,
+            menuId: data[0]?.menuId || -1,
           });
         } else {
           console.log(`Không thể lấy dữ liệu cho menu ${menuTitles[i]}.`);
@@ -166,6 +287,8 @@ const MenuScreen = ({ navigation }) => {
       }
 
       setMenus(menusData);
+      // Tạo mảng đánh dấu yêu thích mặc định
+      setFavoriteMenusByIndex(menusData.map(() => false));
     } catch (error) {
       console.error("Lỗi khi lấy menu:", error);
     } finally {
@@ -178,7 +301,7 @@ const MenuScreen = ({ navigation }) => {
       try {
         const storedUserId = await AsyncStorage.getItem("userId");
         if (storedUserId) {
-          setUserId(storedUserId); // Lưu `userId` vào state
+          setUserId(storedUserId);
         } else {
           console.error("Không tìm thấy User ID trong AsyncStorage.");
         }
@@ -188,7 +311,7 @@ const MenuScreen = ({ navigation }) => {
     };
 
     fetchUserId();
-    fetchMenus(); // Lấy danh sách menus
+    fetchMenus();
   }, []);
 
   const handleAddMenuToCart = async (menuItems) => {
@@ -200,12 +323,11 @@ const MenuScreen = ({ navigation }) => {
     try {
       const addDishPromises = menuItems.map(async (dish) => {
         const dishData = {
-          userId: parseInt(userId), // Chuyển thành số nguyên
+          userId: parseInt(userId),
           dishId: dish.dish?.dishId || dish.dishId,
-          quantity: 1, // Số lượng mặc định là 1
+          quantity: 1,
         };
 
-        // Gọi API thêm món vào giỏ hàng
         const response = await fetchWithAuth(
           "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/addToCart",
           {
@@ -228,10 +350,8 @@ const MenuScreen = ({ navigation }) => {
         }
       });
 
-      // Thực hiện tất cả các API call song song
       await Promise.all(addDishPromises);
 
-      // Hiển thị thông báo thành công
       Toast.show({
         type: "success",
         text1: "Thành công",
@@ -270,86 +390,87 @@ const MenuScreen = ({ navigation }) => {
         style={{ flex: 1, backgroundColor: COLORS.white }}
         contentContainerStyle={{ padding: 10 }}
       >
-        {menus.map((menu, index) => (
-          <View key={index} style={styles.menuCard}>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => navigation.navigate("DetailMenu", { menu })}
-              >
-                <Text style={styles.menuTitle}>{menu.title}</Text>
-              </TouchableOpacity>
-              {/* Thêm icon reload vào đây */}
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <TouchableOpacity
-                  onPress={() => refetchMenu(menu.title.split(" ")[1], index)}
-                  style={{ marginRight: 10 }}
-                >
-                  {menuLoading[index] ? (
-                    <ActivityIndicator size="small" color={COLORS.green} />
-                  ) : (
-                    <Icon name="reload" size={25} color={COLORS.green} />
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    /* Xử lý logic yêu thích ở đây */
-                  }}
-                >
-                  <Icon
-                    name="heart-outline"
-                    size={30}
-                    color={COLORS.lightGrey}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
+        {menus.map((menu, index) => {
+          const favLoadingKey = `fav-loading-${index}`;
+          return (
             <TouchableOpacity
+              key={index}
+              style={styles.menuCard}
               activeOpacity={0.9}
               onPress={() => navigation.navigate("DetailMenu", { menu })}
             >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={styles.menuTitle}>{menu.title}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      refetchMenu(menu.title.split(" ")[1], index, menu.menuId)
+                    }
+                    style={{ marginRight: 10 }}
+                  >
+                    {menuLoading[index] ? (
+                      <ActivityIndicator size="small" color={COLORS.green} />
+                    ) : (
+                      <Icon name="reload" size={25} color={COLORS.green} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleFavoriteMenu(menu, index)}
+                  >
+                    {!favoriteMenusByIndex[index] &&
+                    !favoriteLoading[favLoadingKey] ? (
+                      <Icon
+                        name="heart-outline"
+                        size={30}
+                        color={COLORS.lightGrey}
+                      />
+                    ) : favoriteLoading[favLoadingKey] ? (
+                      <ActivityIndicator size="small" color={COLORS.red} />
+                    ) : null}
+                  </TouchableOpacity>
+                </View>
+              </View>
               <Text style={styles.menuCalories}>
                 Tổng calories: {menu.totalCalories} kcal
               </Text>
-            </TouchableOpacity>
 
-            <ScrollView
-              horizontal
-              contentContainerStyle={{
-                marginTop: 5,
-              }}
-              showsHorizontalScrollIndicator={false}
-            >
-              {menu.menuItems.map((dish, dishIndex) => (
-                <Image
-                  key={dishIndex}
-                  source={{
-                    uri:
-                      dish.dish?.imageUrl || "https://via.placeholder.com/70",
-                  }}
-                  style={styles.dishImage}
-                />
-              ))}
-            </ScrollView>
+              <ScrollView
+                horizontal
+                contentContainerStyle={{
+                  marginTop: 5,
+                }}
+                showsHorizontalScrollIndicator={false}
+              >
+                {menu.menuItems.map((dish, dishIndex) => (
+                  <Image
+                    key={dishIndex}
+                    source={{
+                      uri:
+                        dish.dish?.imageUrl || "https://via.placeholder.com/70",
+                    }}
+                    style={styles.dishImage}
+                  />
+                ))}
+              </ScrollView>
 
-            {/* Add to Cart Button */}
-            <TouchableOpacity
-              style={styles.addToCartButton}
-              onPress={() => handleAddMenuToCart(menu.menuItems)}
-            >
-              <Icon1 name="cart-plus" size={20} color={COLORS.white} />
-              <Text style={{ color: COLORS.white, marginLeft: 5 }}>
-                Thêm vào giỏ
-              </Text>
+              <TouchableOpacity
+                style={styles.addToCartButton}
+                onPress={() => handleAddMenuToCart(menu.menuItems)}
+              >
+                <Icon1 name="cart-plus" size={20} color={COLORS.white} />
+                <Text style={{ color: COLORS.white, marginLeft: 5 }}>
+                  Thêm vào giỏ
+                </Text>
+              </TouchableOpacity>
             </TouchableOpacity>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </>
   );

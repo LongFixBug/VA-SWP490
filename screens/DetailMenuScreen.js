@@ -31,7 +31,7 @@ const DetailMenuScreen = ({ navigation, route }) => {
       <Header
         title={"Chi Tiết Menu"}
         leftIcon={"arrow-back-outline"}
-        rightIcon={"heart-outline"}
+        // rightIcon={"heart-outline"}
         colorBackground={COLORS.white}
         colorText={COLORS.black}
         onPress={() => navigation.goBack()}
@@ -42,38 +42,38 @@ const DetailMenuScreen = ({ navigation, route }) => {
         {/* <Text style={styles.menuTitle}>Chi tiết các món ăn</Text> */}
 
         {/* Duyệt qua từng món trong menu */}
-        {menu.menuItems.map((dish, index) => (
+        {menu?.menuItems?.map((item, index) => (
           <TouchableOpacity
             key={index}
             style={[
               styles.dishCard,
               {
                 borderColor:
-                  dishTypeColors[dish.dish?.dishType] || dishTypeColors.default,
+                  dishTypeColors[item.dish?.dishType] || dishTypeColors.default,
               },
             ]}
             onPress={() =>
-              navigation.navigate("DishDetail", { dishId: dish.dish?.dishId })
+              navigation.navigate("DishDetail", { dishId: item.dish?.dishId })
             }
           >
             <Image
               source={{
-                uri: dish.dish?.imageUrl || "https://via.placeholder.com/100",
+                uri: item.dish?.imageUrl || "https://via.placeholder.com/100",
               }}
               style={styles.dishImage}
             />
             <View style={styles.dishInfo}>
               <Text style={styles.dishName} numberOfLines={1}>
-                {dish.dish?.name || "Không rõ tên món"}
+                {item.dish?.name || "Không rõ tên món"}
               </Text>
               <Text style={styles.dishDetail} numberOfLines={1}>
-                Loại món: {dish.dish?.dishType || "Không xác định"}
+                Loại món: {item.dish?.dishType || "Không xác định"}
               </Text>
               <Text style={styles.dishDetail}>
-                Calories: {dish.calories || 0} kcal
+                Calories: {item.calories || 0} kcal
               </Text>
               <Text style={styles.dishDescription} numberOfLines={2}>
-                Mô tả: {dish.dish?.description || "Không có mô tả"}
+                Mô tả: {item.dish?.description || "Không có mô tả"}
               </Text>
             </View>
           </TouchableOpacity>

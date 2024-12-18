@@ -36,6 +36,10 @@ const OrderScreen = ({ navigation }) => {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [userId, setUserId] = useState(null);
   const [refreshing, setRefreshing] = useState(false); // State để theo dõi trạng thái refresh
+  const [sortOrder, setSortOrder] = useState("newest"); // 'newest' or 'oldest'
+  const [groupedOrders, setGroupedOrders] = useState([]);
+  const [showSortButton, setShowSortButton] = useState(false);
+
   const orderStatus = {
     pending: { color: COLORS.yellow, text: "Chờ xác nhận" },
     processing: { color: COLORS.orange, text: "Đang xử lí" },
@@ -88,82 +92,6 @@ const OrderScreen = ({ navigation }) => {
     };
     getUserId();
   }, []);
-
-  // const handlePostPaymentLogic = async () => {
-  //   try {
-  //     if (!userId) throw new Error("Không tìm thấy User ID.");
-
-  //     const latestOrderId = await fetchLatestOrderId(userId);
-  //     await fetchOrderDetailsAndUpdateStatus(latestOrderId);
-  //     await fetchAndUpdateDiscountHistory(userId);
-
-  //     Alert.alert("Thông báo", "Xử lý sau thanh toán hoàn tất.");
-  //     navigation.navigate("Order");
-  //   } catch (error) {
-  //     Alert.alert("Lỗi", error.message || "Xử lý sau thanh toán thất bại.");
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   // Gọi hàm logic khi vào trang Order
-  //   handlePostPaymentLogic();
-  // }, []);
-
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     const fetchDataOnFocus = async () => {
-  //       try {
-  //         // Lấy userId từ AsyncStorage
-  //         const storedUserId = await AsyncStorage.getItem("userId");
-
-  //         if (!storedUserId) {
-  //           console.log("Không tìm thấy User ID.");
-  //           Alert.alert("Thông báo", "Bạn cần đăng nhập lại để tiếp tục.", [
-  //             {
-  //               text: "OK",
-  //               onPress: () => navigation.navigate("Login"), // Điều hướng về màn hình đăng nhập
-  //             },
-  //           ]);
-  //           return; // Dừng logic tại đây nếu không có userId
-  //         }
-
-  //         // Nếu có userId, cập nhật state và tiếp tục xử lý
-  //         setUserId(storedUserId);
-
-  //         // Song song: Fetch dữ liệu đơn hàng và kiểm tra trạng thái thanh toán
-  //         const [orderFetchPromise, latestOrderPromise] =
-  //           await Promise.allSettled([
-  //             fetchOrders(storedUserId), // Tải danh sách đơn hàng
-  //             fetchLatestOrderId(storedUserId).then((latestOrderId) => {
-  //               if (latestOrderId) {
-  //                 return fetchOrderDetailsAndUpdateStatus(latestOrderId);
-  //               }
-  //             }),
-  //           ]);
-
-  //         // Kiểm tra kết quả Promise
-  //         if (orderFetchPromise.status === "rejected") {
-  //           console.log(
-  //             "Lỗi khi tải danh sách đơn hàng:",
-  //             orderFetchPromise.reason
-  //           );
-  //         }
-
-  //         if (latestOrderPromise.status === "rejected") {
-  //           console.log(
-  //             "Lỗi khi xử lý đơn hàng mới nhất:",
-  //             latestOrderPromise.reason
-  //           );
-  //         }
-  //       } catch (error) {
-  //         console.log("Lỗi khi tải dữ liệu khi focus lại trang:", error);
-  //       }
-  //     };
-
-  //     // Gọi hàm tải dữ liệu
-  //     fetchDataOnFocus();
-  //   }, [navigation, currentTabViewOrder]) // Lắng nghe sự thay đổi của navigation và currentTabViewOrder
-  // );
 
   const clearCart = async () => {
     try {
@@ -443,7 +371,6 @@ const OrderScreen = ({ navigation }) => {
               }
             }
           }
-
           // Gọi lại hàm tải danh sách đơn hàng
           await fetchOrders(storedUserId);
         } catch (error) {
@@ -520,7 +447,6 @@ const OrderScreen = ({ navigation }) => {
       );
 
       setOrders(ordersWithDetails);
-      filterOrdersByStatus(currentTabViewOrder, ordersWithDetails);
     } catch (error) {
       console.error("Error fetching orders:", error);
     }
@@ -536,20 +462,60 @@ const OrderScreen = ({ navigation }) => {
   };
 
   const filterOrdersByStatus = (status, allOrders) => {
-    if (status === 0) {
-      setFilteredOrders(allOrders);
-    } else {
-      const filtered = allOrders.filter(
+    let filtered = [...allOrders]; // Create a copy to avoid mutating the original array
+
+    if (status !== 0) {
+      filtered = allOrders.filter(
         (order) =>
           orderStatus[order.status]?.text === dataTabViewOrder[status].name
       );
-      setFilteredOrders(filtered);
     }
+
+    // Sort the filtered orders based on the sortOrder state.
+    filtered.sort((a, b) => {
+      if (sortOrder === "newest") {
+        // Sort by orderId in descending order for 'newest'
+        return b.orderId - a.orderId;
+      } else {
+        // Sort by orderId in ascending order for 'oldest'
+        return a.orderId - b.orderId;
+      }
+    });
+
+    // Group the filtered orders by month
+    const grouped = groupOrdersByMonth(filtered);
+
+    setFilteredOrders(filtered);
+    setGroupedOrders(grouped);
+  };
+
+  const groupOrdersByMonth = (orders) => {
+    const grouped = {};
+    orders.forEach((order) => {
+      const orderDate = new Date(order.orderDate);
+      const monthYear = `${
+        orderDate.getMonth() + 1
+      }/${orderDate.getFullYear()}`;
+      if (!grouped[monthYear]) {
+        grouped[monthYear] = [];
+      }
+      grouped[monthYear].push(order);
+    });
+    return Object.entries(grouped).sort(([, ordersA], [, ordersB]) => {
+      const dateA = new Date(ordersA[0].orderDate);
+      const dateB = new Date(ordersB[0].orderDate);
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+    });
   };
 
   useEffect(() => {
     filterOrdersByStatus(currentTabViewOrder, orders);
-  }, [currentTabViewOrder, orders]);
+    setShowSortButton(currentTabViewOrder === 0);
+  }, [currentTabViewOrder, orders, sortOrder]);
+
+  const handleSortToggle = () => {
+    setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
+  };
 
   // Automatically refresh orders when the screen is focused
   // useFocusEffect(
@@ -602,51 +568,81 @@ const OrderScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
-      <FlatList
-        data={filteredOrders}
-        renderItem={({ item }) => (
+        {showSortButton && (
           <TouchableOpacity
-            onPress={() => {
-              saveOrderToStorage(item); // Save the selected order to AsyncStorage
-              navigation.navigate("OrderDetail", { orderId: item }); // Navigate to OrderDetail with orderId
-            }}
-            style={styles.orderContainer}
+            style={styles.sortButton}
+            onPress={handleSortToggle}
           >
-            <Image
-              source={{ uri: item.orderDetails[0]?.dish.imageUrl }}
-              style={styles.orderImage}
+            <Text style={styles.sortButtonText}>
+              {sortOrder === "newest" ? "Mới nhất" : "Cũ nhất"}
+            </Text>
+            <Icon
+              name={sortOrder === "newest" ? "arrow-down" : "arrow-up"}
+              size={18}
+              color={COLORS.green}
             />
-            <View style={styles.orderDetails}>
-              <Text style={styles.orderName} numberOfLines={1}>
-                {item.orderDetails.map((detail) => detail.dish.name).join(", ")}
-              </Text>
-              <Text style={styles.orderQuantity}>
-                Số lượng:{" "}
-                {item.orderDetails.reduce(
-                  (acc, detail) => acc + detail.quantity,
-                  0
-                )}
-              </Text>
-              <Text style={styles.orderTotal}>
-                Tổng tiền:{" "}
-                {item.totalPrice
-                  ? `${item.totalPrice.toLocaleString()} vnđ`
-                  : "0.000 đ"}
-              </Text>
-
-              <Text
-                style={{
-                  ...styles.orderStatus,
-                  color: orderStatus[item.status]?.color,
-                }}
-              >
-                {orderStatus[item.status]?.text}
-              </Text>
-            </View>
           </TouchableOpacity>
         )}
-        keyExtractor={(item) => item.orderId.toString()}
+      </View>
+      <FlatList
+        data={groupedOrders}
+        renderItem={({ item }) => {
+          const [monthYear, ordersInMonth] = item;
+          return (
+            <View>
+              <View style={styles.monthHeaderContainer}>
+                <View style={styles.monthHeaderLine} />
+                <Text style={styles.monthHeader}>Tháng {monthYear}</Text>
+                <View style={styles.monthHeaderLine} />
+              </View>
+              {ordersInMonth.map((order) => (
+                <TouchableOpacity
+                  key={order.orderId}
+                  onPress={() => {
+                    saveOrderToStorage(order);
+                    navigation.navigate("OrderDetail", { orderId: order });
+                  }}
+                  style={styles.orderContainer}
+                >
+                  <Image
+                    source={{ uri: order.orderDetails[0]?.dish.imageUrl }}
+                    style={styles.orderImage}
+                  />
+                  <View style={styles.orderDetails}>
+                    <Text style={styles.orderName} numberOfLines={1}>
+                      {order.orderDetails
+                        .map((detail) => detail.dish.name)
+                        .join(", ")}
+                    </Text>
+                    <Text style={styles.orderQuantity}>
+                      Số lượng:{" "}
+                      {order.orderDetails.reduce(
+                        (acc, detail) => acc + detail.quantity,
+                        0
+                      )}
+                    </Text>
+                    <Text style={styles.orderTotal}>
+                      Tổng tiền:{" "}
+                      {order.totalPrice
+                        ? `${order.totalPrice.toLocaleString()} vnđ`
+                        : "0.000 đ"}
+                    </Text>
+
+                    <Text
+                      style={{
+                        ...styles.orderStatus,
+                        color: orderStatus[order.status]?.color,
+                      }}
+                    >
+                      {orderStatus[order.status]?.text}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        }}
+        keyExtractor={(item) => item[0]}
         style={styles.flatList}
         onRefresh={handleRefresh} // Thêm hàm xử lý refresh
         refreshing={refreshing} // Kiểm tra trạng thái refresh
@@ -671,6 +667,21 @@ const styles = StyleSheet.create({
     fontSize: 25,
     color: COLORS.green,
   },
+  sortButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    backgroundColor: COLORS.white,
+    alignSelf: "flex-end",
+    position: "absolute",
+    right: 20,
+    top: 0,
+  },
+  sortButtonText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    marginRight: 5,
+  },
   tabView: {
     paddingVertical: 20,
     paddingHorizontal: 20,
@@ -682,6 +693,27 @@ const styles = StyleSheet.create({
   tabText: {
     fontFamily: FONTS.medium,
     fontSize: 16,
+  },
+  monthHeaderContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 10,
+  },
+  monthHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.grey,
+  },
+  monthHeader: {
+    fontFamily: FONTS.bold,
+    fontSize: 16,
+    color: COLORS.green,
+    marginHorizontal: 10,
+    textAlign: "center",
+    width: 150,
   },
   orderContainer: {
     backgroundColor: COLORS.white,

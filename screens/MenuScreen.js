@@ -22,7 +22,6 @@ const MenuScreen = ({ navigation }) => {
   const [userId, setUserId] = useState(null);
   const [menuLoading, setMenuLoading] = useState({});
   const [favoriteLoading, setFavoriteLoading] = useState({});
-  // Mảng boolean đánh dấu trạng thái yêu thích theo index
   const [favoriteMenusByIndex, setFavoriteMenusByIndex] = useState([]);
 
   const fetchWithAuth = async (url, options = {}) => {
@@ -57,7 +56,6 @@ const MenuScreen = ({ navigation }) => {
       return;
     }
 
-    // Nếu menu này đã được yêu thích rồi thì không làm gì
     if (favoriteMenusByIndex[index]) {
       return;
     }
@@ -67,7 +65,6 @@ const MenuScreen = ({ navigation }) => {
 
     try {
       await createFavoriteMenu(menu);
-      // Thành công thì đánh dấu menu tại index này đã yêu thích
       setFavoriteMenusByIndex((prev) => {
         const newArr = [...prev];
         newArr[index] = true;
@@ -87,21 +84,25 @@ const MenuScreen = ({ navigation }) => {
 
   const createFavoriteMenu = async (menu) => {
     try {
-      const totalCalories = menu.menuItems.reduce(
-        (sum, item) => sum + (item.calories || 0),
-        0
+      const totalCalories = parseFloat(
+        menu.menuItems
+          .reduce((sum, item) => sum + (item.calories || 0), 0)
+          .toFixed(2)
       );
-      const totalProtein = menu.menuItems.reduce(
-        (sum, item) => sum + (item.protein || 0),
-        0
+      const totalProtein = parseFloat(
+        menu.menuItems
+          .reduce((sum, item) => sum + (item.protein || 0), 0)
+          .toFixed(2)
       );
-      const totalFat = menu.menuItems.reduce(
-        (sum, item) => sum + (item.fat || 0),
-        0
+      const totalFat = parseFloat(
+        menu.menuItems
+          .reduce((sum, item) => sum + (item.fat || 0), 0)
+          .toFixed(2)
       );
-      const totalCarbs = menu.menuItems.reduce(
-        (sum, item) => sum + (item.carbs || 0),
-        0
+      const totalCarbs = parseFloat(
+        menu.menuItems
+          .reduce((sum, item) => sum + (item.carbs || 0), 0)
+          .toFixed(2)
       );
 
       const createMenuResponse = await fetchWithAuth(
@@ -200,9 +201,17 @@ const MenuScreen = ({ navigation }) => {
       const response = await fetchWithAuth(apiUrl);
       if (response.ok) {
         const data = await response.json();
-        const totalCalories = data.reduce(
-          (sum, item) => sum + (item.calories || 0),
-          0
+        const totalCalories = parseFloat(
+          data.reduce((sum, item) => sum + (item.calories || 0), 0).toFixed(2)
+        );
+        const totalProtein = parseFloat(
+          data.reduce((sum, item) => sum + (item.protein || 0), 0).toFixed(2)
+        );
+        const totalFat = parseFloat(
+          data.reduce((sum, item) => sum + (item.fat || 0), 0).toFixed(2)
+        );
+        const totalCarbs = parseFloat(
+          data.reduce((sum, item) => sum + (item.carbs || 0), 0).toFixed(2)
         );
         const validMenuItems = data.map((item) => ({
           ...item,
@@ -218,11 +227,19 @@ const MenuScreen = ({ navigation }) => {
                   ...m,
                   menuItems: validMenuItems,
                   totalCalories,
+                  totalProtein,
+                  totalFat,
+                  totalCarbs,
                   menuId: data[0]?.menuId,
                 }
               : m
           )
         );
+        setFavoriteMenusByIndex((prev) => {
+          const newArr = [...prev];
+          newArr[index] = false;
+          return newArr;
+        });
       } else {
         console.log(`Không thể lấy dữ liệu cho menu ${menuType}.`);
       }
@@ -259,14 +276,26 @@ const MenuScreen = ({ navigation }) => {
               title: `Menu ${menuTitles[i]}`,
               menuItems: [],
               totalCalories: 0,
+              totalProtein: 0,
+              totalFat: 0,
+              totalCarbs: 0,
               menuId: -1,
             });
             continue;
           }
-          const totalCalories = data.reduce(
-            (sum, item) => sum + (item.calories || 0),
-            0
+          const totalCalories = parseFloat(
+            data.reduce((sum, item) => sum + (item.calories || 0), 0).toFixed(2)
           );
+          const totalProtein = parseFloat(
+            data.reduce((sum, item) => sum + (item.protein || 0), 0).toFixed(2)
+          );
+          const totalFat = parseFloat(
+            data.reduce((sum, item) => sum + (item.fat || 0), 0).toFixed(2)
+          );
+          const totalCarbs = parseFloat(
+            data.reduce((sum, item) => sum + (item.carbs || 0), 0).toFixed(2)
+          );
+
           const validMenuItems = data.map((item) => ({
             ...item,
             dish: {
@@ -279,6 +308,9 @@ const MenuScreen = ({ navigation }) => {
             title: `Menu ${menuTitles[i]}`,
             menuItems: validMenuItems,
             totalCalories,
+            totalProtein,
+            totalFat,
+            totalCarbs,
             menuId: data[0]?.menuId || -1,
           });
         } else {
@@ -287,7 +319,6 @@ const MenuScreen = ({ navigation }) => {
       }
 
       setMenus(menusData);
-      // Tạo mảng đánh dấu yêu thích mặc định
       setFavoriteMenusByIndex(menusData.map(() => false));
     } catch (error) {
       console.error("Lỗi khi lấy menu:", error);
@@ -436,9 +467,18 @@ const MenuScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 </View>
               </View>
-              <Text style={styles.menuCalories}>
-                Tổng calories: {menu.totalCalories} kcal
-              </Text>
+              <View style={{ marginBottom: 3 }}>
+                <Text style={styles.menuCalories}>
+                  Tổng calories: {menu.totalCalories} kcal
+                </Text>
+                <Text style={styles.menuCalories}>
+                  Protein: {menu.totalProtein} g
+                </Text>
+                <Text style={styles.menuCalories}>Fat: {menu.totalFat} g</Text>
+                <Text style={styles.menuCalories}>
+                  Carbs: {menu.totalCarbs} g
+                </Text>
+              </View>
 
               <ScrollView
                 horizontal

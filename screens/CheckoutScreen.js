@@ -16,22 +16,23 @@ import Header from "../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Dropdown } from "react-native-element-dropdown";
 
-const CheckoutScreen = ({ navigation }) => {
+const CheckoutScreen = ({ navigation, route }) => {
   const [currentPayment, setCurrentPayment] = useState("COD");
   const [userId, setUserId] = useState(null);
   const [deliveryInfo, setDeliveryInfo] = useState({});
-  const [cartDetails, setCartDetails] = useState([]);
+  // const [cartDetails, setCartDetails] = useState([]); // Removed this
   const [detailedCartItems, setDetailedCartItems] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [discountRate, setDiscountRate] = useState(0);
   const [finalPrice, setFinalPrice] = useState(0);
-  const [tierInfo, setTierInfo] = useState(null);
   const [note, setNote] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
-  const [loading, setLoading] = useState(false); // Ensure setLoading exist
-  const [orderId, setOrderId] = useState(null); // Initialize orderId stat
+  const [loading, setLoading] = useState(false);
+  const [orderId, setOrderId] = useState(null);
   const [discountOptions, setDiscountOptions] = useState([]);
   const [selectedDiscount, setSelectedDiscount] = useState(0);
+
+  const { selectedItems } = route.params || { selectedItems: [] }; // Receive selected items from CartScreen
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -101,8 +102,7 @@ const CheckoutScreen = ({ navigation }) => {
         if (storedUserId) {
           setUserId(storedUserId);
           await fetchDeliveryInfo(storedUserId);
-          await fetchCartDetails(storedUserId);
-          // await fetchTierInfo(storedUserId);
+          // await fetchCartDetails(storedUserId); // No longer fetch cart details here
           await fetchDiscountHistory(storedUserId);
         } else {
           console.log("Không tìm thấy User ID trong AsyncStorage");
@@ -113,6 +113,17 @@ const CheckoutScreen = ({ navigation }) => {
     };
     getUserIdFromStorage();
   }, []);
+
+  useEffect(() => {
+    if (selectedItems && selectedItems.length > 0) {
+      let total = 0;
+      selectedItems.forEach((item) => {
+        total += item.price * item.quantity;
+      });
+      setDetailedCartItems(selectedItems);
+      setTotalPrice(total);
+    }
+  }, [selectedItems]);
 
   const fetchDeliveryFee = async () => {
     try {
@@ -160,7 +171,6 @@ const CheckoutScreen = ({ navigation }) => {
 
   const fetchDeliveryInfo = async (id) => {
     try {
-      // Gọi API để lấy thông tin giao hàng
       const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
       );
@@ -170,7 +180,6 @@ const CheckoutScreen = ({ navigation }) => {
         throw new Error(`Error: ${response.status} - ${response.statusText}`);
       }
 
-      // Kiểm tra dữ liệu phản hồi
       const data = await response.json();
       if (!data) {
         console.error("API không trả về dữ liệu hợp lệ.");
@@ -179,9 +188,6 @@ const CheckoutScreen = ({ navigation }) => {
 
       console.log("Delivery info:", data);
       setDeliveryInfo(data);
-
-      // No longer calling fetchDeliveryFee here
-      // await fetchDeliveryFee();
     } catch (error) {
       console.error("Error fetching delivery info:", error.message);
       Alert.alert(
@@ -191,41 +197,7 @@ const CheckoutScreen = ({ navigation }) => {
     }
   };
 
-  const fetchCartDetails = async (id) => {
-    try {
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${id}`
-      );
-      const cartData = await response.json();
-      console.log("Cart details:", cartData);
-
-      let total = 0;
-      let items = [];
-
-      for (const item of cartData) {
-        if (item.quantity > 0) {
-          const dishResponse = await fetchWithAuth(
-            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${item.dishId}`
-          );
-          const dishData = await dishResponse.json();
-          console.log("Dish data:", dishData);
-
-          items.push({ ...dishData, quantity: item.quantity });
-          total += dishData.price * item.quantity;
-        }
-      }
-
-      setDetailedCartItems(items);
-      setTotalPrice(total);
-
-      // Removed setFinalPrice call
-    } catch (error) {
-      console.error("Error fetching cart details:", error);
-    }
-  };
-
   useEffect(() => {
-    //Call the fetchDeliveryFee here
     if (deliveryInfo && deliveryInfo.address && totalPrice > 0) {
       fetchDeliveryFee();
     }
@@ -241,44 +213,34 @@ const CheckoutScreen = ({ navigation }) => {
   }, [selectedDiscount, totalPrice, deliveryFee]);
 
   const handleCheckout = async () => {
-    // Lọc các món hàng hợp lệ
-    const validCartItems = detailedCartItems.filter(
-      (item) => item.quantity > 0
-    );
-
-    // Kiểm tra nếu giỏ hàng trống
-    if (validCartItems.length === 0) {
-      Alert.alert("Thông báo", "Giỏ hàng trống.");
+    if (detailedCartItems.length === 0) {
+      Alert.alert("Thông báo", "Không có món ăn nào để thanh toán.");
       return;
     }
 
-    // Tính giá trị giảm giá
     const calculatedDiscountPrice = totalPrice * discountRate;
 
-    // Dữ liệu đơn hàng
     const orderData = {
       userId,
       totalPrice: finalPrice,
       deliveryAddress: deliveryInfo.address || "Không có địa chỉ",
       note,
       deliveryFee,
-      cartDetails: validCartItems,
+      cartDetails: detailedCartItems,
       discountRate,
       discountPrice: calculatedDiscountPrice,
       phoneNumber: deliveryInfo.phoneNumber || "Không có số điện thoại",
       receiverName: deliveryInfo.username || "Không có tên người nhận",
-      paymentMethod: currentPayment, // Thêm phương thức thanh toán
+      paymentMethod: currentPayment,
     };
 
     try {
-      // Lưu dữ liệu đơn hàng vào AsyncStorage
       await AsyncStorage.setItem("pendingOrder", JSON.stringify(orderData));
       console.log("[DEBUG] Dữ liệu đơn hàng lưu vào AsyncStorage:", orderData);
 
-      // Điều hướng đến PaymentScreen và truyền thêm thông tin
       navigation.navigate("Payment", {
         finalPrice,
-        currentPayment, // Phương thức thanh toán (COD hoặc QR)
+        currentPayment,
       });
     } catch (error) {
       console.error("Lỗi khi lưu đơn hàng vào AsyncStorage:", error);
@@ -287,12 +249,11 @@ const CheckoutScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    const discountAmount = totalPrice * discountRate;
-    const adjustedFinalPrice = totalPrice - discountAmount + deliveryFee;
+    const calculatedDiscountPrice = totalPrice * discountRate;
+    const adjustedFinalPrice =
+      totalPrice - calculatedDiscountPrice + deliveryFee;
     setFinalPrice(adjustedFinalPrice);
   }, [totalPrice, discountRate, deliveryFee]);
-
-  //chẹck
 
   const fetchLatestOrderId = async (userId) => {
     try {
@@ -315,7 +276,6 @@ const CheckoutScreen = ({ navigation }) => {
         return null;
       }
 
-      // Tìm orderId mới nhất
       const latestOrder = orders.reduce((maxOrder, order) =>
         order.orderId > maxOrder.orderId ? order : maxOrder
       );
@@ -329,8 +289,6 @@ const CheckoutScreen = ({ navigation }) => {
     }
   };
 
-  //check
-
   const fetchOrderDetailsAndUpdateStatus = async (latestOrderId) => {
     try {
       console.log(
@@ -338,7 +296,6 @@ const CheckoutScreen = ({ navigation }) => {
         latestOrderId
       );
 
-      // Step 1: Check payment details for the latest order
       console.log("[DEBUG] Gọi API kiểm tra chi tiết thanh toán...");
       const paymentDetailResponse = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${latestOrderId}`
@@ -353,7 +310,6 @@ const CheckoutScreen = ({ navigation }) => {
       const paymentDetails = await paymentDetailResponse.json();
       console.log("[DEBUG] Kết quả thanh toán từ API:", paymentDetails);
 
-      // Get the first payment detail
       const paymentDetail = paymentDetails[0];
       console.log("[DEBUG] Chi tiết thanh toán đầu tiên:", paymentDetail);
 
@@ -362,7 +318,6 @@ const CheckoutScreen = ({ navigation }) => {
           "[DEBUG] Phương thức thanh toán là COD. Auto cập nhật trạng thái đơn hàng."
         );
 
-        // Step 2: Update order status to 'pending'
         const updateResponse = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}?newStatus=pending`,
           {
@@ -393,7 +348,6 @@ const CheckoutScreen = ({ navigation }) => {
             "[DEBUG] Thanh toán đã hoàn tất. Tiến hành cập nhật trạng thái đơn hàng..."
           );
 
-          // Step 2: Update order status to 'pending'
           const updateResponse = await fetchWithAuth(
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}?newStatus=pending`,
             {
@@ -430,7 +384,6 @@ const CheckoutScreen = ({ navigation }) => {
         throw new Error("Phương thức thanh toán không được hỗ trợ.");
       }
 
-      // Step 3: Fetch the latest order for the user to get the discountRate
       console.log("[DEBUG] Gọi API lấy danh sách đơn hàng...");
       const storedUserId = await AsyncStorage.getItem("userId");
       if (!storedUserId) {
@@ -453,7 +406,6 @@ const CheckoutScreen = ({ navigation }) => {
       const orders = await ordersResponse.json();
       console.log("[DEBUG] Danh sách đơn hàng:", orders);
 
-      // Find the latest order with "pending" status
       const latestOrder = orders
         .filter((order) => order.status === "pending")
         .reduce((latest, current) => {
@@ -469,7 +421,6 @@ const CheckoutScreen = ({ navigation }) => {
 
       console.log("[DEBUG] Đơn hàng trạng thái 'pending':", latestOrder);
 
-      // Step 4: Map discountRate to tierId
       const discountRate = latestOrder.discountRate;
       let tierId = 0;
 
@@ -489,8 +440,6 @@ const CheckoutScreen = ({ navigation }) => {
 
       console.log("[DEBUG] Tính toán tierId:", tierId);
 
-      // Step 5: Update discount history
-      console.log("[DEBUG] Gọi API cập nhật trạng thái giảm giá...");
       const discountUpdateResponse = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history/inactive/${userId}/${tierId}`,
         {
@@ -528,7 +477,6 @@ const CheckoutScreen = ({ navigation }) => {
       try {
         setLoading(true);
 
-        // Lấy userId từ AsyncStorage
         const storedUserId = await AsyncStorage.getItem("userId");
         if (!storedUserId) {
           console.error("[DEBUG] Không tìm thấy User ID.");
@@ -537,12 +485,9 @@ const CheckoutScreen = ({ navigation }) => {
         setUserId(storedUserId);
         await fetchDiscountHistory(storedUserId);
 
-        // Lấy orderId mới nhất
         const latestOrderId = await fetchLatestOrderId(storedUserId);
         if (latestOrderId) {
           setOrderId(latestOrderId);
-
-          // Kiểm tra và cập nhật trạng thái đơn hàng
           await fetchOrderDetailsAndUpdateStatus(latestOrderId);
         }
       } catch (error) {
@@ -552,9 +497,7 @@ const CheckoutScreen = ({ navigation }) => {
       }
     };
 
-    // Gọi fetchData khi màn hình được focus
     const unsubscribe = navigation.addListener("focus", fetchData);
-
     return unsubscribe;
   }, [navigation]);
 
@@ -596,12 +539,6 @@ const CheckoutScreen = ({ navigation }) => {
       console.error("Lỗi khi lấy lịch sử giảm giá:", error);
     }
   };
-
-  useEffect(() => {
-    const calculatedDiscountPrice = totalPrice * discountRate;
-    setFinalPrice(totalPrice - calculatedDiscountPrice + deliveryFee);
-    console.log("[DEBUG] Discount Price:", calculatedDiscountPrice);
-  }, [totalPrice, discountRate, deliveryFee]);
 
   return (
     <>
@@ -653,7 +590,6 @@ const CheckoutScreen = ({ navigation }) => {
               );
               setSelectedDiscount(item.id);
 
-              // Cập nhật discountRate khi chọn mức giảm giá
               const selectedOption = discountOptions.find(
                 (opt) => opt.id === item.id
               );
@@ -711,9 +647,8 @@ const CheckoutScreen = ({ navigation }) => {
                 <Text style={styles.textDishType}>
                   {item.dishType || "Món ăn"}
                 </Text>
-                {/* Tính và hiển thị giá tiền sau giảm giá */}
                 <Text style={styles.textDishPrice}>
-                  {item.price.toLocaleString()}vnđ{" "}
+                  {item.price.toLocaleString()}vnđ
                   {discountRate > 0 && (
                     <Text
                       style={{
@@ -835,14 +770,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  tierInfoContainer: {
-    padding: 10,
-    borderWidth: 1,
-    borderColor: COLORS.greyPastel,
-    borderRadius: 10,
-    marginBottom: 10,
-    backgroundColor: COLORS.lightGrey,
-  },
   textBold: {
     fontFamily: FONTS.semiBold,
     fontSize: 15,

@@ -10,7 +10,6 @@ import {
   Alert,
 } from "react-native";
 import { Menu, Provider } from "react-native-paper";
-// import DateTimePicker from "@react-native-community/datetimepicker";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -49,15 +48,12 @@ const InputProfileScreen = ({ navigation, route }) => {
   const [activityLevel, setActivityLevel] = useState("Cao");
   const [goal, setGoal] = useState("Tăng cân");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  // const [visibleProfessionMenu, setVisibleProfessionMenu] = useState(false);
   const [visibleActivityMenu, setVisibleActivityMenu] = useState(false);
   const [visibleGoalMenu, setVisibleGoalMenu] = useState(false);
   const [province, setProvince] = useState("Hồ Chí Minh");
   const [district, setDistrict] = useState("");
   const [address, setAddress] = useState("");
 
-  // const openProfessionMenu = () => setVisibleProfessionMenu(true);
-  // const closeProfessionMenu = () => setVisibleProfessionMenu(false);
   const openActivityMenu = () => setVisibleActivityMenu(true);
   const closeActivityMenu = () => setVisibleActivityMenu(false);
   const openGoalMenu = () => setVisibleGoalMenu(true);
@@ -195,7 +191,7 @@ const InputProfileScreen = ({ navigation, route }) => {
             "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/login",
             {
               phoneNumber: formattedPhoneNumber,
-              password, // Mật khẩu dạng plaintext từ người dùng nhập
+              password,
             }
           );
 
@@ -213,8 +209,51 @@ const InputProfileScreen = ({ navigation, route }) => {
               ["username", user.username],
               ["imageUrl", user.imageUrl],
               ["dietaryPreferenceId", String(user.dietaryPreferenceId)],
+              ["userData", JSON.stringify(user)], // Save user data
             ]);
 
+            // Create notification settings after successful registration and login
+            try {
+              const notificationSettingsData = {
+                userId: user.userId,
+                newArticleNotification: true,
+                orderStatusNotification: true,
+                promotionNotification: true,
+                followNotification: true,
+              };
+
+              console.log(
+                "Dữ liệu gửi lên API tạo notification settings:",
+                notificationSettingsData
+              );
+
+              const notificationSettingResponse = await axios.post(
+                "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/createNotificationSetting",
+                notificationSettingsData,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+
+              console.log(
+                "Phản hồi API tạo notification settings:",
+                notificationSettingResponse.data
+              );
+              if (notificationSettingResponse.status === 200) {
+                console.log("Tạo notification setting thành công");
+              } else {
+                console.error(
+                  "Không thể tạo notification settings:",
+                  notificationSettingResponse.data
+                );
+              }
+            } catch (notificationSettingError) {
+              console.error(
+                "Lỗi khi gọi API tạo notification settings:",
+                notificationSettingError.response?.data ||
+                  notificationSettingError.message
+              );
+            }
             // Tự động tạo membership sau khi đăng nhập thành công
             try {
               const membershipData = {
@@ -257,7 +296,6 @@ const InputProfileScreen = ({ navigation, route }) => {
                 membershipError.response?.data || membershipError.message
               );
             }
-
             // Điều hướng tới trang Home
             Alert.alert("Thành công", "Đăng ký và đăng nhập thành công!", [
               { text: "OK", onPress: () => navigation.navigate("Home") },
@@ -488,12 +526,6 @@ const InputProfileScreen = ({ navigation, route }) => {
     },
   ];
 
-  // React.useEffect(() => {
-  //   console.log("Số điện thoại truyền vào:", phoneNumber);
-  // }, [phoneNumber]);
-  // React.useEffect(() => {
-  //   console.log("Route params:", route.params);
-  // }, [route.params]);
   const renderDistrictItem = ({ item }) => (
     <TouchableOpacity
       style={styles.districtItem}
@@ -550,7 +582,7 @@ const InputProfileScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.textInput}
               value={phoneNumber}
-              editable={false} // Hiển thị nhưng không cho phép chỉnh sửa
+              editable={false}
             />
           </View>
         </View>
@@ -740,7 +772,6 @@ const InputProfileScreen = ({ navigation, route }) => {
             Ngày sinh (dd/mm/yyyy) <Text style={{ color: COLORS.red }}>*</Text>
           </Text>
           <View style={styles.inputRow}>
-            {/* <Icon name="calendar" size={20} color={COLORS.green} /> */}
             <TextInput
               style={styles.textInput}
               placeholder="Nhập ngày sinh (dd/mm/yyyy)"
@@ -781,7 +812,7 @@ const InputProfileScreen = ({ navigation, route }) => {
             <RadioGroup
               radioButtons={radioButtonsPreferences}
               onPress={(selectedValue) => {
-                setSelectedPreferencesId(selectedValue); // Giả sử selectedValue là ID hoặc value bạn cần
+                setSelectedPreferencesId(selectedValue);
               }}
               selectedId={selectedPreferencesId}
               layout="column"

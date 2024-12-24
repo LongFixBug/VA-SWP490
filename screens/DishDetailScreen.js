@@ -405,7 +405,7 @@ const DishDetailScreen = ({ navigation, route }) => {
           </Swiper>
           <View style={styles.priceTag}>
             <Text style={styles.priceText}>
-              {dish.price ? `${dish.price.toLocaleString()} vnđ` : "0.000 đ"}
+              {dish.price ? `${dish.price.toLocaleString()} đ` : "0.000 đ"}
             </Text>
           </View>
         </View>

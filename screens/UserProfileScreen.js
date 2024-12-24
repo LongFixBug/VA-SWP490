@@ -374,7 +374,7 @@ const UserProfileScreen = ({ navigation, route }) => {
       Toast.show({
         type: "success",
         text1: "Thành công",
-        text2: "Bạn đã hủy theo dõi người dùng này!",
+        text2: "Bạn đã theo dõi người dùng này!",
       });
       setIsFollowing(true);
     } else {
@@ -397,7 +397,7 @@ const UserProfileScreen = ({ navigation, route }) => {
       Toast.show({
         type: "success",
         text1: "Thành công",
-        text2: "Bạn đã theo dõi người dùng này!",
+        text2: "Bạn đã hủy theo dõi người dùng này!",
       });
       setIsFollowing(false);
     } else {

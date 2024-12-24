@@ -18,6 +18,8 @@ import CheckBox from "@react-native-community/checkbox";
 const CartScreen = ({ navigation }) => {
   const [cartItems, setCartItems] = useState([]);
   const [selectedItems, setSelectedItems] = useState({});
+  // State mới để theo dõi trạng thái chọn tất cả
+  const [selectAll, setSelectAll] = useState(false);
 
   const fetchCartData = async () => {
     try {
@@ -171,6 +173,44 @@ const CartScreen = ({ navigation }) => {
     }));
   };
 
+  // Hàm để chọn tất cả
+  const handleSelectAll = () => {
+    const newSelectedItems = {};
+    if (!selectAll) {
+      cartItems.forEach((item) => {
+        newSelectedItems[item.cartId] = true;
+      });
+    }
+    setSelectedItems(newSelectedItems);
+    setSelectAll(!selectAll);
+  };
+  // Hàm xóa tất cả
+  const handleRemoveAllItems = async () => {
+    try {
+      const promises = cartItems.map(async (item) => {
+        await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/removeCartByUserId/${item.cartId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem(
+                "authToken"
+              )}`,
+            },
+          }
+        );
+        await AsyncStorage.removeItem(`cart_${item.cartId}`);
+      });
+
+      await Promise.all(promises);
+      setCartItems([]);
+      setSelectedItems({});
+      setSelectAll(false);
+    } catch (error) {
+      console.error("Lỗi khi xóa tất cả món ăn:", error);
+    }
+  };
+
   const handleContinue = async () => {
     const selectedCartItems = cartItems.filter(
       (item) => selectedItems[item.cartId]
@@ -222,7 +262,16 @@ const CartScreen = ({ navigation }) => {
   useEffect(() => {
     fetchCartData();
   }, []);
-
+  useEffect(() => {
+    // Cập nhật trạng thái selected của item khi selectAll thay đổi
+    if (selectAll) {
+      const newSelectedItems = {};
+      cartItems.forEach((item) => {
+        newSelectedItems[item.cartId] = true;
+      });
+      setSelectedItems(newSelectedItems);
+    }
+  }, [selectAll, cartItems]);
   return (
     <>
       <Header
@@ -232,6 +281,16 @@ const CartScreen = ({ navigation }) => {
         colorText={COLORS.black}
         onPress={() => navigation.goBack()}
       />
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity onPress={handleSelectAll}>
+          <Text style={styles.actionButtonText}>
+            {selectAll ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleRemoveAllItems}>
+          <Text style={styles.actionButtonText}>Xóa tất cả</Text>
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={cartItems}
         keyExtractor={(item) => item.dishId.toString()}
@@ -329,6 +388,19 @@ const CartScreen = ({ navigation }) => {
 export default CartScreen;
 
 const styles = StyleSheet.create({
+  actionButtonsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 10,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGrey,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontFamily: FONTS.medium,
+    color: COLORS.green,
+  },
   checkbox: {
     marginRight: 5,
   },

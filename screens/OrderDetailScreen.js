@@ -445,7 +445,7 @@ const OrderDetailScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Tiền được giảm</Text>
 
           <Text style={styles.notesText}>
-            {order?.discountPrice?.toLocaleString() || "0"} vnđ
+            {order?.discountPrice?.toLocaleString() || "0"} đ
           </Text>
         </View>
 
@@ -485,7 +485,7 @@ const OrderDetailScreen = ({ navigation }) => {
                 <Text style={styles.textDishType}>{item.dish.dishType}</Text>
 
                 <Text style={styles.textDishPrice}>
-                  {item.price?.toLocaleString()} vnđ
+                  {item.price?.toLocaleString()} đ
                 </Text>
                 <View style={styles.quantityContainer}>
                   <Text style={styles.textQuantity}>
@@ -511,7 +511,7 @@ const OrderDetailScreen = ({ navigation }) => {
           <Text style={styles.totalText}>
             Tổng tiền:{" "}
             <Text style={styles.totalPrice}>
-              {order?.totalPrice?.toLocaleString()} vnđ
+              {order?.totalPrice?.toLocaleString()} đ
             </Text>
           </Text>
         </View>

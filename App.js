@@ -1,29 +1,20 @@
-// import { StatusBar } from "expo-status-bar";
 import { StatusBar } from "react-native";
 import { StyleSheet, View } from "react-native";
-
 import Icon from "react-native-vector-icons/Ionicons";
-import Icon1 from "react-native-vector-icons/SimpleLineIcons";
 import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LogBox } from "react-native";
-
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
 import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
-
-const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
-
 import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import InputOTPScreen from "./screens/InputOTPScreen";
 import InputProfileScreen from "./screens/InputProfileScreen";
-
 import HomeScreen from "./screens/HomeScreen";
 import OrderScreen from "./screens/OrderScreen";
 import CommunityScreen from "./screens/CommunityScreen";
@@ -47,23 +38,26 @@ import EditProfileScreen from "./screens/EditProfileScreen";
 import WebViewScreen from "./screens/WebViewScreen";
 import SettingScreen from "./screens/SettingScreen";
 import NotificationScreen from "./screens/NotificationScreen";
-import UserProfileScreen from "./screens/UserProfileScreen"; // Adjust the path
+import UserProfileScreen from "./screens/UserProfileScreen";
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
-// import { UserProvider } from "./context/UserContext";
 import ContactUsScreen from "./screens/ContactUsScreen";
 import FollowerScreen from "./screens/FollowerScreen";
 import messaging from "@react-native-firebase/messaging";
 import RecommedDishScreen from "./screens/RecommendDishScreen";
 import NutritionMatchingScreen from "./screens/NutritionMatchingScreen";
 import NutritionArticleDetailScreen from "./screens/NutritionArticleDetailScreen";
-import LoginWithPhone from "./screens/LoginWithPhone"; // Đảm bảo import đúng file
+import LoginWithPhone from "./screens/LoginWithPhone";
+
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
 const HomeStack = createStackNavigator();
 const OrderStack = createStackNavigator();
 const CommunityStack = createStackNavigator();
 const NotificationStack = createStackNavigator();
 const ProfileStack = createStackNavigator();
+
 const toastConfig = {
   success: (props) => (
     <BaseToast
@@ -107,6 +101,7 @@ LogBox.ignoreLogs([
 LogBox.ignoreLogs([
   "Warning: bound renderChildren: Support for defaultProps will be removed from function components in a future major release. Use JavaScript default parameters instead.",
 ]);
+
 const HomeStackScreen = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="Home" component={HomeScreen} />
@@ -175,7 +170,6 @@ const HomeStackScreen = () => (
       component={OrderScreen}
       options={{ unmountOnBlur: true }}
     />
-    {/* Thêm các màn hình khác liên quan đến Home */}
   </HomeStack.Navigator>
 );
 
@@ -184,7 +178,6 @@ const OrderStackScreen = () => (
     <OrderStack.Screen name="Order" component={OrderScreen} />
     <OrderStack.Screen name="OrderDetail" component={OrderDetailScreen} />
     <OrderStack.Screen name="WebViewScreen" component={WebViewScreen} />
-    {/* Thêm các màn hình khác liên quan đến Order */}
   </OrderStack.Navigator>
 );
 
@@ -193,7 +186,6 @@ const CommunityStackScreen = () => (
     <CommunityStack.Screen name="Community" component={CommunityScreen} />
     <CommunityStack.Screen name="NewPost" component={NewPostScreen} />
     <CommunityStack.Screen name="PostDetail" component={PostDetailScreen} />
-    {/* Thêm các màn hình khác liên quan đến Community */}
   </CommunityStack.Navigator>
 );
 
@@ -207,9 +199,9 @@ const NotificationStackScreen = () => (
       name="NotificationSetting"
       component={NotificationSettingScreen}
     />
-    {/* Thêm các màn hình khác liên quan đến Notification */}
   </NotificationStack.Navigator>
 );
+
 const ProfileStackScreen = () => (
   <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
     <ProfileStack.Screen name="Profile" component={ProfileScreen} />
@@ -217,7 +209,6 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="Setting" component={SettingScreen} />
     <ProfileStack.Screen name="ContactUs" component={ContactUsScreen} />
     <ProfileStack.Screen name="Membership" component={MembershipScreen} />
-    {/* Thêm các màn hình khác liên quan đến Profile */}
   </ProfileStack.Navigator>
 );
 
@@ -243,9 +234,9 @@ const TabRoute = () => (
           <View
             style={{
               backgroundColor: focused ? COLORS.green : COLORS.transparent,
-              borderRadius: 50, // Giữ hình dạng tròn
-              padding: 15, // Tăng giá trị này để làm hình tròn lớn hơn
-              marginTop: -10, // Điều chỉnh khoảng cách để phù hợp
+              borderRadius: 50,
+              padding: 15,
+              marginTop: -10,
               alignItems: "center",
               justifyContent: "center",
             }}
@@ -260,7 +251,6 @@ const TabRoute = () => (
         headerShown: false,
       }}
     />
-
     <Tab.Screen
       name="Đơn hàng"
       component={OrderStackScreen}
@@ -286,7 +276,6 @@ const TabRoute = () => (
         headerShown: false,
       }}
     />
-
     <Tab.Screen
       name="Cộng đồng"
       component={CommunityStackScreen}
@@ -312,7 +301,6 @@ const TabRoute = () => (
         headerShown: false,
       }}
     />
-
     <Tab.Screen
       name="Thông báo"
       component={NotificationStackScreen}
@@ -338,7 +326,6 @@ const TabRoute = () => (
         headerShown: false,
       }}
     />
-
     <Tab.Screen
       name="Tài khoản"
       component={ProfileStackScreen}
@@ -375,7 +362,7 @@ const requestPermission = async () => {
 
   if (enabled) {
     console.log("Quyền thông báo đã được cấp!");
-    getToken(); // Nhận token nếu quyền đã được cấp
+    getToken();
   } else {
     console.log("Quyền thông báo bị từ chối.");
   }
@@ -385,10 +372,19 @@ const getToken = async () => {
   try {
     const token = await messaging().getToken();
     console.log("FCM Token:", token);
-    // Lưu token vào AsyncStorage hoặc gửi lên backend
     await AsyncStorage.setItem("deviceToken", token);
   } catch (error) {
     console.error("Lỗi khi lấy FCM Token:", error);
+  }
+};
+
+const showToastNotification = (remoteMessage) => {
+  if (remoteMessage.notification) {
+    Toast.show({
+      type: "success",
+      text1: remoteMessage.notification.title,
+      text2: remoteMessage.notification.body,
+    });
   }
 };
 
@@ -400,12 +396,11 @@ export default function App() {
     "Montserrat-Medium": require("./assets/fonts/Montserrat-Medium.ttf"),
     "Montserrat-SemiBold": require("./assets/fonts/Montserrat-SemiBold.ttf"),
   });
-
   const [initialRoute, setInitialRoute] = useState(null);
+  const navigationRef = React.useRef(null); // Create navigation ref
 
-  // Yêu cầu quyền và lắng nghe tin nhắn
   useEffect(() => {
-    const checkLoginStatus = async (navigation) => {
+    const checkLoginStatus = async () => {
       try {
         const token = await AsyncStorage.getItem("authToken");
         const userId = await AsyncStorage.getItem("userId");
@@ -415,13 +410,12 @@ export default function App() {
           return;
         }
 
-        // Kiểm tra token hợp lệ bằng cách gọi API
         const response = await fetch("YOUR_API_URL", {
+          // Replace with your validation API endpoint
           headers: { Authorization: `Bearer ${token}` },
         });
 
         if (response.status === 401) {
-          // Token không hợp lệ
           Toast.show({
             type: "error",
             text1: "Phiên đăng nhập đã hết hạn",
@@ -429,18 +423,17 @@ export default function App() {
           });
           setInitialRoute("Login");
         } else {
-          setInitialRoute("Login");
+          // Navigate to Main (TabRoute) after successful login
+          setInitialRoute("Main");
         }
       } catch (error) {
-        setInitialRoute("Home"); // không có thông tin token trả về login
+        setInitialRoute("Login");
       }
     };
 
-    // Yêu cầu quyền thông báo khi ứng dụng khởi động
     const initMessaging = async () => {
       await requestPermission();
 
-      // Lắng nghe tin nhắn khi ứng dụng đang chạy
       const unsubscribeForeground = messaging().onMessage(
         async (remoteMessage) => {
           console.log("Tin nhắn foreground:", remoteMessage);
@@ -448,7 +441,6 @@ export default function App() {
         }
       );
 
-      // Xử lý tin nhắn trong background
       messaging().setBackgroundMessageHandler(async (remoteMessage) => {
         console.log("Tin nhắn background:", remoteMessage);
       });
@@ -460,14 +452,12 @@ export default function App() {
     initMessaging();
 
     return () => {
-      // Hủy lắng nghe khi component bị unmount
       messaging().onMessage(() => {});
     };
   }, []);
 
-  // Chờ load font và xác định route ban đầu
   if (!fontsLoaded || initialRoute === null) {
-    return null; // Hiển thị màn hình trắng hoặc loading spinner nếu cần
+    return null;
   }
 
   return (
@@ -477,7 +467,7 @@ export default function App() {
         barStyle="dark-content"
         translucent={true}
       />
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           screenOptions={{ headerShown: false }}
           initialRouteName={initialRoute}
@@ -504,7 +494,6 @@ export default function App() {
           <Stack.Screen name="AllDishes" component={AllDishScreen} />
           <Stack.Screen name="Recommend" component={RecommedDishScreen} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
-          {/* <Stack.Screen name="Payment" component={PaymentScreen} /> */}
           <Stack.Screen name="Menu" component={MenuScreen} />
           <Stack.Screen name="DetailMenu" component={DetailMenuScreen} />
           <Stack.Screen name="Membership" component={MembershipScreen} />
@@ -527,7 +516,6 @@ export default function App() {
             component={NotificationSettingScreen}
           />
           <Stack.Screen name="Follow" component={FollowerScreen} />
-
           <Stack.Screen
             name="Payment"
             component={PaymentScreen}
@@ -540,7 +528,6 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
-
       <Toast config={toastConfig} />
     </GestureHandlerRootView>
   );

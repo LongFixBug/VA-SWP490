@@ -20,7 +20,6 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [currentPayment, setCurrentPayment] = useState("COD");
   const [userId, setUserId] = useState(null);
   const [deliveryInfo, setDeliveryInfo] = useState({});
-  // const [cartDetails, setCartDetails] = useState([]); // Removed this
   const [detailedCartItems, setDetailedCartItems] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [discountRate, setDiscountRate] = useState(0);
@@ -31,6 +30,41 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [orderId, setOrderId] = useState(null);
   const [discountOptions, setDiscountOptions] = useState([]);
   const [selectedDiscount, setSelectedDiscount] = useState(0);
+
+  // State for editing delivery info
+  const [isEditingDelivery, setIsEditingDelivery] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const [editedPhone, setEditedPhone] = useState("");
+  // New states for district and address detail
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [editedAddressDetail, setEditedAddressDetail] = useState("");
+
+  const districtsHCM = [
+    { label: "Quận 1", value: "Quận 1" },
+    { label: "Quận 2", value: "Quận 2" },
+    { label: "Quận 3", value: "Quận 3" },
+    { label: "Quận 4", value: "Quận 4" },
+    { label: "Quận 5", value: "Quận 5" },
+    { label: "Quận 6", value: "Quận 6" },
+    { label: "Quận 7", value: "Quận 7" },
+    { label: "Quận 8", value: "Quận 8" },
+    { label: "Quận 9", value: "Quận 9" },
+    { label: "Quận 10", value: "Quận 10" },
+    { label: "Quận 11", value: "Quận 11" },
+    { label: "Quận 12", value: "Quận 12" },
+    { label: "Bình Thạnh", value: "Bình Thạnh" },
+    { label: "Gò Vấp", value: "Gò Vấp" },
+    { label: "Phú Nhuận", value: "Phú Nhuận" },
+    { label: "Tân Bình", value: "Tân Bình" },
+    { label: "Tân Phú", value: "Tân Phú" },
+    { label: "Thủ Đức", value: "Thủ Đức" },
+    { label: "Bình Tân", value: "Bình Tân" },
+    { label: "Huyện Nhà Bè", value: "Huyện Nhà Bè" },
+    { label: "Huyện Bình Chánh", value: "Huyện Bình Chánh" },
+    { label: "Huyện Hóc Môn", value: "Huyện Hóc Môn" },
+    { label: "Huyện Củ Chi", value: "Huyện Củ Chi" },
+    { label: "Huyện Cần Giờ", value: "Huyện Cần Giờ" },
+  ];
 
   const { selectedItems } = route.params || { selectedItems: [] }; // Receive selected items from CartScreen
 
@@ -65,6 +99,11 @@ const CheckoutScreen = ({ navigation, route }) => {
     0.1: { color: COLORS.green, text: "Giảm giá 10%" },
     0.2: { color: COLORS.star, text: "Giảm giá 20%" },
     0.3: { color: COLORS.orange, text: "Giảm giá 30%" },
+  };
+
+  const generateFullAddress = () => {
+    if (!selectedDistrict || !editedAddressDetail) return "";
+    return `${editedAddressDetail}, ${selectedDistrict}, Thành phố Hồ Chí Minh`;
   };
 
   const parseAddress = (fullAddress) => {
@@ -102,7 +141,6 @@ const CheckoutScreen = ({ navigation, route }) => {
         if (storedUserId) {
           setUserId(storedUserId);
           await fetchDeliveryInfo(storedUserId);
-          // await fetchCartDetails(storedUserId); // No longer fetch cart details here
           await fetchDiscountHistory(storedUserId);
         } else {
           console.log("Không tìm thấy User ID trong AsyncStorage");
@@ -129,13 +167,16 @@ const CheckoutScreen = ({ navigation, route }) => {
     try {
       console.log("fetchDeliveryFee called");
       console.log("deliveryInfo.address:", deliveryInfo.address);
-      const parsedAddress = parseAddress(deliveryInfo.address);
+      const fullAddress = generateFullAddress();
+      const parsedAddress = parseAddress(fullAddress);
+      console.log("Parsed address for API:", parsedAddress);
+
       const queryParams = new URLSearchParams({
         pick_province: "Hồ Chí Minh",
         pick_district: "Quận 9",
-        province: parsedAddress.province || "Hồ Chí Minh",
+        province: "Hồ Chí Minh", // Always HCM
         district: parsedAddress.district || "Quận 12",
-        address: parsedAddress.address || "338/10 Đ. Lê Thị Riêng",
+        address: parsedAddress.address || "338/10 Đ. Lê Thị Riêng", // Fallback address
         weight: 1000,
         value: totalPrice,
       }).toString();
@@ -201,7 +242,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (deliveryInfo && deliveryInfo.address && totalPrice > 0) {
       fetchDeliveryFee();
     }
-  }, [deliveryInfo, totalPrice]);
+  }, [deliveryInfo, totalPrice, selectedDistrict, editedAddressDetail]);
 
   useEffect(() => {
     // Tính toán tổng tiền sau khi chọn mức giảm giá
@@ -220,10 +261,11 @@ const CheckoutScreen = ({ navigation, route }) => {
 
     const calculatedDiscountPrice = totalPrice * discountRate;
 
+    const fullAddress = generateFullAddress();
     const orderData = {
       userId,
       totalPrice: finalPrice,
-      deliveryAddress: deliveryInfo.address || "Không có địa chỉ",
+      deliveryAddress: fullAddress || "Không có địa chỉ",
       note,
       deliveryFee,
       cartDetails: detailedCartItems,
@@ -540,6 +582,26 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleSaveDeliveryInfo = () => {
+    if (
+      !editedName ||
+      !editedPhone ||
+      !selectedDistrict ||
+      !editedAddressDetail
+    ) {
+      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+    const fullAddress = generateFullAddress();
+    setDeliveryInfo({
+      username: editedName,
+      phoneNumber: editedPhone,
+      address: fullAddress,
+    });
+
+    setIsEditingDelivery(false);
+  };
+
   return (
     <>
       <Header
@@ -563,15 +625,112 @@ const CheckoutScreen = ({ navigation, route }) => {
             style={{ marginHorizontal: 5 }}
           />
           <View style={{ flex: 1 }}>
-            <Text style={styles.textBold}>
-              Tên: {deliveryInfo.username || "Người dùng"}
-            </Text>
-            <Text style={styles.text}>
-              Số điện thoại: {deliveryInfo.phoneNumber || "N/A"}
-            </Text>
-            <Text style={styles.text}>
-              Địa chỉ: {deliveryInfo.address || "Không xác định"}
-            </Text>
+            {isEditingDelivery ? (
+              <>
+                <View>
+                  <Text style={styles.textInputLabel}>Tên người nhận</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editedName}
+                    onChangeText={setEditedName}
+                  />
+                </View>
+
+                <View>
+                  <Text style={styles.textInputLabel}>Số điện thoại</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editedPhone}
+                    onChangeText={setEditedPhone}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+
+                <View>
+                  <Text style={styles.textInputLabel}>Chọn Quận</Text>
+                  <Dropdown
+                    style={styles.dropdown}
+                    placeholder="Chọn Quận"
+                    data={districtsHCM}
+                    labelField="label"
+                    valueField="value"
+                    value={selectedDistrict}
+                    onChange={(item) => {
+                      setSelectedDistrict(item.value);
+                    }}
+                  />
+                </View>
+                <View>
+                  <Text style={styles.textInputLabel}>Địa chỉ chi tiết</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editedAddressDetail}
+                    onChangeText={setEditedAddressDetail}
+                  />
+                </View>
+
+                <View
+                  style={{ flexDirection: "row", justifyContent: "flex-end" }}
+                >
+                  <TouchableOpacity
+                    onPress={handleSaveDeliveryInfo}
+                    style={styles.saveButton}
+                  >
+                    <Text
+                      style={{
+                        color: COLORS.white,
+                        fontFamily: FONTS.semiBold,
+                      }}
+                    >
+                      Lưu
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setIsEditingDelivery(false)}
+                    style={styles.cancelButton}
+                  >
+                    <Text
+                      style={{ color: COLORS.grey, fontFamily: FONTS.semiBold }}
+                    >
+                      Hủy
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <View style={styles.deliveryInfoWrapper}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.textBold}>
+                    Tên: {deliveryInfo.username || "Người dùng"}
+                  </Text>
+                  <Text style={styles.text}>
+                    Số điện thoại: {deliveryInfo.phoneNumber || "N/A"}
+                  </Text>
+                  <Text style={styles.text}>
+                    Địa chỉ: {deliveryInfo.address || "Không xác định"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsEditingDelivery(true);
+                    setEditedName(deliveryInfo.username || "");
+                    setEditedPhone(deliveryInfo.phoneNumber || "");
+                    const { address, district, province } = parseAddress(
+                      deliveryInfo.address
+                    );
+                    setEditedAddressDetail(address || "");
+                    setSelectedDistrict(district || "");
+                  }}
+                  style={styles.editButton}
+                >
+                  <Text
+                    style={{ color: COLORS.green, fontFamily: FONTS.semiBold }}
+                  >
+                    Sửa
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
 
@@ -713,7 +872,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                   totalPrice *
                   discountOptions.find((opt) => opt.id === selectedDiscount)
                     .rate
-                ).toFixed(0) + "vnđ"
+                ).toLocaleString() + "vnđ"
               : "0vnđ"}
           </Text>
         </View>
@@ -769,7 +928,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
+  deliveryInfoWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  editButton: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderRadius: 10,
+    borderColor: COLORS.green,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveButton: {
+    backgroundColor: COLORS.green,
+    padding: 10,
+    marginRight: 5,
+    borderRadius: 10,
+  },
+  cancelButton: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.grey,
+    padding: 10,
+    borderRadius: 10,
+  },
+  textInputLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    marginBottom: 5,
+    color: COLORS.black,
+  },
   textBold: {
     fontFamily: FONTS.semiBold,
     fontSize: 15,
@@ -788,8 +980,13 @@ const styles = StyleSheet.create({
   },
   textInput: {
     fontFamily: FONTS.medium,
-    height: 60,
+    height: 40,
     flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
   },
   cartDetailsContainer: {
     padding: 5,

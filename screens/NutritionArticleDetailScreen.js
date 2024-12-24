@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-start",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 30,
   },
   actionButton: {
     flexDirection: "row",

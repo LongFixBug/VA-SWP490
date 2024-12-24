@@ -32,12 +32,14 @@ const HomeScreen = () => {
   const [accumulatedPoints, setAccumulatedPoints] = useState(0);
   const [tierLabel, setTierLabel] = useState("");
   const [userData, setUserData] = useState(null);
-
   const [cartCount, setCartCount] = useState(0);
+  // Cập nhật groupedDishes để bao gồm "Tráng miệng" và "Canh"
   const [groupedDishes, setGroupedDishes] = useState({
     "Món chính": [],
     "Khai vị": [],
     "Đồ uống": [],
+    "Tráng miệng": [],
+    Canh: [],
   });
 
   const rankColors = {
@@ -74,13 +76,37 @@ const HomeScreen = () => {
           text1: "Phiên đăng nhập đã hết hạn",
           text2: "Vui lòng đăng nhập lại.",
         });
-        navigation.replace("Login"); // Điều hướng về màn hình đăng nhập
-        return; // Kết thúc hàm
+        navigation.replace("Login");
+        return;
       }
       return response;
     } catch (error) {
       console.error("Error fetching with auth:", error);
       throw error;
+    }
+  };
+
+  // Tạo notification
+  const sendNotification = async (userId, content) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/sendNotification?userId=${userId}&notificationType=new_promotion&content=${content}`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (!response.ok) {
+        console.error(
+          "Error sending notification:",
+          response.status,
+          response.statusText
+        );
+      } else {
+        console.log("Notification sent successfully!");
+      }
+    } catch (error) {
+      console.error("Error while sending notification:", error);
     }
   };
 
@@ -97,7 +123,14 @@ const HomeScreen = () => {
 
       const rawResponse = await response.text();
 
+      // Lấy previousTierId từ AsyncStorage
+      const storedPreviousTierId = await AsyncStorage.getItem("previousTierId");
+      let previousTierId = storedPreviousTierId
+        ? parseInt(storedPreviousTierId, 10)
+        : null;
+
       if (!rawResponse) {
+        // Nếu user chưa có membership
         const userResponse = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${id}`
         );
@@ -120,7 +153,10 @@ const HomeScreen = () => {
           "membershipData",
           JSON.stringify({ tierName: "Bronze", discountRate: 0 })
         );
-
+        // Thiết lập previousTierId = 0 (tượng trưng cho Bronze)
+        if (previousTierId === null) {
+          await AsyncStorage.setItem("previousTierId", "0");
+        }
         return;
       }
 
@@ -157,40 +193,61 @@ const HomeScreen = () => {
             })
           );
 
-          // Check and create discount history
-          const discountRates = { 2: 0.1, 3: 0.2, 4: 0.3 }; // Tier-to-discount mapping
-          if (membershipData.tierId >= 2 && membershipData.tierId <= 4) {
-            const discountRate = discountRates[membershipData.tierId];
-            const currentDate = new Date();
-            const expirationDate = new Date();
-            expirationDate.setDate(currentDate.getDate() + 7);
+          // Chỉ tạo discount và notification nếu tierId thay đổi
+          if (
+            membershipData.tierId &&
+            membershipData.tierId !== previousTierId
+          ) {
+            const discountRates = { 2: 0.1, 3: 0.2, 4: 0.3 }; // Tier-to-discount mapping
+            if (membershipData.tierId >= 2 && membershipData.tierId <= 4) {
+              const discountRate = discountRates[membershipData.tierId];
+              const currentDate = new Date();
+              const expirationDate = new Date();
+              expirationDate.setDate(currentDate.getDate() + 7);
 
-            const discountPayload = {
-              userId: id,
-              tierId: membershipData.tierId,
-              grantedDate: currentDate.toISOString(),
-              discountRate: discountRate,
-              status: "active",
-              expirationDate: expirationDate.toISOString(),
-            };
+              const discountPayload = {
+                userId: id,
+                tierId: membershipData.tierId,
+                grantedDate: currentDate.toISOString(),
+                discountRate: discountRate,
+                status: "active",
+                expirationDate: expirationDate.toISOString(),
+              };
 
-            const discountResponse = await fetchWithAuth(
-              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history`,
-              {
-                method: "POST",
-                body: JSON.stringify(discountPayload),
-              }
-            );
-
-            if (!discountResponse.ok) {
-              console.error(
-                "Error creating discount history:",
-                discountResponse.status,
-                discountResponse.statusText
+              const discountResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history`,
+                {
+                  method: "POST",
+                  body: JSON.stringify(discountPayload),
+                }
               );
-            } else {
-              console.log("Discount history created successfully!");
+
+              if (!discountResponse.ok) {
+                console.error(
+                  "Error creating discount history:",
+                  discountResponse.status,
+                  discountResponse.statusText
+                );
+              } else {
+                console.log("Discount history created successfully!");
+                const discountPercentage = discountRate * 100;
+                sendNotification(
+                  id,
+                  `Bạn đã nhận được discount ${discountPercentage}%!`
+                );
+              }
             }
+            // Lưu lại previousTierId mới
+            await AsyncStorage.setItem(
+              "previousTierId",
+              membershipData.tierId.toString()
+            );
+          } else if (previousTierId === null) {
+            // Nếu lần đầu chưa có previousTierId thì lưu luôn
+            await AsyncStorage.setItem(
+              "previousTierId",
+              membershipData.tierId.toString()
+            );
           }
         }
       }
@@ -204,11 +261,9 @@ const HomeScreen = () => {
     const getUserIdFromStorage = async () => {
       try {
         const storedUserId = await AsyncStorage.getItem("userId");
-        // console.log("User ID retrieved from AsyncStorage:", storedUserId);
-
         if (storedUserId) {
           setUserId(storedUserId);
-          fetchUserData(storedUserId); // Fetch user data with the userId
+          fetchUserData(storedUserId);
           fetchMembershipData(storedUserId);
         } else {
           console.log("No User ID found in AsyncStorage.");
@@ -217,7 +272,6 @@ const HomeScreen = () => {
         console.error("Error retrieving userId from AsyncStorage:", error);
       }
     };
-
     getUserIdFromStorage();
   }, []);
 
@@ -237,8 +291,6 @@ const HomeScreen = () => {
       }
 
       const data = await response.json();
-      // console.log("User data retrieved from API:", data);
-
       const userData = {
         userId: data.userId,
         username: data.username || "Người dùng",
@@ -257,26 +309,24 @@ const HomeScreen = () => {
         isPhoneVerified: data.isPhoneVerified || false,
       };
       await AsyncStorage.setItem("userData", JSON.stringify(userData));
-
-      setUserData(data); // Đặt dữ liệu người dùng vào state nếu cần
-      setUsername(data.username); // Cập nhật username trực tiếp
+      setUserData(data);
+      setUsername(data.username);
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
   };
+
   const debugAsyncStorage = async () => {
     try {
       const keys = await AsyncStorage.getAllKeys();
       const data = await AsyncStorage.multiGet(keys);
-      // console.log("AsyncStorage Data:", data);
     } catch (error) {
       console.error("Error debugging AsyncStorage:", error);
     }
   };
-
   debugAsyncStorage();
 
-  // Fetch rating for each dish
+  // Fetch rating cho từng món
   const fetchDishRating = async (dishId) => {
     try {
       const response = await fetchWithAuth(
@@ -296,7 +346,7 @@ const HomeScreen = () => {
     }
   };
 
-  // Fetch dishes from API and add rating for each dish
+  // Fetch tất cả món ăn
   const fetchDishes = async () => {
     try {
       const response = await fetchWithAuth(
@@ -304,7 +354,6 @@ const HomeScreen = () => {
       );
       const jsonData = await response.json();
 
-      // Map through dishes to add ratings
       const dishesWithRatings = await Promise.all(
         jsonData.map(async (dish) => {
           const rating = await fetchDishRating(dish.dishId);
@@ -314,16 +363,18 @@ const HomeScreen = () => {
 
       setDishes(dishesWithRatings);
 
-      // Filter and group dishes by dishType
       const grouped = dishesWithRatings.reduce((acc, dish) => {
-        if (["Món chính", "Khai vị", "Đồ uống"].includes(dish.dishType)) {
+        if (
+          ["Món chính", "Khai vị", "Đồ uống", "Tráng miệng", "Canh"].includes(
+            dish.dishType
+          )
+        ) {
           acc[dish.dishType] = [...(acc[dish.dishType] || []), dish];
         }
         return acc;
       }, {});
 
       setGroupedDishes(grouped);
-
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dishes:", error);
@@ -342,31 +393,26 @@ const HomeScreen = () => {
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${userId}`
         );
         const data = await response.json();
-
-        // Lọc các mục có quantity > 0 và đếm số lượng
         const validCartItems = data.filter((item) => item.quantity > 0);
-        setCartCount(validCartItems.length); // Cập nhật số lượng món ăn có quantity > 0
+        setCartCount(validCartItems.length);
       }
     } catch (error) {
       console.error("Lỗi khi lấy dữ liệu giỏ hàng từ API:", error);
     }
   };
 
-  // Fetch recommended dishes from API
-
   const refreshData = async () => {
-    setLoading(true); // Hiển thị trạng thái loading
+    setLoading(true);
     try {
-      await refreshCartCount(); // Lấy số lượng giỏ hàng
+      await refreshCartCount();
     } catch (error) {
       console.error("Error refreshing cart count:", error);
     }
 
     try {
       if (userId) {
-        await fetchUserData(userId); // Lấy thông tin người dùng
-
-        await fetchMembershipData(userId); // Lấy thông tin membership
+        await fetchUserData(userId);
+        await fetchMembershipData(userId);
       }
     } catch (error) {
       console.error(
@@ -375,16 +421,103 @@ const HomeScreen = () => {
       );
     }
 
-    setLoading(false); // Tắt trạng thái loading
+    setLoading(false);
   };
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      refreshData(); // Gọi lại API khi màn hình được focus
+      refreshData();
     });
-
-    return unsubscribe; // Dọn dẹp listener khi component unmount
+    return unsubscribe;
   }, [navigation, userId]);
+
+  const getAllDeviceTokensByUserId = async (userId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/getAllDeviceTokenByUserId/${userId}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("All device tokens for user:", data);
+        return data;
+      } else {
+        console.log(
+          "Failed to get  tokens:",
+          response.status,
+          response.statusText
+        );
+        return [];
+      }
+    } catch (error) {
+      console.error("Error getting device tokens:", error);
+      return [];
+    }
+  };
+
+  const createDeviceToken = async (userId, deviceToken) => {
+    try {
+      const response = await fetchWithAuth(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/createDeviceToken",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: userId,
+            deviceToken: deviceToken,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        console.log("Device token created successfully");
+        return true;
+      } else {
+        const errorData = await response.json();
+        console.error("Failed to create device token:", errorData);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error creating device token:", error);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const checkAndCreateDeviceToken = async () => {
+      const userId = await AsyncStorage.getItem("userId");
+      const deviceToken = await AsyncStorage.getItem("deviceToken");
+
+      if (userId && deviceToken) {
+        try {
+          const existingTokens = await getAllDeviceTokensByUserId(
+            parseInt(userId)
+          );
+          const tokenExists =
+            existingTokens &&
+            existingTokens.some((item) => item.deviceToken === deviceToken);
+
+          console.log("Token exists:", tokenExists);
+          if (!tokenExists) {
+            const createSuccess = await createDeviceToken(
+              parseInt(userId),
+              deviceToken
+            );
+            console.log("Create token success", createSuccess);
+            if (createSuccess) {
+              console.log("Device token created successfully in the db");
+            }
+          }
+        } catch (error) {
+          console.error("Error checking or creating device token:", error);
+        }
+      }
+    };
+
+    checkAndCreateDeviceToken();
+  }, []);
 
   const renderDishItem = ({ item }) => (
     <TouchableOpacity
@@ -402,21 +535,16 @@ const HomeScreen = () => {
           }}
         />
         <View style={{ padding: 5 }}>
-          {/* Tên món ăn */}
           <Text
             style={styles.textNameDish}
-            numberOfLines={1} // Giới hạn 1 dòng
-            ellipsizeMode="tail" // Thêm "..." nếu tên quá dài
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {item.name || "Tên món ăn"}
           </Text>
-
-          {/* Loại món ăn */}
           <Text style={styles.textDishType}>
             {item.dishType || "Loại món ăn"}
           </Text>
-
-          {/* Rating và Giá */}
           <View style={styles.ratingAndPrice}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Text style={styles.star}>⭐</Text>
@@ -433,21 +561,50 @@ const HomeScreen = () => {
     </TouchableOpacity>
   );
 
+  const renderDishTypeSection = (dishType) => {
+    if (!groupedDishes[dishType] || groupedDishes[dishType].length === 0) {
+      return null;
+    }
+
+    // Lấy ra 4 món đầu
+    const displayedDishes = groupedDishes[dishType].slice(0, 4);
+    const showMore = groupedDishes[dishType].length > 4;
+
+    return (
+      <View key={dishType} style={{ marginBottom: 2 }}>
+        <Text style={styles.dishTypeTitle}>{dishType}</Text>
+        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
+          {displayedDishes.map((dish) => (
+            <View key={dish.dishId}>{renderDishItem({ item: dish })}</View>
+          ))}
+
+          {showMore && (
+            <TouchableOpacity
+              style={styles.showMoreButton}
+              onPress={() => navigation.navigate("AllDishes")}
+            >
+              <Text style={styles.showMoreText}>Xem thêm </Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <ImageBackground
         source={{
           uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
-          //  uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
         }}
         style={{
-          position: "absolute", // Đặt vị trí tuyệt đối
+          position: "absolute",
           top: 0,
           left: 0,
           width: "110%",
           height: "100%",
           resizeMode: "cover",
-          zIndex: -1, // Cho nó chìm xuống dưới cùng
+          zIndex: -1,
         }}
       ></ImageBackground>
       <View
@@ -499,10 +656,10 @@ const HomeScreen = () => {
                   style={{
                     fontFamily: FONTS.bold,
                     fontSize: 13,
-                    color: rankColors[tierLabel] || COLORS.white, // Use rankColors dynamically
+                    color: rankColors[tierLabel] || COLORS.white,
                     alignSelf: "center",
                     borderBottomWidth: 1,
-                    borderBottomColor: rankColors[tierLabel] || "white", // Apply the same color to underline
+                    borderBottomColor: rankColors[tierLabel] || "white",
                     paddingBottom: 3,
                   }}
                 >
@@ -512,8 +669,7 @@ const HomeScreen = () => {
                   style={{
                     fontFamily: FONTS.bold,
                     fontSize: 13,
-                    color: rankColors[tierLabel] || COLORS.white, // Apply dynamic color to tierLabel
-
+                    color: rankColors[tierLabel] || COLORS.white,
                     marginTop: 3,
                   }}
                 >
@@ -545,9 +701,7 @@ const HomeScreen = () => {
       <View style={styles.featureIcons}>
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={
-            () => navigation.navigate("Recommend") // Truyền tham số dishType
-          }
+          onPress={() => navigation.navigate("Recommend")}
           style={{
             padding: 10,
             backgroundColor: COLORS.white,
@@ -577,7 +731,6 @@ const HomeScreen = () => {
         >
           <Icon name="book-outline" size={30} color={COLORS.green} />
           <Text style={{ fontFamily: FONTS.semiBold, textAlign: "center" }}>
-            {" "}
             Menu Cho Bạn
           </Text>
         </TouchableOpacity>
@@ -596,18 +749,17 @@ const HomeScreen = () => {
         >
           <Icon name="heart-outline" size={30} color={COLORS.green} />
           <Text style={{ fontFamily: FONTS.semiBold, textAlign: "center" }}>
-            Món Ăn Yêu thích
+            Yêu thích của bạn
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Search & Cart */}
-      {/* Search & Cart */}
       <View style={styles.searchCartContainer}>
         {/* Search bar */}
         <TouchableOpacity
           style={styles.searchContainer}
-          onPress={() => navigation.navigate("AllDishes", { fromSearch: true })} // Điều hướng đến AllDishes
+          onPress={() => navigation.navigate("AllDishes", { fromSearch: true })}
         >
           <Icon name="search-outline" size={24} color={COLORS.grey} />
           <Text style={styles.searchPlaceholder}>Tìm món ăn...</Text>
@@ -650,31 +802,9 @@ const HomeScreen = () => {
         </Text>
       ) : (
         <ScrollView>
-          {
-            //Define the order here
-            ["Món chính", "Khai vị", "Đồ uống"].map((dishType) => {
-              if (
-                !groupedDishes[dishType] ||
-                groupedDishes[dishType].length === 0
-              )
-                return null;
-              return (
-                <View key={dishType} style={{ marginBottom: 2 }}>
-                  <Text style={styles.dishTypeTitle}>{dishType}</Text>
-                  <ScrollView
-                    horizontal={true}
-                    showsHorizontalScrollIndicator={false}
-                  >
-                    {groupedDishes[dishType].map((dish, index) => (
-                      <View key={dish.dishId}>
-                        {renderDishItem({ item: dish })}
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-              );
-            })
-          }
+          {["Món chính", "Khai vị", "Đồ uống", "Tráng miệng", "Canh"].map(
+            (dishType) => renderDishTypeSection(dishType)
+          )}
         </ScrollView>
       )}
     </View>
@@ -754,6 +884,10 @@ const styles = StyleSheet.create({
     borderColor: "#E0E0E0",
     marginRight: 20,
   },
+  searchPlaceholder: {
+    marginLeft: 10,
+    color: COLORS.grey,
+  },
   dishHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -800,21 +934,21 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderRadius: 8,
     overflow: "hidden",
-    width: width / 2 - 30, // Kích thước item
+    width: width / 2 - 30,
   },
   textNameDish: {
     color: COLORS.black,
     fontSize: 14,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
-    height: 20, // Đặt chiều cao cố định để tránh thay đổi
+    height: 20,
   },
   textDishType: {
     color: COLORS.grey,
     fontSize: 12,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
-    height: 15, // Đặt chiều cao cố định
+    height: 15,
   },
   ratingAndPrice: {
     flexDirection: "row",
@@ -839,9 +973,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
-    // marginBottom: 10,
     marginTop: 10,
     marginLeft: 2,
+  },
+  // Các style khác...
+  showMoreButton: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  showMoreText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    color: COLORS.white,
+    flexDirection: "row",
+    alignItems: "center",
   },
 });
 

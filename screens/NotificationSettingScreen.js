@@ -1,21 +1,134 @@
-import { StyleSheet, View, Text, TouchableOpacity, Switch } from "react-native";
-import React from "react";
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  Switch,
+  Alert,
+} from "react-native";
+import React, { useState, useEffect } from "react";
 import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Header from "../components/Header";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const NotificationSettingScreen = ({ navigation, route }) => {
   const [isPostNotificationEnabled, setIsPostNotificationEnabled] =
-    React.useState(false);
+    useState(true);
   const [
     isOrderStatusNotificationEnabled,
     setIsOrderStatusNotificationEnabled,
-  ] = React.useState(false);
+  ] = useState(true);
   const [isPromotionNotificationEnabled, setIsPromotionNotificationEnabled] =
-    React.useState(false);
+    useState(true);
   const [isFollowerNotificationEnabled, setIsFollowerNotificationEnabled] =
-    React.useState(false);
+    useState(true);
+  const [userId, setUserId] = useState(null);
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!token) {
+      console.error("Không tìm thấy token.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
+      }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const userData = await AsyncStorage.getItem("userData");
+        if (userData) {
+          const parsedUserData = JSON.parse(userData);
+          setUserId(parsedUserData.userId); // Store the user ID
+        } else {
+          console.error(
+            "Không tìm thấy dữ liệu người dùng trong AsyncStorage."
+          );
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy dữ liệu người dùng:", error);
+      }
+    };
+    fetchUserId();
+  }, []);
+
+  const updateNotificationSetting = async (settingName, isEnabled) => {
+    if (!userId) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng.");
+      return;
+    }
+    try {
+      const url = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/updateNotificationSettings?userId=${userId}&settingName=${settingName}&isEnabled=${isEnabled}`;
+
+      const response = await fetchWithAuth(url, {
+        method: "PUT",
+      });
+
+      if (response.ok) {
+        console.log(
+          `Notification setting ${settingName} updated successfully to ${isEnabled}`
+        );
+        // Optionally show a success message, if needed
+      } else {
+        const errorData = await response.json();
+        console.error(`Failed to update setting ${settingName}`, errorData);
+        Alert.alert(
+          "Lỗi",
+          `Không thể cập nhật cài đặt thông báo ${settingName}, vui lòng thử lại`
+        );
+        // Optionally show an error message, if needed
+      }
+    } catch (error) {
+      console.error(`Failed to update setting ${settingName}:`, error);
+      Alert.alert(
+        "Lỗi",
+        `Có lỗi xảy ra khi cập nhật cài đặt thông báo ${settingName}, vui lòng thử lại`
+      );
+      // Optionally show a generic error message, if needed
+    }
+  };
+
+  const handlePostNotificationToggle = async () => {
+    const newStatus = !isPostNotificationEnabled;
+    setIsPostNotificationEnabled(newStatus);
+    await updateNotificationSetting("new_article", newStatus);
+  };
+
+  const handleOrderStatusNotificationToggle = async () => {
+    const newStatus = !isOrderStatusNotificationEnabled;
+    setIsOrderStatusNotificationEnabled(newStatus);
+    await updateNotificationSetting("order_status", newStatus);
+  };
+
+  const handlePromotionNotificationToggle = async () => {
+    const newStatus = !isPromotionNotificationEnabled;
+    setIsPromotionNotificationEnabled(newStatus);
+    await updateNotificationSetting("new_promotion", newStatus);
+  };
+
+  const handleFollowerNotificationToggle = async () => {
+    const newStatus = !isFollowerNotificationEnabled;
+    setIsFollowerNotificationEnabled(newStatus);
+    await updateNotificationSetting("new_follower", newStatus);
+  };
 
   return (
     <>
@@ -53,9 +166,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
             <Switch
               trackColor={{ false: COLORS.grey, true: COLORS.green }}
               thumbColor={isPostNotificationEnabled ? COLORS.white : "#f4f3f4"}
-              onValueChange={() =>
-                setIsPostNotificationEnabled((prev) => !prev)
-              }
+              onValueChange={handlePostNotificationToggle}
               value={isPostNotificationEnabled}
               style={styles.iconRight}
             />
@@ -79,9 +190,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
               thumbColor={
                 isOrderStatusNotificationEnabled ? COLORS.white : "#f4f3f4"
               }
-              onValueChange={() =>
-                setIsOrderStatusNotificationEnabled((prev) => !prev)
-              }
+              onValueChange={handleOrderStatusNotificationToggle}
               value={isOrderStatusNotificationEnabled}
               style={styles.iconRight}
             />
@@ -104,9 +213,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
               thumbColor={
                 isPromotionNotificationEnabled ? COLORS.white : "#f4f3f4"
               }
-              onValueChange={() =>
-                setIsPromotionNotificationEnabled((prev) => !prev)
-              }
+              onValueChange={handlePromotionNotificationToggle}
               value={isPromotionNotificationEnabled}
               style={styles.iconRight}
             />
@@ -133,9 +240,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
               thumbColor={
                 isFollowerNotificationEnabled ? COLORS.white : "#f4f3f4"
               }
-              onValueChange={() =>
-                setIsFollowerNotificationEnabled((prev) => !prev)
-              }
+              onValueChange={handleFollowerNotificationToggle}
               value={isFollowerNotificationEnabled}
               style={styles.iconRight}
             />

@@ -691,7 +691,7 @@ const CommunityScreen = ({ navigation }) => {
                 >
                   {username}
                 </Text>
-                <Text
+                {/* <Text
                   style={{
                     fontFamily: FONTS.bold,
                     color: COLORS.diamond,
@@ -703,7 +703,7 @@ const CommunityScreen = ({ navigation }) => {
                   }}
                 >
                   Kim cương
-                </Text>
+                </Text> */}
               </View>
             </TouchableOpacity>
             <Pressable>

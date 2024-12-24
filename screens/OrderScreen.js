@@ -151,7 +151,7 @@ const OrderScreen = ({ navigation }) => {
 
       if (!orderDetailResponse.ok) {
         const errorText = await orderDetailResponse.text();
-        console.error("[DEBUG] Lỗi khi lấy chi tiết đơn hàng:", errorText);
+        console.log("[DEBUG] Lỗi khi lấy chi tiết đơn hàng:", errorText);
         throw new Error("Không thể lấy chi tiết đơn hàng.");
       }
 
@@ -624,7 +624,7 @@ const OrderScreen = ({ navigation }) => {
                     <Text style={styles.orderTotal}>
                       Tổng tiền:{" "}
                       {order.totalPrice
-                        ? `${order.totalPrice.toLocaleString()} vnđ`
+                        ? `${order.totalPrice.toLocaleString()} đ`
                         : "0.000 đ"}
                     </Text>
 

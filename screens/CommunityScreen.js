@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,11 +6,10 @@ import {
   Image,
   ImageBackground,
   Pressable,
-  FlatList,
-  Dimensions,
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  Dimensions,
 } from "react-native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
@@ -18,9 +17,9 @@ import Icon1 from "react-native-vector-icons/MaterialCommunityIcons";
 import Icon from "react-native-vector-icons/Ionicons";
 import IconAnt from "react-native-vector-icons/AntDesign";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native"; // Import useFocusEffect
 
 import { RenderHTML } from "react-native-render-html";
-// import { Dimensions } from "react-native";
 const { width } = Dimensions.get("window");
 
 const dataTabView = [
@@ -44,8 +43,8 @@ const CommunityScreen = ({ navigation }) => {
   const [username, setUsername] = useState("Người dùng");
   const [userImage, setUserImage] = useState("https://via.placeholder.com/55");
   const userRoleCache = {}; // Cache roleId theo userId
-  // Fetch articles from the API
 
+  // Fetch articles from the API
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
 
@@ -218,10 +217,14 @@ const CommunityScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    fetchUserDetails();
-    fetchArticles();
-  }, []);
+  // Sử dụng useFocusEffect để gọi fetchArticles mỗi khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      // Khi màn hình được focus, gọi lại fetchArticles để cập nhật danh sách bài viết
+      fetchUserDetails();
+      fetchArticles();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -353,7 +356,7 @@ const CommunityScreen = ({ navigation }) => {
     }
   };
 
-  const navigateToScreen = async () => {
+  const navigateToScreen = async (item) => {
     try {
       if (userRoleCache[item.authorId]) {
         const cachedRoleId = userRoleCache[item.authorId];
@@ -408,26 +411,6 @@ const CommunityScreen = ({ navigation }) => {
   };
 
   const renderPost = (item) => {
-    const navigateToScreen = async () => {
-      try {
-        const response = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${item.authorId}`
-        );
-        const userData = response.ok ? await response.json() : {};
-        const roleId = userData.roleId || 0;
-
-        if (roleId === 5) {
-          navigation.navigate("NutritionArticle", {
-            articleId: item.articleId,
-          });
-        } else {
-          navigation.navigate("PostDetailScreen", { post: item });
-        }
-      } catch (error) {
-        console.error("Error navigating to article screen:", error);
-      }
-    };
-
     // Helper function to strip HTML tags and truncate text
     const stripAndTruncateHTML = (html, maxLength) => {
       const plainText = html.replace(/<[^>]+>/g, ""); // Strip HTML tags
@@ -453,7 +436,10 @@ const CommunityScreen = ({ navigation }) => {
         }}
         key={item.articleId}
       >
-        <TouchableOpacity onPress={navigateToScreen} activeOpacity={0.8}>
+        <TouchableOpacity
+          onPress={() => navigateToScreen(item)}
+          activeOpacity={0.8}
+        >
           {/* Header */}
           <View style={{ flexDirection: "row" }}>
             <Image
@@ -484,7 +470,8 @@ const CommunityScreen = ({ navigation }) => {
                   color: COLORS.grey,
                 }}
               >
-                {item.createdAt}
+                {/* {new Date(item.createdAt).toLocaleDateString()}{" "} */}
+                {/* Định dạng ngày */}
               </Text>
               {item.moderateDate && (
                 <Text
@@ -586,7 +573,7 @@ const CommunityScreen = ({ navigation }) => {
               alignItems: "center",
               marginRight: 20,
             }}
-            onPress={navigateToScreen}
+            onPress={() => navigateToScreen(item)}
           >
             <Icon
               name="chatbubble-outline"
@@ -691,19 +678,7 @@ const CommunityScreen = ({ navigation }) => {
                 >
                   {username}
                 </Text>
-                {/* <Text
-                  style={{
-                    fontFamily: FONTS.bold,
-                    color: COLORS.diamond,
-                    fontSize: 12,
-                    backgroundColor: COLORS.white,
-                    borderRadius: 50,
-                    paddingVertical: 3,
-                    paddingHorizontal: 8,
-                  }}
-                >
-                  Kim cương
-                </Text> */}
+                {/* Optional: Show user role or other info */}
               </View>
             </TouchableOpacity>
             <Pressable>

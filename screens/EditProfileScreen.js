@@ -10,6 +10,8 @@ import {
   Image,
   StatusBar,
   ImageBackground,
+  SafeAreaView,
+  Modal, // Import Modal
 } from "react-native";
 import { Menu, Provider } from "react-native-paper";
 import COLORS from "../constants/color";
@@ -49,6 +51,13 @@ const EditProfileScreen = ({ navigation }) => {
   const CLOUD_NAME = "dpzzzifpa"; // Tên Cloudinary
   const UPLOAD_PRESET = "vegetarian assistant"; // Upload preset
   const [showFullImage, setShowFullImage] = useState(false); // Hiển thị ảnh lớn
+
+  // State for password change modal
+  const [isChangePasswordModalVisible, setIsChangePasswordModalVisible] =
+    useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   const dataActivityLevel = [
     { id: 1, name: "Cao" },
@@ -278,26 +287,6 @@ const EditProfileScreen = ({ navigation }) => {
     setEditableField(field);
   };
 
-  // const handleChooseAvatar = () => {
-  //   const options = {
-  //     mediaType: "photo",
-  //     quality: 1,
-  //     maxWidth: 300,
-  //     maxHeight: 300,
-  //   };
-
-  //   launchImageLibrary(options, (response) => {
-  //     if (response.didCancel) {
-  //       console.log("User cancelled image picker");
-  //     } else if (response.errorMessage) {
-  //       console.error("Image Picker Error: ", response.errorMessage);
-  //     } else {
-  //       const uri = response.assets[0].uri;
-  //       setAvatar(uri);
-  //     }
-  //   });
-  // };
-
   const handleSaveChanges = async () => {
     if (!username || !email || !phoneNumber || !address) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin!");
@@ -368,7 +357,7 @@ const EditProfileScreen = ({ navigation }) => {
   const handleLogout = async () => {
     try {
       await AsyncStorage.clear(); // Xóa toàn bộ dữ liệu lưu trữ
-      Alert.alert("Đăng xuất thành công", "Bạn đã được đăng xuất.");
+
       navigation.reset({
         index: 0,
         routes: [{ name: "Login" }], // Điều hướng đến màn hình Login
@@ -379,238 +368,348 @@ const EditProfileScreen = ({ navigation }) => {
     }
   };
 
+  const handleChangePassword = async () => {
+    // ... (phần kiểm tra input)
+
+    try {
+      const response = await fetchWithAuth(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/changePassword",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            phoneNumber: phoneNumber,
+            password: oldPassword,
+            newPassword: newPassword,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const responseText = await response.text();
+        if (responseText.includes("success")) {
+          // Thay "success" bằng thông báo thành công thực tế từ server
+          Alert.alert("Thành công", "Mật khẩu đã được cập nhật thành công.");
+          setIsChangePasswordModalVisible(false);
+          handleLogout();
+        } else {
+          Alert.alert("Lỗi", responseText || "Đổi mật khẩu không thành công.");
+        }
+      } else {
+        const errorText = await response.text();
+        Alert.alert(
+          "Lỗi",
+          errorText || "Đổi mật khẩu không thành công. Vui lòng thử lại."
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi khi đổi mật khẩu:", error);
+      Alert.alert("Lỗi", "Có lỗi xảy ra khi đổi mật khẩu. Vui lòng thử lại.");
+    } finally {
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    }
+  };
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: COLORS.white }}>
-      <ImageBackground
-        source={{
-          uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
-        }}
-        style={{
-          width: "100%",
-          height: 200,
-        }}
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.white }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: COLORS.white }}
+        contentContainerStyle={{ paddingBottom: 20 }}
       >
-        <View
-          style={{ padding: 20, flexDirection: "row", alignItems: "center" }}
+        <ImageBackground
+          source={{
+            uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
+          }}
+          style={{
+            width: "100%",
+            height: 200,
+          }}
         >
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-back-outline" size={25} color={COLORS.white} />
-          </TouchableOpacity>
-          <Text
-            style={{
-              fontFamily: FONTS.bold,
-              fontSize: 20,
-              color: COLORS.white,
-              marginLeft: 10,
-            }}
+          <View
+            style={{ padding: 20, flexDirection: "row", alignItems: "center" }}
           >
-            Chỉnh sửa trang cá nhân
-          </Text>
-        </View>
-      </ImageBackground>
-      {/* Phần hiển thị ảnh đại diện */}
-      <View style={styles.avatarContainer}>
-        <TouchableOpacity onPress={() => setShowFullImage(true)}>
-          <Image
-            source={{ uri: avatar || "https://via.placeholder.com/100" }}
-            style={styles.avatar}
-          />
-        </TouchableOpacity>
-
-        <View style={styles.buttonContainer}>
-          {/* Nút chọn ảnh từ thư viện */}
-          <TouchableOpacity style={styles.button} onPress={handleChooseAvatar}>
-            <Text style={styles.buttonText}>Chọn ảnh</Text>
-          </TouchableOpacity>
-
-          {/* Nút chụp ảnh */}
-          <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
-            <Text style={styles.buttonText}>Chụp ảnh</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Hiển thị ảnh lớn khi bấm vào ảnh đại diện */}
-      {showFullImage && (
-        <View style={styles.fullImageOverlay}>
-          <Image source={{ uri: avatar }} style={styles.fullImage} />
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowFullImage(false)}
-          >
-            <Icon name="close" size={30} color={COLORS.white} />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.formContainer}>
-        {/* Họ tên */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Họ tên</Text>
-          <TextInput
-            style={styles.textInput}
-            value={username}
-            onChangeText={setUsername}
-          />
-        </View>
-        {/* Email */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Email</Text>
-          <TextInput
-            style={styles.textInput}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-          />
-        </View>
-
-        {/* Địa chỉ */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Địa chỉ</Text>
-          <TextInput
-            style={styles.textInput}
-            value={address}
-            onChangeText={setAddress}
-          />
-        </View>
-
-        {/* Tuổi */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Tuổi</Text>
-          <TextInput
-            style={styles.textInput}
-            value={age?.toString()}
-            onChangeText={(value) => setAge(parseInt(value) || "")}
-            keyboardType="numeric"
-          />
-        </View>
-
-        {/* Chiều cao và Cân nặng */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          {/* Chiều cao */}
-          <View style={[styles.attributeRow, { width: "45%" }]}>
-            <View>
-              <Text style={styles.textTitle}>Chiều cao (cm): </Text>
-            </View>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.textInput}
-                value={height}
-                onChangeText={(value) => setHeight(value)}
-                placeholder="Nhập chiều cao"
-                placeholderTextColor={COLORS.lightGrey}
-                inputMode="numeric"
-                keyboardType="numeric"
-              />
-            </View>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Icon name="arrow-back-outline" size={25} color={COLORS.white} />
+            </TouchableOpacity>
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                fontSize: 20,
+                color: COLORS.white,
+                marginLeft: 10,
+              }}
+            >
+              Chỉnh sửa trang cá nhân
+            </Text>
           </View>
+        </ImageBackground>
+        {/* Phần hiển thị ảnh đại diện */}
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity onPress={() => setShowFullImage(true)}>
+            <Image
+              source={{ uri: avatar || "https://via.placeholder.com/100" }}
+              style={styles.avatar}
+            />
+          </TouchableOpacity>
 
-          {/* Cân nặng */}
-          <View style={[styles.attributeRow, { width: "50%" }]}>
-            <View>
-              <Text style={styles.textTitle}>Cân nặng (kg): </Text>
-            </View>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.textInput}
-                value={weight}
-                onChangeText={(value) => setWeight(value)}
-                placeholder="Nhập cân nặng"
-                placeholderTextColor={COLORS.lightGrey}
-                inputMode="numeric"
-                keyboardType="numeric"
-              />
-            </View>
+          <View style={styles.buttonContainer}>
+            {/* Nút chọn ảnh từ thư viện */}
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleChooseAvatar}
+            >
+              <Text style={styles.buttonText}>Chọn ảnh</Text>
+            </TouchableOpacity>
+
+            {/* Nút chụp ảnh */}
+            <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
+              <Text style={styles.buttonText}>Chụp ảnh</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Nghề nghiệp */}
-        {/* <View style={styles.attributeRow}>
-          <View>
-            <Text style={styles.textTitle}>Nghề nghiệp: </Text>
+        {/* Hiển thị ảnh lớn khi bấm vào ảnh đại diện */}
+        {showFullImage && (
+          <View style={styles.fullImageOverlay}>
+            <Image source={{ uri: avatar }} style={styles.fullImage} />
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowFullImage(false)}
+            >
+              <Icon name="close" size={30} color={COLORS.white} />
+            </TouchableOpacity>
           </View>
-          <View style={styles.inputRow}>
+        )}
+
+        <View style={styles.formContainer}>
+          {/* Họ tên */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Họ tên</Text>
             <TextInput
               style={styles.textInput}
-              value={profession}
-              onChangeText={(value) => setProfession(value)}
-              placeholder="Nhập nghề nghiệp"
-              placeholderTextColor={COLORS.lightGrey}
+              value={username}
+              onChangeText={setUsername}
             />
           </View>
-        </View> */}
+          {/* Email */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={styles.textInput}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+            />
+          </View>
 
-        {/* Mức độ hoạt động */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Mức độ hoạt động</Text>
-          <Dropdown
-            data={filterDropdownData(
-              dataActivityLevel,
-              dataActivityLevel.find((item) => item.name === activityLevel)?.id
-            )}
-            labelField="name"
-            valueField="name" // Sử dụng name làm giá trị
-            value={activityLevel} // Giá trị hiện tại (chuỗi)
-            onChange={(item) => setActivityLevel(item.name)} // Lưu tên vào state
-            placeholder={
-              dataActivityLevel.find((item) => item.name === activityLevel)
-                ?.name || "Chọn mức độ"
-            }
-            style={styles.dropdown}
-          />
-        </View>
+          {/* Địa chỉ */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Địa chỉ</Text>
+            <TextInput
+              style={styles.textInput}
+              value={address}
+              onChangeText={setAddress}
+            />
+          </View>
 
-        {/* Mục tiêu */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Mục tiêu</Text>
-          <Dropdown
-            data={filterDropdownData(
-              dataGoal,
-              dataGoal.find((item) => item.name === goal)?.id
-            )}
-            labelField="name"
-            valueField="name" // Sử dụng name làm giá trị
-            value={goal} // Giá trị hiện tại (chuỗi)
-            onChange={(item) => setGoal(item.name)} // Lưu tên vào state
-            placeholder={
-              dataGoal.find((item) => item.name === goal)?.name ||
-              "Chọn mục tiêu"
-            }
-            style={styles.dropdown}
-          />
-        </View>
+          {/* Tuổi */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Tuổi</Text>
+            <TextInput
+              style={styles.textInput}
+              value={age?.toString()}
+              onChangeText={(value) => setAge(parseInt(value) || "")}
+              keyboardType="numeric"
+            />
+          </View>
 
-        {/* Sở thích ăn uống */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Sở thích ăn uống</Text>
-          <Dropdown
-            data={filterDropdownData(
-              dataPreferences,
-              parseInt(selectedPreferencesId)
-            )}
-            labelField="name"
-            valueField="id"
-            value={parseInt(selectedPreferencesId)}
-            onChange={(item) => setSelectedPreferencesId(item.id.toString())}
-            placeholder={
-              dataPreferences.find(
-                (item) => item.id === parseInt(selectedPreferencesId)
-              )?.name || "Chọn sở thích"
-            }
-            style={styles.dropdown}
-          />
+          {/* Chiều cao và Cân nặng */}
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between" }}
+          >
+            {/* Chiều cao */}
+            <View style={[styles.attributeRow, { width: "45%" }]}>
+              <View>
+                <Text style={styles.textTitle}>Chiều cao (cm): </Text>
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.textInput}
+                  value={height}
+                  onChangeText={(value) => setHeight(value)}
+                  placeholder="Nhập chiều cao"
+                  placeholderTextColor={COLORS.lightGrey}
+                  inputMode="numeric"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            {/* Cân nặng */}
+            <View style={[styles.attributeRow, { width: "50%" }]}>
+              <View>
+                <Text style={styles.textTitle}>Cân nặng (kg): </Text>
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.textInput}
+                  value={weight}
+                  onChangeText={(value) => setWeight(value)}
+                  placeholder="Nhập cân nặng"
+                  placeholderTextColor={COLORS.lightGrey}
+                  inputMode="numeric"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Mức độ hoạt động */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Mức độ hoạt động</Text>
+            <Dropdown
+              data={filterDropdownData(
+                dataActivityLevel,
+                dataActivityLevel.find((item) => item.name === activityLevel)
+                  ?.id
+              )}
+              labelField="name"
+              valueField="name" // Sử dụng name làm giá trị
+              value={activityLevel} // Giá trị hiện tại (chuỗi)
+              onChange={(item) => setActivityLevel(item.name)} // Lưu tên vào state
+              placeholder={
+                dataActivityLevel.find((item) => item.name === activityLevel)
+                  ?.name || "Chọn mức độ"
+              }
+              style={styles.dropdown}
+            />
+          </View>
+
+          {/* Mục tiêu */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Mục tiêu</Text>
+            <Dropdown
+              data={filterDropdownData(
+                dataGoal,
+                dataGoal.find((item) => item.name === goal)?.id
+              )}
+              labelField="name"
+              valueField="name" // Sử dụng name làm giá trị
+              value={goal} // Giá trị hiện tại (chuỗi)
+              onChange={(item) => setGoal(item.name)} // Lưu tên vào state
+              placeholder={
+                dataGoal.find((item) => item.name === goal)?.name ||
+                "Chọn mục tiêu"
+              }
+              style={styles.dropdown}
+            />
+          </View>
+
+          {/* Sở thích ăn uống */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Sở thích ăn uống</Text>
+            <Dropdown
+              data={filterDropdownData(
+                dataPreferences,
+                parseInt(selectedPreferencesId)
+              )}
+              labelField="name"
+              valueField="id"
+              value={parseInt(selectedPreferencesId)}
+              onChange={(item) => setSelectedPreferencesId(item.id.toString())}
+              placeholder={
+                dataPreferences.find(
+                  (item) => item.id === parseInt(selectedPreferencesId)
+                )?.name || "Chọn sở thích"
+              }
+              style={styles.dropdown}
+            />
+          </View>
+
+          {/* Nút Mở form đổi mật khẩu */}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => setIsChangePasswordModalVisible(true)}
+          >
+            <Text style={styles.buttonText}>Đổi mật khẩu</Text>
+          </TouchableOpacity>
+
+          {!isChangePasswordModalVisible && (
+            <ButtonFlex
+              title="Lưu thay đổi"
+              stylesButton={{
+                marginTop: 10,
+                backgroundColor: COLORS.green,
+                height: 40,
+              }}
+              onPress={handleSaveChanges}
+            />
+          )}
         </View>
-        <ButtonFlex
-          title="Lưu thay đổi"
-          stylesButton={{
-            marginTop: 10,
-            backgroundColor: COLORS.green,
-            height: 40,
-          }}
-          onPress={handleSaveChanges}
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+
+      {/* Password change modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isChangePasswordModalVisible}
+        onRequestClose={() => {
+          setIsChangePasswordModalVisible(!isChangePasswordModalVisible);
+        }}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Đổi mật khẩu</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Mật khẩu cũ</Text>
+              <TextInput
+                style={styles.textInput}
+                secureTextEntry
+                value={oldPassword}
+                onChangeText={setOldPassword}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Mật khẩu mới</Text>
+              <TextInput
+                style={styles.textInput}
+                secureTextEntry
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Xác nhận mật khẩu mới</Text>
+              <TextInput
+                style={styles.textInput}
+                secureTextEntry
+                value={confirmNewPassword}
+                onChangeText={setConfirmNewPassword}
+              />
+            </View>
+            <ButtonFlex
+              title="Đổi mật khẩu"
+              stylesButton={{
+                marginTop: 10,
+                backgroundColor: COLORS.green,
+                height: 40,
+              }}
+              onPress={handleChangePassword}
+            />
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: COLORS.grey }]}
+              onPress={() => setIsChangePasswordModalVisible(false)}
+            >
+              <Text style={styles.buttonText}>Hủy</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 };
 
@@ -645,6 +744,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.green,
     padding: 10,
     borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
   },
   buttonText: {
     color: COLORS.white,
@@ -705,5 +806,34 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     height: 50,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Add a semi-transparent background
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: "80%", // Adjust the width as needed
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontFamily: FONTS.bold,
+    fontSize: 18,
   },
 });

@@ -24,6 +24,9 @@ const LoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isOTPLogin, setIsOTPLogin] = useState(false); // Trạng thái để chuyển đổi giữa OTP và mật khẩu
+  const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
+  const [forgotPasswordPhone, setForgotPasswordPhone] = useState("");
+  const [forgotPasswordError, setForgotPasswordError] = useState("");
 
   const handleLogin = async () => {
     if (!emailOrPhone || !password) {
@@ -121,6 +124,47 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
+  const handleForgotPassword = () => {
+    setForgotPasswordVisible(true);
+  };
+
+  const handleForgotPasswordSendOTP = async () => {
+    let formattedPhone = forgotPasswordPhone;
+    if (forgotPasswordPhone[0] !== "0") {
+      formattedPhone = "0" + forgotPasswordPhone;
+    }
+
+    if (!formattedPhone || formattedPhone.length !== 10) {
+      Alert.alert("Thông báo", "Không đúng định dạng số điện thoại!");
+      return;
+    }
+
+    try {
+      const checkResult = await fetch(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/CheckPhoneExisted/${formattedPhone}`
+      );
+
+      const cleanResult = await checkResult.text();
+      if (cleanResult.includes("exists")) {
+        setForgotPasswordError("");
+        const otp = await sendOTP(formattedPhone);
+        if (otp) {
+          navigation.navigate("OTPScreen", {
+            phone: formattedPhone,
+            otp: otp,
+            fromScreen: "ForgotPassword",
+          });
+          setForgotPasswordVisible(false); // Ẩn form quên mật khẩu sau khi gửi OTP thành công
+        }
+      } else {
+        setForgotPasswordError("Số điện thoại của bạn chưa đăng kí tài khoản");
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Lỗi", "Có lỗi xảy ra khi gửi OTP!");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.formContainer}>
       <View
@@ -147,99 +191,175 @@ const LoginScreen = ({ navigation }) => {
         </Text>
       </View>
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>
-          Số điện thoại <Text style={{ color: COLORS.red }}>*</Text>
-        </Text>
-        <View style={styles.inputRow}>
-          <TouchableOpacity>
-            <Text
-              style={{
-                fontFamily: FONTS.semiBold,
-                fontSize: 14,
-                color: COLORS.black,
-              }}
-            >
-              +84 |
+      {!forgotPasswordVisible ? (
+        <>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>
+              Số điện thoại <Text style={{ color: COLORS.red }}>*</Text>
             </Text>
-          </TouchableOpacity>
-          <TextInput
-            style={styles.textInput}
-            placeholder="91 234 56 78"
-            inputMode="numeric"
-            keyboardType="numeric"
-            placeholderTextColor={COLORS.lightGrey}
-            onChangeText={handlePhoneInput}
-            value={
-              emailOrPhone.startsWith("0")
-                ? emailOrPhone.slice(1)
-                : emailOrPhone
-            }
-          />
-        </View>
-      </View>
-
-      {!isOTPLogin && (
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>
-            Mật khẩu <Text style={{ color: COLORS.red }}>*</Text>
-          </Text>
-          <View style={styles.inputRow}>
-            <Icon name="key" size={18} color={COLORS.green} />
-            <TextInput
-              style={styles.textInput}
-              secureTextEntry={!showPassword}
-              placeholder="************"
-              value={password}
-              onChangeText={setPassword}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Icon
-                name={showPassword ? "eye-off" : "eye"}
-                size={20}
-                color={COLORS.green}
+            <View style={styles.inputRow}>
+              <TouchableOpacity>
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    fontSize: 14,
+                    color: COLORS.black,
+                  }}
+                >
+                  +84 |
+                </Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.textInput}
+                placeholder="91 234 56 78"
+                inputMode="numeric"
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.lightGrey}
+                onChangeText={handlePhoneInput}
+                value={
+                  emailOrPhone.startsWith("0")
+                    ? emailOrPhone.slice(1)
+                    : emailOrPhone
+                }
               />
+            </View>
+          </View>
+
+          {!isOTPLogin && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>
+                Mật khẩu <Text style={{ color: COLORS.red }}>*</Text>
+              </Text>
+              <View style={styles.inputRow}>
+                <Icon name="key" size={18} color={COLORS.green} />
+                <TextInput
+                  style={styles.textInput}
+                  secureTextEntry={!showPassword}
+                  placeholder="************"
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Icon
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={20}
+                    color={COLORS.green}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {isOTPLogin ? (
+            <ButtonFlex
+              title="Gửi OTP"
+              stylesButton={{
+                paddingVertical: 15,
+                elevation: 3,
+                backgroundColor: COLORS.green,
+                borderRadius: 10,
+              }}
+              stylesText={{ fontSize: 14 }}
+              onPress={handleSendOTP}
+            />
+          ) : (
+            <ButtonFlex
+              title="Đăng nhập"
+              stylesButton={{
+                paddingVertical: 15,
+                elevation: 3,
+                backgroundColor: COLORS.green,
+              }}
+              stylesText={{ fontSize: 14 }}
+              onPress={handleLogin}
+            />
+          )}
+
+          {/* Bao bọc hai TouchableOpacity trong một View hàng ngang */}
+          <View style={styles.optionsRow}>
+            <TouchableOpacity onPress={() => setIsOTPLogin(!isOTPLogin)}>
+              <Text
+                style={{
+                  color: COLORS.green,
+                  fontFamily: FONTS.medium,
+                }}
+              >
+                {isOTPLogin ? "Đăng nhập bằng mật khẩu" : "Đăng nhập bằng OTP"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleForgotPassword}>
+              <Text
+                style={{
+                  color: COLORS.orange,
+                  fontFamily: FONTS.medium,
+                }}
+              >
+                Quên mật khẩu?
+              </Text>
             </TouchableOpacity>
           </View>
+        </>
+      ) : (
+        <View>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>
+              Số điện thoại <Text style={{ color: COLORS.red }}>*</Text>
+            </Text>
+            <View style={styles.inputRow}>
+              <TouchableOpacity>
+                <Text
+                  style={{
+                    fontFamily: FONTS.semiBold,
+                    fontSize: 14,
+                    color: COLORS.black,
+                  }}
+                >
+                  +84 |
+                </Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.textInput}
+                placeholder="91 234 56 78"
+                inputMode="numeric"
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.lightGrey}
+                onChangeText={setForgotPasswordPhone}
+                value={
+                  forgotPasswordPhone.startsWith("0")
+                    ? forgotPasswordPhone.slice(1)
+                    : forgotPasswordPhone
+                }
+              />
+            </View>
+          </View>
+          {forgotPasswordError ? (
+            <Text style={{ color: "red", marginBottom: 10 }}>
+              {forgotPasswordError}
+            </Text>
+          ) : null}
+          <ButtonFlex
+            title="Gửi OTP"
+            stylesButton={{
+              paddingVertical: 15,
+              elevation: 3,
+              backgroundColor: COLORS.orange,
+            }}
+            stylesText={{ fontSize: 14 }}
+            onPress={handleForgotPasswordSendOTP}
+          />
+          <TouchableOpacity
+            onPress={() => setForgotPasswordVisible(false)}
+            style={{ marginTop: 10, alignItems: "center" }}
+          >
+            <Text style={{ color: COLORS.green, fontFamily: FONTS.medium }}>
+              Quay lại đăng nhập
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
-
-      {isOTPLogin ? (
-        <ButtonFlex
-          title="Gửi OTP"
-          stylesButton={{
-            paddingVertical: 15,
-            elevation: 3,
-            backgroundColor: COLORS.green,
-            borderRadius: 10,
-          }}
-          stylesText={{ fontSize: 14 }}
-          onPress={handleSendOTP}
-        />
-      ) : (
-        <ButtonFlex
-          title="Đăng nhập"
-          stylesButton={{
-            paddingVertical: 15,
-            elevation: 3,
-            backgroundColor: COLORS.green,
-          }}
-          stylesText={{ fontSize: 14 }}
-          onPress={handleLogin}
-        />
-      )}
-
-      <TouchableOpacity onPress={() => setIsOTPLogin(!isOTPLogin)}>
-        <Text
-          style={{
-            marginTop: 10,
-            color: COLORS.green,
-            fontFamily: FONTS.medium,
-          }}
-        >
-          {isOTPLogin ? "Đăng nhập bằng mật khẩu" : "Đăng nhập bằng OTP"}
-        </Text>
-      </TouchableOpacity>
 
       <View style={styles.registerContainer}>
         <Text style={{ fontFamily: FONTS.medium }}>Chưa có tài khoản? </Text>
@@ -290,5 +410,11 @@ const styles = StyleSheet.create({
     marginTop: 15,
     alignItems: "center",
     justifyContent: "center",
+  },
+  optionsRow: {
+    // Thêm style cho hàng ngang
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
   },
 });

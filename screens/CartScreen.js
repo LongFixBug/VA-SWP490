@@ -337,7 +337,7 @@ const CartScreen = ({ navigation }) => {
               </View>
               <Text style={styles.textDishType}>{item.dishType}</Text>
               <Text style={styles.textDishPrice}>
-                {item.price ? `${item.price.toLocaleString()} vnđ` : "0.000 đ"}
+                {item.price ? `${item.price.toLocaleString()} đ` : "0.000 đ"}
               </Text>
               <View style={styles.quantityContainer}>
                 <TouchableOpacity
@@ -369,7 +369,7 @@ const CartScreen = ({ navigation }) => {
                 .filter((item) => selectedItems[item.cartId])
                 .reduce((total, item) => total + item.price * item.quantity, 0)
                 .toLocaleString()}
-              vnđ
+              đ
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

@@ -241,22 +241,46 @@ const OrderScreen = ({ navigation }) => {
             Alert.alert("Thông báo", "Bạn cần đăng nhập lại để tiếp tục.", [
               {
                 text: "OK",
-                onPress: () => navigation.navigate("Login"), // Điều hướng về màn hình đăng nhập
+                onPress: () => navigation.navigate("Login"),
               },
             ]);
-            return; // Dừng logic tại đây nếu không có userId
+            return;
           }
 
-          // Nếu có userId, cập nhật state và tiếp tục xử lý
           setUserId(storedUserId);
 
           // Lấy orderId mới nhất
-          const latestOrderId = await fetchLatestOrderId(storedUserId);
+          const latestOrderIdResult = await fetchLatestOrderId(storedUserId);
+          const latestOrderId = latestOrderIdResult;
 
           if (latestOrderId) {
             console.log(
               "[DEBUG] Bắt đầu kiểm tra trạng thái đơn hàng. Order ID:",
               latestOrderId
+            );
+
+            // Lấy thông tin chi tiết đơn hàng mới nhất để kiểm tra trạng thái
+            const latestOrderResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByOrderId/${latestOrderId}`
+            );
+
+            if (!latestOrderResponse.ok) {
+              const errorText = await latestOrderResponse.text();
+              console.error(
+                "[DEBUG] Lỗi từ API khi lấy chi tiết đơn hàng mới nhất:",
+                errorText
+              );
+              throw new Error("Không thể lấy chi tiết đơn hàng mới nhất.");
+            }
+
+            // Giả sử API trả về mảng 1 phần tử
+            const latestOrderDataArray = await latestOrderResponse.json();
+            const latestOrderObject = latestOrderDataArray[0];
+            const currentOrderStatus = latestOrderObject?.status;
+
+            console.log(
+              "[DEBUG] Trạng thái hiện tại của đơn hàng:",
+              currentOrderStatus
             );
 
             // Kiểm tra chi tiết thanh toán
@@ -278,58 +302,85 @@ const OrderScreen = ({ navigation }) => {
 
             const paymentDetail = paymentDetails[0];
 
+            /*
+            ================
+            SỬA LOGIC IF/ELSE
+            ================
+          */
+
+            // 1) COD + pending_payment + paymentStatus = pending
             if (
-              (paymentDetail?.paymentMethod === "PayOS" &&
-                paymentDetail?.paymentStatus === "completed") ||
-              (paymentDetail?.paymentMethod === "COD" &&
-                paymentDetail?.paymentStatus === "pending")
+              paymentDetail?.paymentMethod === "COD" &&
+              paymentDetail?.paymentStatus === "pending" &&
+              currentOrderStatus === "pending_payment"
             ) {
-              console.log("[DEBUG] Thanh toán thành công. Xóa giỏ hàng...");
-
-              // Gọi hàm xóa giỏ hàng
+              console.log(
+                "[DEBUG] Phương thức thanh toán là COD và trạng thái đơn hàng là pending_payment."
+              );
+              // Cập nhật trạng thái đơn hàng thành "pending"
+              await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}?newStatus=pending`,
+                { method: "PUT", headers: { Accept: "*/*" } }
+              );
+              console.log(
+                "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công thành pending."
+              );
+              // Xóa giỏ hàng
               await clearCart();
-
-              //  Alert.alert(
-              //    "Thông báo",
-              //    "Thanh toán thành công! Giỏ hàng đã được xóa."
-              //  );
             }
-
-            if (paymentDetail?.paymentMethod === "COD") {
-              console.log("[DEBUG] Phương thức thanh toán là COD.");
-
-              // Cập nhật trạng thái đơn hàng thành "pending"
-              await fetchWithAuth(
-                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}?newStatus=pending`,
-                { method: "PUT", headers: { Accept: "*/*" } }
-              );
-
-              console.log(
-                "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công."
-              );
-            } else if (
-              paymentDetail?.paymentMethod === "PayOS" &&
-              paymentDetail?.paymentStatus === "completed"
+            // 2) VnPay/PayOs + completed + orderStatus = pending_payment
+            else if (
+              (paymentDetail?.paymentMethod === "VnPay" &&
+                paymentDetail?.paymentStatus === "completed" &&
+                currentOrderStatus === "pending_payment") ||
+              (paymentDetail?.paymentMethod === "PayOs" &&
+                paymentDetail?.paymentStatus === "completed" &&
+                currentOrderStatus === "pending_payment")
             ) {
-              console.log("[DEBUG] Thanh toán PayOS đã hoàn tất.");
-
+              console.log(
+                "[DEBUG] Thanh toán trực tuyến đã hoàn tất và trạng thái đơn hàng là pending_payment."
+              );
               // Cập nhật trạng thái đơn hàng thành "pending"
               await fetchWithAuth(
                 `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/updateStatusOrderByOrderId/${latestOrderId}?newStatus=pending`,
                 { method: "PUT", headers: { Accept: "*/*" } }
               );
-
               console.log(
-                "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công."
+                "[DEBUG] Trạng thái đơn hàng đã được cập nhật thành công thành pending."
               );
-            } else {
+              // Xóa giỏ hàng
+              await clearCart();
+            }
+            // 3) COD nhưng orderStatus != pending_payment
+            else if (
+              paymentDetail?.paymentMethod === "COD" &&
+              currentOrderStatus !== "pending_payment"
+            ) {
               console.log(
-                "[DEBUG] Trạng thái thanh toán chưa hoàn tất hoặc phương thức không hợp lệ."
+                "[DEBUG] Thanh toán COD nhưng trạng thái đơn hàng không phải pending_payment. Không cập nhật."
               );
-              return;
+            }
+            // 4) VnPay/PayOs + completed + orderStatus != pending_payment
+            else if (
+              (paymentDetail?.paymentMethod === "VnPay" ||
+                paymentDetail?.paymentMethod === "PayOs") &&
+              paymentDetail?.paymentStatus === "completed" &&
+              currentOrderStatus !== "pending_payment"
+            ) {
+              console.log(
+                "[DEBUG] Thanh toán trực tuyến thành công nhưng trạng thái không phải pending_payment. Không cập nhật."
+              );
+              // Vẫn có thể xóa giỏ hàng nếu cần
+              await clearCart();
+            }
+            // 5) Các trường hợp khác
+            else {
+              console.log(
+                "[DEBUG] Trạng thái thanh toán chưa hoàn tất, hoặc phương thức không hợp lệ, hoặc trạng thái đơn hàng không phù hợp."
+              );
             }
 
-            // Xử lý giảm giá
+            // ========== Xử lý giảm giá ==========
             const ordersResponse = await fetchWithAuth(
               `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${storedUserId}`
             );
@@ -338,7 +389,7 @@ const OrderScreen = ({ navigation }) => {
               const orders = await ordersResponse.json();
 
               // Tìm đơn hàng trạng thái 'pending'
-              const latestOrder = orders
+              const latestOrderForDiscount = orders
                 .filter((order) => order.status === "pending")
                 .reduce((latest, current) => {
                   return new Date(current.orderDate) >
@@ -347,8 +398,8 @@ const OrderScreen = ({ navigation }) => {
                     : latest;
                 }, orders[0]);
 
-              if (latestOrder) {
-                const discountRate = latestOrder.discountRate;
+              if (latestOrderForDiscount) {
+                const discountRate = latestOrderForDiscount.discountRate;
                 let tierId = 0;
 
                 if (discountRate === 0.1) tierId = 2;
@@ -371,7 +422,8 @@ const OrderScreen = ({ navigation }) => {
               }
             }
           }
-          // Gọi lại hàm tải danh sách đơn hàng
+
+          // Cuối cùng, tải danh sách đơn hàng
           await fetchOrders(storedUserId);
         } catch (error) {
           console.log("[DEBUG] Lỗi trong quá trình xử lý:", error.message);
@@ -384,7 +436,7 @@ const OrderScreen = ({ navigation }) => {
 
       // Gọi hàm tải dữ liệu
       fetchDataOnFocus();
-    }, [navigation, currentTabViewOrder]) // Lắng nghe sự thay đổi của navigation và currentTabViewOrder
+    }, [navigation, currentTabViewOrder])
   );
 
   const fetchOrders = async (userId) => {
@@ -516,15 +568,6 @@ const OrderScreen = ({ navigation }) => {
   const handleSortToggle = () => {
     setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
   };
-
-  // Automatically refresh orders when the screen is focused
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     if (userId) {
-  //       fetchOrders(userId);
-  //     }
-  //   }, [userId, currentTabViewOrder])
-  // );
 
   const handleRefresh = async () => {
     setRefreshing(true); // Bắt đầu trạng thái loading

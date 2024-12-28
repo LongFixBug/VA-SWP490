@@ -104,7 +104,8 @@ const InputProfileScreen = ({ navigation, route }) => {
       return;
     }
 
-    const fullAddress = `${province}, ${selectedDistrict}, ${address}`;
+    // Sắp xếp địa chỉ theo thứ tự Địa chỉ, Quận/Huyện, Tỉnh/Thành phố
+    const fullAddress = `${address}, ${selectedDistrict}, ${province}`;
 
     // Kiểm tra các trường bắt buộc
     if (
@@ -153,7 +154,7 @@ const InputProfileScreen = ({ navigation, route }) => {
       email,
       phoneNumber: formattedPhoneNumber,
       dob: formattedDob,
-      address: fullAddress,
+      address: fullAddress, // Địa chỉ đã được sắp xếp lại
       height: parseFloat(height),
       weight: parseFloat(weight),
       age,
@@ -992,9 +993,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "400",
     textAlign: "center",
-  },
-  attributeRow: {
-    marginBottom: 15,
   },
   attributeRow: {
     marginBottom: 15,

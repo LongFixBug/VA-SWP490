@@ -10,14 +10,17 @@ const WebViewScreen = ({ navigation, route }) => {
     const currentUrl = navState.url;
 
     // Phát hiện URL chứa từ khóa "cancel"
-    if (currentUrl.includes("cancel")) {
+    if (
+      currentUrl.includes("cancel") ||
+      currentUrl.includes("payment/result")
+    ) {
       // Ngăn không cho WebView điều hướng
       if (webViewRef.current) {
         webViewRef.current.stopLoading();
       }
 
       // Điều hướng trực tiếp về Checkout
-      navigation.navigate("Checkout");
+      navigation.navigate("Order");
     }
   };
 

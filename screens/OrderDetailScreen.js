@@ -404,8 +404,7 @@ const OrderDetailScreen = ({ navigation }) => {
                 Địa chỉ: {order.deliveryAddress}
               </Text>
               <Text style={styles.infoText}>
-                Phí vận chuyển: {order?.deliveryFee?.toLocaleString() || "0"}{" "}
-                vnđ
+                Phí vận chuyển: {order?.deliveryFee?.toLocaleString() || "0"} đ
               </Text>
               <Text style={styles.infoText}>
                 Số điện thoại: {order.phoneNumber}

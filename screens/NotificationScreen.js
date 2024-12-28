@@ -1,9 +1,12 @@
+// screens/NotificationScreen.js
+
 import React, {
   useState,
   useEffect,
   useRef,
   useMemo,
   useCallback,
+  useContext,
 } from "react";
 import {
   View,
@@ -11,10 +14,8 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   Alert,
   RefreshControl,
-  ScrollView, // Import ScrollView
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
@@ -27,10 +28,14 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { format } from "date-fns";
 import { useFocusEffect } from "@react-navigation/native";
+import {
+  NotificationProvider,
+  NotificationContext,
+} from "../context/NotificationContext"; // Import NotificationProvider và Context
 
 const NotificationScreen = ({ navigation }) => {
+  const { fetchNotifications } = useContext(NotificationContext); // Sử dụng context
   const [notifications, setNotifications] = useState([]);
-  const [userId, setUserId] = useState(null);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [selectedNotificationDate, setSelectedNotificationDate] =
     useState(null);
@@ -39,7 +44,7 @@ const NotificationScreen = ({ navigation }) => {
   const snapPoints = useMemo(() => ["65%"], []);
 
   const notificationTypeMapping = {
-    new_article: "Bạn có bài viết mới",
+    new_article: "Bài viết của bạn đã được xử lí",
     order_status: "Trạng thái đơn hàng của bạn",
     new_promotion: "Bạn có khuyến mãi mới",
     new_follower: "Bạn có người follow mới",
@@ -70,13 +75,24 @@ const NotificationScreen = ({ navigation }) => {
     }
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotificationsLocal = async () => {
     setIsRefreshing(true);
     try {
-      if (!userId) {
-        console.log("UserId is null, skip fetching notification");
+      const storedUserData = await AsyncStorage.getItem("userData");
+      if (!storedUserData) {
+        console.log("Không tìm thấy userData.");
+        setNotifications([]);
         return;
       }
+      const parsedData = JSON.parse(storedUserData);
+      const userId = parsedData.userId;
+
+      if (!userId) {
+        console.log("UserId is null, skip fetching notification");
+        setNotifications([]);
+        return;
+      }
+
       const response = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/getNotificationByUserId/${userId}`
       );
@@ -84,10 +100,22 @@ const NotificationScreen = ({ navigation }) => {
       if (response.ok) {
         const data = await response.json();
         console.log("Fetched notification data:", data);
+
+        if (data.length === 0) {
+          // Không có thông báo
+          console.log("Không có thông báo nào.");
+          setNotifications([]);
+          return;
+        }
+
         const sortedNotifications = [...data].sort(
           (a, b) => b.notificationId - a.notificationId
         );
         setNotifications(sortedNotifications);
+      } else if (response.status === 404) {
+        // Nếu không có thông báo
+        console.log("Không có thông báo nào.");
+        setNotifications([]); // Đặt danh sách thông báo thành rỗng
       } else {
         console.error(
           "Lỗi khi lấy thông báo:",
@@ -96,8 +124,12 @@ const NotificationScreen = ({ navigation }) => {
         );
         Alert.alert("Lỗi", "Không thể tải thông báo. Vui lòng thử lại.");
       }
-    } catch (log) {
-      console.error("Lỗi khi lấy thông báo:", log);
+    } catch (error) {
+      console.error("Lỗi khi lấy thông báo:", error);
+      // Không hiển thị lỗi cho người dùng, chỉ log trong console
+      console.log(
+        "Không thể tải thông báo. Vui lòng kiểm tra kết nối hoặc thử lại sau."
+      );
     } finally {
       setIsRefreshing(false);
     }
@@ -122,6 +154,7 @@ const NotificationScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error("Lỗi khi lấy chi tiết thông báo:", error);
+      Alert.alert("Lỗi", "Không thể tải chi tiết thông báo.");
     }
   };
 
@@ -166,14 +199,21 @@ const NotificationScreen = ({ navigation }) => {
           await response.text()
         );
       } else {
-        fetchNotifications();
+        fetchNotifications(); // Sử dụng hàm từ context để cập nhật unreadCount
+        fetchNotificationsLocal(); // Cập nhật danh sách thông báo local
       }
     } catch (error) {
       console.error("Lỗi khi thay đổi trạng thái thông báo:", error);
     }
   };
+
   const updateAllNotificationsStatus = async () => {
     try {
+      if (notifications.length === 0) {
+        Alert.alert("Thông báo", "Không có thông báo nào để đánh dấu.");
+        return;
+      }
+
       // Map each notification id to a promise which updates the notification status
       const updatePromises = notifications.map((notification) =>
         fetchWithAuth(
@@ -198,7 +238,8 @@ const NotificationScreen = ({ navigation }) => {
         );
       } else {
         Alert.alert("Thành công", "Đã đánh dấu tất cả thông báo là đã đọc");
-        fetchNotifications();
+        fetchNotifications(); // Sử dụng hàm từ context để cập nhật unreadCount
+        fetchNotificationsLocal(); // Cập nhật danh sách thông báo local
       }
     } catch (error) {
       console.error("Lỗi khi thay đổi trạng thái tất cả thông báo:", error);
@@ -220,41 +261,17 @@ const NotificationScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    const getUserData = async () => {
-      try {
-        const storedUserData = await AsyncStorage.getItem("userData");
-        if (storedUserData) {
-          const parsedData = JSON.parse(storedUserData);
-          setUserId(parsedData.userId);
-          console.log("user id:", parsedData.userId);
-        } else {
-          console.error(
-            "Không tìm thấy thông tin người dùng trong AsyncStorage."
-          );
-        }
-      } catch (error) {
-        console.error(
-          "Lỗi khi lấy thông tin người dùng từ AsyncStorage:",
-          error
-        );
-      }
-    };
-
-    getUserData();
+    fetchNotificationsLocal();
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) {
-        fetchNotifications();
-      }
-    }, [userId])
+      fetchNotificationsLocal();
+    }, [])
   );
   const onRefresh = useCallback(() => {
-    if (userId) {
-      fetchNotifications();
-    }
-  }, [userId]);
+    fetchNotificationsLocal();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -265,72 +282,80 @@ const NotificationScreen = ({ navigation }) => {
         colorText={COLORS.black}
         onPress={() => navigation.goBack()}
       />
-      <ScrollView
+      {/* Removed ScrollView to prevent nested scrolling */}
+      <FlatList
+        data={notifications}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.listItem,
+              item.status === "Unread"
+                ? {
+                    ...styles.unreadNotification,
+                    backgroundColor: COLORS.lightGreen,
+                  }
+                : {},
+            ]}
+            onPress={() => handleOpenPress(item)}
+          >
+            <View style={styles.iconContainer}>
+              <Icon
+                name="notifications-outline"
+                size={28}
+                color={COLORS.grey}
+              />
+            </View>
+            <View style={styles.textContainer}>
+              <Text
+                style={[
+                  styles.titleText,
+                  {
+                    color:
+                      item.status === "Unread"
+                        ? COLORS.black
+                        : COLORS.greySolid,
+                  },
+                ]}
+              >
+                {notificationTypeMapping[item.notificationTypeName] ||
+                  item.notificationTypeName}
+              </Text>
+              <View style={styles.contentStatusContainer}>
+                <Text style={styles.contentText}>{item.content}</Text>
+                <Text style={styles.statusText}>
+                  {item.status === "Unread" ? "Chưa xem" : "Đã xem"}
+                </Text>
+              </View>
+              <Text style={styles.sentDateText}>
+                {formatSentDate(item.sentDate)}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.notificationId.toString()}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Bạn không có thông báo nào</Text>
+          </View>
+        )}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }
-      >
-        <View style={styles.markAllReadContainer}>
-          <TouchableOpacity
-            style={styles.markAllReadButton}
-            onPress={updateAllNotificationsStatus}
-          >
-            <Text style={styles.markAllReadText}>Đánh dấu tất cả đã đọc</Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          data={notifications}
-          renderItem={({ item, index }) => (
+        ListHeaderComponent={
+          <View style={styles.markAllReadContainer}>
             <TouchableOpacity
-              activeOpacity={0.8}
-              style={[
-                styles.listItem,
-                item.status === "Unread"
-                  ? {
-                      ...styles.unreadNotification,
-                      backgroundColor: COLORS.lightGreen,
-                    }
-                  : {},
-              ]}
-              onPress={() => handleOpenPress(item)}
+              style={styles.markAllReadButton}
+              onPress={updateAllNotificationsStatus}
             >
-              <View style={styles.iconContainer}>
-                <Icon
-                  name="notifications-outline"
-                  size={28}
-                  color={COLORS.grey}
-                />
-              </View>
-              <View style={styles.textContainer}>
-                <Text
-                  style={[
-                    styles.titleText,
-                    {
-                      color:
-                        item.status === "Unread"
-                          ? COLORS.black
-                          : COLORS.greySolid,
-                    },
-                  ]}
-                >
-                  {notificationTypeMapping[item.notificationTypeName] ||
-                    item.notificationTypeName}
-                </Text>
-                <View style={styles.contentStatusContainer}>
-                  <Text style={styles.contentText}>{item.content}</Text>
-                  <Text style={styles.statusText}>
-                    {item.status === "Unread" ? "Chưa xem" : "Đã xem"}
-                  </Text>
-                </View>
-                <Text style={styles.sentDateText}>
-                  {formatSentDate(item.sentDate)}
-                </Text>
-              </View>
+              <Text style={styles.markAllReadText}>Đánh dấu tất cả đã đọc</Text>
             </TouchableOpacity>
-          )}
-          keyExtractor={(item) => item.notificationId.toString()}
-        />
-      </ScrollView>
+          </View>
+        }
+        contentContainerStyle={{
+          paddingBottom: 80, // Thêm padding tránh bị che bởi bottom bar
+        }}
+      />
       <BottomSheet
         ref={bottomSheetRef}
         index={-1}
@@ -390,7 +415,10 @@ const styles = StyleSheet.create({
   },
   unreadNotification: {},
   iconContainer: {
-    marginRight: 15,
+    flexDirection: "column",
+    alignItems: "center",
+    marginBottom: 50,
+    marginRight: 10,
   },
   textContainer: {
     flex: 1,
@@ -444,5 +472,71 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: 14,
     color: COLORS.grey,
+  },
+  emptyContainer: {
+    marginTop: 50,
+    alignItems: "center",
+  },
+  emptyText: {
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+    color: COLORS.grey,
+  },
+  // Styles cho CustomTabBar
+  tabBarContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 10,
+    // Shadow cho iOS
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    // Shadow cho Android
+    elevation: 5,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: "transparent", // Để LinearGradient xử lý nền
+  },
+  tabBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  badgeContainer: {
+    position: "absolute",
+    right: -6,
+    top: -3,
+    backgroundColor: "red",
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  badgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  iconContainer: {
+    flexDirection: "column",
+    alignItems: "center",
+    marginBottom: 50,
+    marginRight: 10,
+  },
+  tabLabel: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    marginTop: 4,
   },
 });

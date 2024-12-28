@@ -1,7 +1,16 @@
-import { StatusBar } from "react-native";
-import { StyleSheet, View } from "react-native";
+// App.js
+
+import React, { useEffect, useState, useContext } from "react";
+import {
+  StatusBar,
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
+  ScrollView,
+} from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LogBox } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
@@ -10,6 +19,14 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
 import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
+import LinearGradient from "react-native-linear-gradient";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
+
+// Import các màn hình khác
 import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
@@ -39,15 +56,24 @@ import WebViewScreen from "./screens/WebViewScreen";
 import SettingScreen from "./screens/SettingScreen";
 import NotificationScreen from "./screens/NotificationScreen";
 import UserProfileScreen from "./screens/UserProfileScreen";
-import COLORS from "./constants/color";
-import FONTS from "./constants/font";
 import ContactUsScreen from "./screens/ContactUsScreen";
 import FollowerScreen from "./screens/FollowerScreen";
-import messaging from "@react-native-firebase/messaging";
 import RecommedDishScreen from "./screens/RecommendDishScreen";
 import NutritionMatchingScreen from "./screens/NutritionMatchingScreen";
 import NutritionArticleDetailScreen from "./screens/NutritionArticleDetailScreen";
 import LoginWithPhone from "./screens/LoginWithPhone";
+import OTPScreen from "./screens/OTPScreen";
+import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
+import WalletScreen from "./screens/WalletScreen";
+
+import COLORS from "./constants/color";
+import FONTS from "./constants/font";
+
+import messaging from "@react-native-firebase/messaging";
+import {
+  NotificationProvider,
+  NotificationContext,
+} from "./context/NotificationContext"; // Import NotificationProvider và Context
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -58,6 +84,7 @@ const CommunityStack = createStackNavigator();
 const NotificationStack = createStackNavigator();
 const ProfileStack = createStackNavigator();
 
+// Custom Toast Config
 const toastConfig = {
   success: (props) => (
     <BaseToast
@@ -95,13 +122,13 @@ const toastConfig = {
   ),
 };
 
+// Bỏ qua các cảnh báo không cần thiết
 LogBox.ignoreLogs([
   "Warning: TNodeChildrenRenderer: Support for defaultProps will be removed",
-]);
-LogBox.ignoreLogs([
   "Warning: bound renderChildren: Support for defaultProps will be removed from function components in a future major release. Use JavaScript default parameters instead.",
 ]);
 
+// Các Stack Navigator cụ thể
 const HomeStackScreen = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="Home" component={HomeScreen} />
@@ -209,186 +236,140 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="Setting" component={SettingScreen} />
     <ProfileStack.Screen name="ContactUs" component={ContactUsScreen} />
     <ProfileStack.Screen name="Membership" component={MembershipScreen} />
+    <ProfileStack.Screen name="WalletScreen" component={WalletScreen} />
   </ProfileStack.Navigator>
 );
 
+// Component Custom Tab Bar
+const CustomTabBar = ({ state, descriptors, navigation }) => {
+  const { unreadCount } = useContext(NotificationContext); // Sử dụng context
+
+  return (
+    <View style={styles.tabBarContainer}>
+      <View style={styles.tabBar}>
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const label =
+            options.tabBarLabel !== undefined
+              ? options.tabBarLabel
+              : options.title !== undefined
+              ? options.title
+              : route.name;
+
+          const isFocused = state.index === index;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: "tabPress",
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          const onLongPress = () => {
+            navigation.emit({
+              type: "tabLongPress",
+              target: route.key,
+            });
+          };
+
+          // Animation for icon
+          const scale = useSharedValue(1);
+
+          useEffect(() => {
+            if (isFocused) {
+              scale.value = withSpring(1.2);
+            } else {
+              scale.value = withSpring(1);
+            }
+          }, [isFocused]);
+
+          const animatedStyle = useAnimatedStyle(() => ({
+            transform: [{ scale: scale.value }],
+          }));
+
+          // Xác định tên icon dựa trên route
+          const iconName = () => {
+            switch (route.name) {
+              case "Trang chủ":
+                return isFocused ? "home" : "home-outline";
+              case "Đơn hàng":
+                return isFocused ? "albums" : "albums-outline";
+              case "Cộng đồng":
+                return isFocused ? "people" : "people-outline";
+              case "Thông báo":
+                return isFocused ? "notifications" : "notifications-outline";
+              case "Tài khoản":
+                return isFocused ? "person" : "person-outline";
+              default:
+                return "circle";
+            }
+          };
+
+          return (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              testID={options.tabBarTestID}
+              onPress={onPress}
+              onLongPress={onLongPress}
+              style={styles.tabItem}
+              key={index}
+            >
+              <Animated.View style={[animatedStyle, styles.iconContainer]}>
+                <Icon
+                  name={iconName()}
+                  size={24}
+                  color={isFocused ? COLORS.green : COLORS.greySolid}
+                />
+                {route.name === "Thông báo" && unreadCount > 0 && (
+                  <View style={styles.badgeContainer}>
+                    <Text style={styles.badgeText}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Text>
+                  </View>
+                )}
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: isFocused ? COLORS.green : COLORS.greySolid },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
+// Cấu hình Tab Navigator sử dụng Custom Tab Bar
 const TabRoute = () => (
   <Tab.Navigator
-    screenOptions={({ route }) => ({
-      tabBarActiveTintColor: COLORS.white,
-      tabBarInactiveTintColor: COLORS.greySolid,
-      tabBarLabelStyle: { display: "none" },
-      tabBarStyle: {
-        backgroundColor: COLORS.white,
-        height: 60,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-      },
-    })}
+    screenOptions={{
+      headerShown: false,
+    }}
+    tabBar={(props) => <CustomTabBar {...props} />}
   >
-    <Tab.Screen
-      name="Trang chủ"
-      component={HomeStackScreen}
-      options={{
-        tabBarIcon: ({ focused, color, size }) => (
-          <View
-            style={{
-              backgroundColor: focused ? COLORS.green : COLORS.transparent,
-              borderRadius: 50,
-              padding: 15,
-              marginTop: -10,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon
-              name={focused ? "home" : "home-outline"}
-              color={focused ? COLORS.white : COLORS.greySolid}
-              size={size}
-            />
-          </View>
-        ),
-        headerShown: false,
-      }}
-    />
-    <Tab.Screen
-      name="Đơn hàng"
-      component={OrderStackScreen}
-      options={{
-        tabBarIcon: ({ focused, color, size }) => (
-          <View
-            style={{
-              backgroundColor: focused ? COLORS.green : COLORS.transparent,
-              borderRadius: 50,
-              padding: 15,
-              marginTop: -10,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon
-              name={focused ? "albums" : "albums-outline"}
-              color={focused ? COLORS.white : COLORS.greySolid}
-              size={size}
-            />
-          </View>
-        ),
-        headerShown: false,
-      }}
-    />
-    <Tab.Screen
-      name="Cộng đồng"
-      component={CommunityStackScreen}
-      options={{
-        tabBarIcon: ({ focused, color, size }) => (
-          <View
-            style={{
-              backgroundColor: focused ? COLORS.green : COLORS.transparent,
-              borderRadius: 50,
-              padding: 15,
-              marginTop: -10,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon
-              name={focused ? "people" : "people-outline"}
-              color={focused ? COLORS.white : COLORS.greySolid}
-              size={size}
-            />
-          </View>
-        ),
-        headerShown: false,
-      }}
-    />
-    <Tab.Screen
-      name="Thông báo"
-      component={NotificationStackScreen}
-      options={{
-        tabBarIcon: ({ focused, color, size }) => (
-          <View
-            style={{
-              backgroundColor: focused ? COLORS.green : COLORS.transparent,
-              borderRadius: 50,
-              padding: 15,
-              marginTop: -10,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon
-              name={focused ? "notifications" : "notifications-outline"}
-              color={focused ? COLORS.white : COLORS.greySolid}
-              size={size}
-            />
-          </View>
-        ),
-        headerShown: false,
-      }}
-    />
-    <Tab.Screen
-      name="Tài khoản"
-      component={ProfileStackScreen}
-      options={{
-        tabBarIcon: ({ focused, color, size }) => (
-          <View
-            style={{
-              backgroundColor: focused ? COLORS.green : COLORS.transparent,
-              borderRadius: 50,
-              padding: 20,
-              marginTop: -10,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon
-              name={focused ? "person" : "person-outline"}
-              color={focused ? COLORS.white : COLORS.greySolid}
-              size={size}
-            />
-          </View>
-        ),
-        headerShown: false,
-      }}
-    />
+    <Tab.Screen name="Trang chủ" component={HomeStackScreen} />
+    <Tab.Screen name="Đơn hàng" component={OrderStackScreen} />
+    <Tab.Screen name="Cộng đồng" component={CommunityStackScreen} />
+    <Tab.Screen name="Thông báo" component={NotificationStackScreen} />
+    <Tab.Screen name="Tài khoản" component={ProfileStackScreen} />
   </Tab.Navigator>
 );
 
-const requestPermission = async () => {
-  const authStatus = await messaging().requestPermission();
-  const enabled =
-    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+// Các hàm requestPermission, getToken, showToastNotification vẫn giữ nguyên trong NotificationContext
 
-  if (enabled) {
-    console.log("Quyền thông báo đã được cấp!");
-    getToken();
-  } else {
-    console.log("Quyền thông báo bị từ chối.");
-  }
-};
-
-const getToken = async () => {
-  try {
-    const token = await messaging().getToken();
-    console.log("FCM Token:", token);
-    await AsyncStorage.setItem("deviceToken", token);
-  } catch (error) {
-    console.error("Lỗi khi lấy FCM Token:", error);
-  }
-};
-
-const showToastNotification = (remoteMessage) => {
-  if (remoteMessage.notification) {
-    Toast.show({
-      type: "success",
-      text1: remoteMessage.notification.title,
-      text2: remoteMessage.notification.body,
-    });
-  }
-};
-
-export default function App() {
+const AppContent = () => {
   const [fontsLoaded] = useFonts({
     "OpenSans-Bold": require("./assets/fonts/OpenSans-Bold.ttf"),
     "OpenSans-SemiBold": require("./assets/fonts/OpenSans-SemiBold.ttf"),
@@ -410,10 +391,14 @@ export default function App() {
           return;
         }
 
-        const response = await fetch("YOUR_API_URL", {
-          // Replace with your validation API endpoint
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // Thay thế 'YOUR_API_URL' bằng endpoint thực tế để xác thực token
+        const response = await fetch(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/auth/validateToken`,
+          {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         if (response.status === 401) {
           Toast.show({
@@ -427,33 +412,12 @@ export default function App() {
           setInitialRoute("Main");
         }
       } catch (error) {
+        console.error("Lỗi khi xác thực token:", error);
         setInitialRoute("Login");
       }
     };
 
-    const initMessaging = async () => {
-      await requestPermission();
-
-      const unsubscribeForeground = messaging().onMessage(
-        async (remoteMessage) => {
-          console.log("Tin nhắn foreground:", remoteMessage);
-          showToastNotification(remoteMessage);
-        }
-      );
-
-      messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-        console.log("Tin nhắn background:", remoteMessage);
-      });
-
-      return unsubscribeForeground;
-    };
-
     checkLoginStatus();
-    initMessaging();
-
-    return () => {
-      messaging().onMessage(() => {});
-    };
   }, []);
 
   if (!fontsLoaded || initialRoute === null) {
@@ -526,18 +490,168 @@ export default function App() {
             component={WebViewScreen}
             options={{ title: "Thanh Toán QR" }}
           />
+          <Stack.Screen name="OTPScreen" component={OTPScreen} />
+          <Stack.Screen
+            name="ForgotPasswordScreen"
+            component={ForgotPasswordScreen}
+          />
         </Stack.Navigator>
+        <Stack.Screen name="WalletScreen" component={WalletScreen} />
       </NavigationContainer>
       <Toast config={toastConfig} />
     </GestureHandlerRootView>
+  );
+};
+
+export default function App() {
+  return (
+    <NotificationProvider>
+      <AppContent />
+    </NotificationProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.white,
+    paddingBottom: 60, // Thêm padding để tránh bị che bởi Bottom Tab Bar
+  },
+  listItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+    flexDirection: "row",
     alignItems: "center",
+  },
+  markAllReadContainer: {
+    paddingHorizontal: 10,
+    marginTop: 5,
+    alignItems: "flex-end",
+  },
+  markAllReadButton: {
+    backgroundColor: COLORS.lightGreen,
+    padding: 10,
+    borderRadius: 10,
+  },
+  markAllReadText: {
+    fontFamily: FONTS.medium,
+    color: COLORS.black,
+  },
+  unreadNotification: {},
+  iconContainer: {
+    flexDirection: "column",
+    alignItems: "center",
+  },
+  textContainer: {
+    flex: 1,
+  },
+  titleText: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+  },
+  contentStatusContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  contentText: {
+    fontFamily: FONTS.medium,
+    width: "75%",
+    marginTop: 5,
+    color: COLORS.grey,
+  },
+  sentDateText: {
+    fontFamily: FONTS.medium,
+    marginTop: 5,
+    color: COLORS.grey,
+    fontSize: 12,
+    textAlign: "right",
+  },
+  statusText: {
+    fontFamily: FONTS.medium,
+    marginTop: 5,
+    color: COLORS.grey,
+  },
+  bottomSheetContainer: {
+    width: "100%",
+    height: "auto",
+    backgroundColor: COLORS.white,
+    padding: 20,
+  },
+  bottomSheetTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+    color: COLORS.black,
+    marginBottom: 10,
+  },
+  bottomSheetContent: {
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+    color: COLORS.greySolid,
+    marginBottom: 10,
+  },
+  bottomSheetDate: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    color: COLORS.grey,
+  },
+  emptyContainer: {
+    marginTop: 50,
+    alignItems: "center",
+  },
+  emptyText: {
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+    color: COLORS.grey,
+  },
+  // Styles cho CustomTabBar
+  tabBarContainer: {
+    backgroundColor: COLORS.white,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.grey,
+    paddingVertical: 10,
+    // Shadow cho iOS
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    // Shadow cho Android
+    elevation: 5,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  tabBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  badgeContainer: {
+    position: "absolute",
+    right: 10,
+    top: -3,
+    backgroundColor: "red",
+    borderRadius: 8,
+    width: 16,
+    height: 16,
     justifyContent: "center",
+    alignItems: "center",
+  },
+  badgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  tabLabel: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    marginTop: 4,
   },
 });

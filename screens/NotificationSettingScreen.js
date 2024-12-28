@@ -15,16 +15,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const NotificationSettingScreen = ({ navigation, route }) => {
   const [isPostNotificationEnabled, setIsPostNotificationEnabled] =
-    useState(true);
+    useState(false);
   const [
     isOrderStatusNotificationEnabled,
     setIsOrderStatusNotificationEnabled,
-  ] = useState(true);
+  ] = useState(false);
   const [isPromotionNotificationEnabled, setIsPromotionNotificationEnabled] =
-    useState(true);
+    useState(false);
   const [isFollowerNotificationEnabled, setIsFollowerNotificationEnabled] =
-    useState(true);
+    useState(false);
   const [userId, setUserId] = useState(null);
+
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
 
@@ -52,12 +53,16 @@ const NotificationSettingScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
-    const fetchUserId = async () => {
+    const fetchUserIdAndSettings = async () => {
       try {
         const userData = await AsyncStorage.getItem("userData");
         if (userData) {
           const parsedUserData = JSON.parse(userData);
-          setUserId(parsedUserData.userId); // Store the user ID
+          const id = parsedUserData.userId;
+          setUserId(id); // Lưu trữ user ID
+          if (id) {
+            fetchNotificationSettings(id); // Lấy cài đặt sau khi có userId
+          }
         } else {
           console.error(
             "Không tìm thấy dữ liệu người dùng trong AsyncStorage."
@@ -67,8 +72,45 @@ const NotificationSettingScreen = ({ navigation, route }) => {
         console.error("Lỗi khi lấy dữ liệu người dùng:", error);
       }
     };
-    fetchUserId();
+    fetchUserIdAndSettings();
   }, []);
+
+  const fetchNotificationSettings = async (userId) => {
+    try {
+      const url = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/getNotificationSettingByUserId/${userId}`;
+      const response = await fetchWithAuth(url);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Dữ liệu cài đặt thông báo nhận được:", data);
+
+        if (Array.isArray(data) && data.length > 0) {
+          const settings = data[0];
+          setIsPostNotificationEnabled(settings.newArticleNotification);
+          setIsOrderStatusNotificationEnabled(settings.orderStatusNotification);
+          setIsPromotionNotificationEnabled(settings.promotionNotification);
+          setIsFollowerNotificationEnabled(settings.followNotification);
+        } else {
+          console.error("Dữ liệu cài đặt thông báo rỗng hoặc không hợp lệ.");
+          Alert.alert(
+            "Lỗi",
+            "Không tìm thấy cài đặt thông báo. Vui lòng thử lại sau."
+          );
+        }
+      } else {
+        console.error("Failed to fetch notification settings", response.status);
+        Alert.alert(
+          "Lỗi",
+          "Không thể tải cài đặt thông báo. Vui lòng thử lại."
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching notification settings:", error);
+      Alert.alert(
+        "Lỗi",
+        "Có lỗi xảy ra khi tải cài đặt thông báo. Vui lòng kiểm tra kết nối mạng."
+      );
+    }
+  };
 
   const updateNotificationSetting = async (settingName, isEnabled) => {
     if (!userId) {
@@ -86,7 +128,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
         console.log(
           `Notification setting ${settingName} updated successfully to ${isEnabled}`
         );
-        // Optionally show a success message, if needed
+        // Tùy chọn: Hiển thị thông báo thành công nếu cần
       } else {
         const errorData = await response.json();
         console.error(`Failed to update setting ${settingName}`, errorData);
@@ -94,7 +136,6 @@ const NotificationSettingScreen = ({ navigation, route }) => {
           "Lỗi",
           `Không thể cập nhật cài đặt thông báo ${settingName}, vui lòng thử lại`
         );
-        // Optionally show an error message, if needed
       }
     } catch (error) {
       console.error(`Failed to update setting ${settingName}:`, error);
@@ -102,7 +143,6 @@ const NotificationSettingScreen = ({ navigation, route }) => {
         "Lỗi",
         `Có lỗi xảy ra khi cập nhật cài đặt thông báo ${settingName}, vui lòng thử lại`
       );
-      // Optionally show a generic error message, if needed
     }
   };
 
@@ -151,7 +191,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
           <TouchableOpacity
             activeOpacity={0.8}
             style={styles.settingAttributeRow}
-            onPress={() => navigation.navigate("EditProfile")}
+            // onPress={() => navigation.navigate("EditProfile")} // Xóa hoặc sửa nếu không liên quan
           >
             <View
               style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
@@ -161,7 +201,9 @@ const NotificationSettingScreen = ({ navigation, route }) => {
                 size={24}
                 color={COLORS.greySolid}
               />
-              <Text style={styles.settingText}>Thông báo về bài viết mới</Text>
+              <Text style={styles.settingText}>
+                Thông báo trạng thái bài viết
+              </Text>
             </View>
             <Switch
               trackColor={{ false: COLORS.grey, true: COLORS.green }}
@@ -175,7 +217,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
           <TouchableOpacity
             activeOpacity={0.8}
             style={styles.settingAttributeRow}
-            onPress={() => navigation.navigate("NotificationSetting")}
+            // onPress={() => navigation.navigate("NotificationSetting")} // Xóa hoặc sửa nếu không liên quan
           >
             <View
               style={{ flexDirection: "row", alignItems: "center", flex: 1 }}

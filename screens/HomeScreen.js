@@ -553,7 +553,7 @@ const HomeScreen = () => {
               </Text>
             </View>
             <Text style={styles.price}>
-              {item.price ? `${item.price.toLocaleString()} vnđ` : "0.000 đ"}
+              {item.price ? `${item.price.toLocaleString()} đ` : "0.000 đ"}
             </Text>
           </View>
         </View>

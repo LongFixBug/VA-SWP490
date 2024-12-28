@@ -66,15 +66,11 @@ const SettingScreen = ({ navigation }) => {
             style={styles.settingAttributeRow}
             onPress={() => navigation.navigate("EditProfile")}
           >
-            <View
-              style={{ flexDirection: "row", alignItems: "center" }}
-              onPress={() => navigation.navigate("EditProfile")} // Điều hướng tới màn hình EditProfile
-              activeOpacity={0.7}
-            >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Icon
                 name="person-circle-outline"
                 size={24}
-                color={COLORS.greySolid}
+                color={COLORS.green}
               />
               <Text style={styles.settingText}>Cập nhật thông tin</Text>
             </View>
@@ -84,6 +80,24 @@ const SettingScreen = ({ navigation }) => {
               color={COLORS.grey}
             />
           </TouchableOpacity>
+
+          {/* Thêm tùy chọn Ví */}
+          {/* <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.settingAttributeRow}
+            onPress={() => navigation.navigate("WalletScreen")}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Icon name="wallet-outline" size={24} color={COLORS.green} />
+              <Text style={styles.settingText}>Ví của bạn</Text>
+            </View>
+            <Icon
+              name="chevron-forward-outline"
+              size={24}
+              color={COLORS.grey}
+            />
+          </TouchableOpacity> */}
+
           <TouchableOpacity
             activeOpacity={0.8}
             style={styles.settingAttributeRow}
@@ -93,7 +107,7 @@ const SettingScreen = ({ navigation }) => {
               <Icon
                 name="notifications-off-outline"
                 size={24}
-                color={COLORS.greySolid}
+                color={COLORS.green}
               />
               <Text style={styles.settingText}>Cài đặt thông báo</Text>
             </View>
@@ -109,11 +123,7 @@ const SettingScreen = ({ navigation }) => {
             onPress={() => navigation.navigate("Nutrition")}
           >
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Icon
-                name="file-tray-outline"
-                size={24}
-                color={COLORS.greySolid}
-              />
+              <Icon name="file-tray-outline" size={24} color={COLORS.green} />
               <Text style={styles.settingText}>Dinh dưỡng đề xuất</Text>
             </View>
             <Icon
@@ -128,7 +138,7 @@ const SettingScreen = ({ navigation }) => {
             onPress={() => navigation.navigate("ContactUs")}
           >
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Icon name="headset" size={24} color={COLORS.greySolid} />
+              <Icon name="headset" size={24} color={COLORS.green} />
               <Text style={styles.settingText}>Liên hệ với chúng tôi</Text>
             </View>
             <Icon

@@ -1,3 +1,5 @@
+// screens/AllDishScreen.js
+
 import {
   StyleSheet,
   View,
@@ -47,16 +49,21 @@ const AllDishScreen = ({ navigation, route }) => {
         );
         const jsonData = await response.json();
 
+        // Lọc các món ăn có status là "active"
+        const activeDishes = jsonData.filter(
+          (dish) => dish.status && dish.status.toLowerCase() === "active"
+        );
+
         // Thêm dummy dish nếu cần
-        if (jsonData.length % 2 !== 0) {
-          jsonData.push({ dishId: "dummy" });
+        if (activeDishes.length % 2 !== 0) {
+          activeDishes.push({ dishId: "dummy" });
         }
 
-        setAllDishes(jsonData);
-        setFilteredDishes(jsonData);
+        setAllDishes(activeDishes);
+        setFilteredDishes(activeDishes);
 
         // Lấy toàn bộ rating cho tất cả món ăn
-        const dishIds = jsonData
+        const dishIds = activeDishes
           .filter((dish) => dish.dishId !== "dummy")
           .map((dish) => dish.dishId);
 
@@ -117,7 +124,7 @@ const AllDishScreen = ({ navigation, route }) => {
     setCurrentDishType(typeId);
 
     if (typeId === 0) {
-      // Hiển thị tất cả món ăn
+      // Hiển thị tất cả món ăn có status là "active"
       setFilteredDishes(allDishes);
     } else {
       const selectedType = dataDishType.find((type) => type.id === typeId);
@@ -126,16 +133,25 @@ const AllDishScreen = ({ navigation, route }) => {
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/getDishByDishType/${selectedType.dishType}`
         );
 
-        const jsonData = await response.json();
-
-        if (jsonData.length % 2 !== 0) {
-          jsonData.push({ dishId: "dummy" });
+        if (!response.ok) {
+          throw new Error(`Error fetching dishes by type: ${response.status}`);
         }
 
-        setFilteredDishes(jsonData);
+        const jsonData = await response.json();
+
+        // Lọc các món ăn có status là "active"
+        const activeFilteredDishes = jsonData.filter(
+          (dish) => dish.status && dish.status.toLowerCase() === "active"
+        );
+
+        if (activeFilteredDishes.length % 2 !== 0) {
+          activeFilteredDishes.push({ dishId: "dummy" });
+        }
+
+        setFilteredDishes(activeFilteredDishes);
 
         // Lấy danh sách dishId và fetch ratings
-        const dishIds = jsonData
+        const dishIds = activeFilteredDishes
           .filter((dish) => dish.dishId !== "dummy")
           .map((dish) => dish.dishId);
 
@@ -162,8 +178,13 @@ const AllDishScreen = ({ navigation, route }) => {
 
         const dishes = await dishResponse.json();
 
+        // Lọc các món ăn có status là "active"
+        const activeDishes = dishes.filter(
+          (dish) => dish.status && dish.status.toLowerCase() === "active"
+        );
+
         // Tạo danh sách các Promise để lấy nguyên liệu
-        const ingredientPromises = dishes.map(async (dish) => {
+        const ingredientPromises = activeDishes.map(async (dish) => {
           try {
             // Gọi API getIngredientByDishId
             const ingredientResponse = await fetchWithAuth(

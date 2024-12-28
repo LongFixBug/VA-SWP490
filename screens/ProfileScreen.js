@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -32,6 +32,9 @@ const ProfileScreen = ({ navigation }) => {
   const [rankData, setRankData] = useState({});
   const [nextRank, setNextRank] = useState({});
   const [followersCount, setFollowersCount] = useState(0);
+
+  // New state for wallet balance
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const toggleModal = () => setModalVisible(!isModalVisible);
   const rankColors = {
@@ -73,21 +76,7 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      await fetchUserDetails();
-      await fetchUserRank();
-    };
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (userData.userId) {
-      fetchUserPosts();
-    }
-  }, [userData]);
-
-  const fetchUserDetails = async () => {
+  const fetchUserDetails = useCallback(async () => {
     try {
       const storedUserData = await AsyncStorage.getItem("userData");
       if (storedUserData) {
@@ -111,26 +100,9 @@ const ProfileScreen = ({ navigation }) => {
       console.error("Lỗi khi tải thông tin người dùng:", error);
       throw error;
     }
-  };
+  }, []);
 
-  const fetchMembershipTier = async (tierId) => {
-    try {
-      const response = await fetchWithAuth(
-        `${API_BASE_URL}/api/v1/customers/membershipTier/${tierId}`
-      );
-      if (!response.ok) {
-        console.error(`API membershipTier Error: ${response.status}`);
-        throw new Error(`API membershipTier Error: ${response.statusText}`);
-      }
-      const tierData = await response.json();
-      return tierData;
-    } catch (error) {
-      console.error("Error fetching membershipTier data:", error.message);
-      throw error;
-    }
-  };
-
-  const fetchUserRank = async () => {
+  const fetchUserRank = useCallback(async () => {
     try {
       const storedUserId = await AsyncStorage.getItem("userId");
       if (!storedUserId) {
@@ -187,9 +159,34 @@ const ProfileScreen = ({ navigation }) => {
         requiredPoints: 500,
       });
     }
-  };
+  }, []);
 
-  const fetchUserPosts = async () => {
+  // Fetch wallet balance
+  const fetchWalletBalance = useCallback(async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) {
+        console.warn("No user ID found.");
+        return;
+      }
+
+      const response = await fetchWithAuth(
+        `${API_BASE_URL}/api/v1/wallets/getWalletByUserId/${userId}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch wallet data: ${response.status}`);
+      }
+
+      const walletData = await response.json();
+      setWalletBalance(walletData.balance || 0);
+    } catch (error) {
+      console.log("Error fetching wallet balance:");
+      setWalletBalance(525000.0);
+    }
+  }, []);
+
+  const fetchUserPosts = useCallback(async () => {
     try {
       if (!userData || !userData.userId) {
         console.warn("userId chưa được khởi tạo.");
@@ -274,17 +271,33 @@ const ProfileScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userData]); // Depend on userData so it refetches when userId is available
 
-  const onRefresh = async () => {
+  useEffect(() => {
+    fetchUserDetails();
+    fetchUserRank();
+    fetchWalletBalance();
+  }, [fetchUserDetails, fetchUserRank, fetchWalletBalance]);
+
+  useEffect(() => {
+    if (userData.userId) {
+      fetchUserPosts();
+    }
+  }, [userData, fetchUserPosts]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchUserPosts();
+    await Promise.all([
+      fetchUserPosts(),
+      fetchUserDetails(),
+      fetchUserRank(),
+      fetchWalletBalance(),
+    ]);
     setRefreshing(false);
-  };
+  }, [fetchUserPosts, fetchUserDetails, fetchUserRank, fetchWalletBalance]);
 
-  // Hàm like/unlike bài viết chỉ dành cho bài accepted
   const handleLike = async (articleId) => {
-    if (activeTab !== "accepted") return; // Chỉ xử lý like nếu ở tab accepted
+    if (activeTab !== "accepted") return;
 
     try {
       const userId = await AsyncStorage.getItem("userId");
@@ -296,8 +309,16 @@ const ProfileScreen = ({ navigation }) => {
 
       const post = posts[postIndex];
 
+      let updatedPosts = [...posts]; // Create a copy to update optimistically
+
       if (!post.liked) {
         // Chưa like -> like
+        updatedPosts[postIndex] = {
+          ...post,
+          liked: true,
+          likes: post.likes + 1,
+        };
+        setUserPosts(updatedPosts); // Optimistically update the UI
         const response = await fetchWithAuth(
           `${API_BASE_URL}/api/v1/articles/createArticleLike`,
           {
@@ -310,17 +331,27 @@ const ProfileScreen = ({ navigation }) => {
           }
         );
 
-        if (response.ok) {
-          const updatedPosts = [...posts];
+        if (!response.ok) {
+          // Revert optimistic update if API call fails
           updatedPosts[postIndex] = {
             ...post,
-            liked: true,
-            likes: post.likes + 1,
+            liked: false,
+            likes: post.likes,
           };
           setUserPosts(updatedPosts);
+          console.error("Lỗi khi like bài viết");
+        } else {
+          // Refetch posts to ensure data is up-to-date with server
+          fetchUserPosts();
         }
       } else {
         // Đã like -> unlike
+        updatedPosts[postIndex] = {
+          ...post,
+          liked: false,
+          likes: Math.max(post.likes - 1, 0),
+        };
+        setUserPosts(updatedPosts); // Optimistically update the UI
         const response = await fetchWithAuth(
           `${API_BASE_URL}/api/v1/articles/deleteArticleLikeByUserId`,
           {
@@ -332,25 +363,24 @@ const ProfileScreen = ({ navigation }) => {
           }
         );
 
-        if (response.ok) {
-          const updatedPosts = [...posts];
-          updatedPosts[postIndex] = {
-            ...post,
-            liked: false,
-            likes: Math.max(post.likes - 1, 0),
-          };
+        if (!response.ok) {
+          // Revert optimistic update if API call fails
+          updatedPosts[postIndex] = { ...post, liked: true, likes: post.likes };
           setUserPosts(updatedPosts);
+          console.error("Lỗi khi unlike bài viết");
+        } else {
+          // Refetch posts to ensure data is up-to-date with server
+          fetchUserPosts();
         }
       }
     } catch (error) {
       console.error("Lỗi khi xử lý nút like/unlike:", error);
+      // Handle error, possibly revert optimistic update if needed
     }
   };
 
   const renderPost = (item, activeTab) => {
     const navigateToDetail = () => {
-      // Khi navigate đến PostDetailScreen, đã có status trong item
-      // PostDetailScreen sẽ dựa vào status để hiển thị hoặc ẩn nút like/comment
       navigation.navigate("PostDetailScreen", { post: item });
     };
 
@@ -432,7 +462,6 @@ const ProfileScreen = ({ navigation }) => {
           </View>
         </TouchableOpacity>
 
-        {/* Hiển thị ảnh giống community */}
         {item.images && item.images.length > 0 && (
           <ScrollView
             horizontal={item.images.length > 1}
@@ -455,7 +484,6 @@ const ProfileScreen = ({ navigation }) => {
           </ScrollView>
         )}
 
-        {/* Chỉ hiển thị nút like/comment cho bài accepted */}
         {activeTab === "accepted" && item.status === "accepted" && (
           <View style={{ flexDirection: "row", marginTop: 10 }}>
             <TouchableOpacity
@@ -556,114 +584,52 @@ const ProfileScreen = ({ navigation }) => {
           </Text>
         )}
 
-        <View style={{ alignItems: "center", marginBottom: 10 }}>
-          <Image
-            source={{
-              uri:
-                userData?.imageUrl ||
-                "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg",
-            }}
-            style={{
-              width: 120,
-              height: 120,
-              borderRadius: 60,
-              marginBottom: 10,
-            }}
-          />
-          <Text
-            style={{ fontFamily: FONTS.bold, fontSize: 20, marginBottom: 10 }}
-          >
-            {userData.username || "Người dùng"}
-          </Text>
-          <TouchableOpacity
-            style={{
-              alignItems: "center",
-              flexDirection: "row",
-              position: "relative",
-            }}
-            onPress={toggleModal}
-          >
-            <Icon
-              name="trophy"
-              size={28}
-              color={rankColors[rankData.name] || rankColors.Bronze}
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{
+                uri:
+                  userData?.imageUrl ||
+                  "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg",
+              }}
+              style={styles.avatar}
             />
-          </TouchableOpacity>
+          </View>
 
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-around",
-              width: "100%",
-              marginTop: 10,
-            }}
-          >
+          <View style={styles.userInfo}>
+            <Text style={styles.username}>
+              {userData.username || "Người dùng"}
+            </Text>
             <TouchableOpacity
-              onPress={() => setActiveTab("accepted")}
-              style={{
-                alignItems: "center",
-                borderBottomWidth: activeTab === "accepted" ? 2 : 0,
-                borderBottomColor: COLORS.green,
-                paddingBottom: 5,
-              }}
+              style={styles.tierContainer}
+              onPress={toggleModal}
             >
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
-                {userPosts.length}
-              </Text>
-              <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
-                Bài đăng
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setActiveTab("pending")}
-              style={{
-                alignItems: "center",
-                borderBottomWidth: activeTab === "pending" ? 2 : 0,
-                borderBottomColor: COLORS.green,
-                paddingBottom: 5,
-              }}
-            >
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
-                {pendingPosts.length}
-              </Text>
-              <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
-                Bài chờ duyệt
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setActiveTab("rejected")}
-              style={{
-                alignItems: "center",
-                borderBottomWidth: activeTab === "rejected" ? 2 : 0,
-                borderBottomColor: COLORS.green,
-                paddingBottom: 5,
-              }}
-            >
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
-                {rejectedPosts.length || 0}
-              </Text>
-              <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
-                Bài bị từ chối
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{ alignItems: "center" }}
-              onPress={() => {
-                navigation.navigate("Follow");
-              }}
-            >
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
-                {followersCount}
-              </Text>
-              <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
-                Người theo dõi
+              <Icon
+                name="trophy"
+                size={20}
+                style={{ marginRight: 5 }}
+                color={rankColors[rankData.name] || rankColors.Bronze}
+              />
+              <Text style={styles.tierText}>
+                {rankData.name || "Không xác định"}
               </Text>
             </TouchableOpacity>
           </View>
         </View>
+        {/* Wallet Balance View */}
+        <View style={styles.walletContainer}>
+          <Icon name="wallet-outline" size={24} color={COLORS.green} />
+          <Text style={styles.walletBalanceText}>
+            {walletBalance.toLocaleString("vi-VN")} Đ
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("WalletScreen")}
+            style={styles.moreOptionsButton}
+          >
+            <Icon name="eye-outline" size={24} color={COLORS.green} />
+          </TouchableOpacity>
+        </View>
+
         <Modal
           visible={isModalVisible}
           transparent={true}
@@ -727,6 +693,79 @@ const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
         </Modal>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-around",
+            width: "100%",
+            marginTop: 10,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setActiveTab("accepted")}
+            style={{
+              alignItems: "center",
+              borderBottomWidth: activeTab === "accepted" ? 2 : 0,
+              borderBottomColor: COLORS.green,
+              paddingBottom: 5,
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
+              {userPosts.length}
+            </Text>
+            <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
+              Bài đăng
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveTab("pending")}
+            style={{
+              alignItems: "center",
+              borderBottomWidth: activeTab === "pending" ? 2 : 0,
+              borderBottomColor: COLORS.green,
+              paddingBottom: 5,
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
+              {pendingPosts.length}
+            </Text>
+            <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
+              Bài chờ duyệt
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveTab("rejected")}
+            style={{
+              alignItems: "center",
+              borderBottomWidth: activeTab === "rejected" ? 2 : 0,
+              borderBottomColor: COLORS.green,
+              paddingBottom: 5,
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
+              {rejectedPosts.length || 0}
+            </Text>
+            <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
+              Bài bị từ chối
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{ alignItems: "center" }}
+            onPress={() => {
+              navigation.navigate("Follow");
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.bold, fontSize: 18 }}>
+              {followersCount}
+            </Text>
+            <Text style={{ fontFamily: FONTS.medium, fontSize: 12 }}>
+              Người theo dõi
+            </Text>
+          </TouchableOpacity>
+        </View>
         <View style={{ marginTop: 10, marginBottom: 20 }}>
           <Text
             style={{
@@ -778,4 +817,59 @@ const ProfileScreen = ({ navigation }) => {
 
 export default ProfileScreen;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  avatarContainer: {
+    marginRight: 10,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 60,
+  },
+  userInfo: {
+    flex: 10,
+    justifyContent: "center",
+  },
+  username: {
+    fontFamily: FONTS.bold,
+    fontSize: 30,
+    marginTop: -20,
+    marginRight: 20,
+  },
+  tierContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  tierText: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    color: COLORS.grey,
+  },
+  walletContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#466E73",
+    borderRadius: 10,
+    padding: 10,
+    marginVertical: 10,
+    width: "100%",
+    justifyContent: "space-between",
+  },
+  walletBalanceText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 18,
+    marginLeft: 10,
+    flex: 1,
+  },
+  moreOptionsButton: {
+    padding: 5,
+    // marginRight: 10,
+  },
+});

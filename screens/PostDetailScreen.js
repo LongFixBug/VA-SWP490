@@ -7,6 +7,8 @@ import {
   TextInput,
   ScrollView,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import COLORS from "../constants/color";
@@ -21,7 +23,7 @@ import Toast from "react-native-toast-message";
 const PostDetailScreen = ({ navigation, route }) => {
   const { post } = route.params;
   const [imageView, setImageView] = useState(false);
-  const [selectedpictureOfArticle, setSelectedpictureOfArticle] = useState(0);
+  const [selectedPictureOfArticle, setSelectedPictureOfArticle] = useState(0);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [loadingComments, setLoadingComments] = useState(true);
@@ -29,7 +31,19 @@ const PostDetailScreen = ({ navigation, route }) => {
   const [likes, setLikes] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
   const [postImages, setPostImages] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [isCommentOptionsVisible, setIsCommentOptionsVisible] = useState(false);
+  const [selectedComment, setSelectedComment] = useState(null);
+  const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] =
+    useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editCommentText, setEditCommentText] = useState("");
+  const [isPostOptionsVisible, setIsPostOptionsVisible] = useState(false);
+  const [isDeletePostConfirmationVisible, setIsDeletePostConfirmationVisible] =
+    useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // New state for loading
 
+  // Hàm hỗ trợ fetch với Authorization
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
     const headers = {
@@ -41,6 +55,7 @@ const PostDetailScreen = ({ navigation, route }) => {
     return fetch(url, { ...options, headers });
   };
 
+  // Hàm hiển thị toast
   const showToast = (type, title, message) => {
     Toast.show({
       type: type,
@@ -49,6 +64,16 @@ const PostDetailScreen = ({ navigation, route }) => {
     });
   };
 
+  // Tải userId từ AsyncStorage
+  useEffect(() => {
+    const loadUserId = async () => {
+      const userId = await AsyncStorage.getItem("userId");
+      setCurrentUserId(userId ? parseInt(userId, 10) : null);
+    };
+    loadUserId();
+  }, []);
+
+  // Tải bình luận và thông tin người dùng cho từng bình luận
   useEffect(() => {
     const fetchComments = async () => {
       try {
@@ -57,7 +82,6 @@ const PostDetailScreen = ({ navigation, route }) => {
         );
         const commentsData = await response.json();
 
-        // Lấy avatar người dùng cho từng comment
         const commentsWithUserDetails = await Promise.all(
           commentsData.map(async (comment) => {
             try {
@@ -97,39 +121,37 @@ const PostDetailScreen = ({ navigation, route }) => {
     fetchComments();
   }, [post.articleId]);
 
+  // Tải lượt thích và số bình luận
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         const userId = await AsyncStorage.getItem("userId");
 
-        // Lấy số lượt like và trạng thái đã like
         const likesResponse = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/getArticleLikeByArticleId/${post.articleId}`
         );
         const likesData = await likesResponse.json();
         setLikes(likesData.length);
 
-        // Kiểm tra nếu user đã like
         const userLiked = likesData.some(
           (like) => like.userId === parseInt(userId)
         );
         setLiked(userLiked);
 
-        // Lấy số lượng bình luận
         const commentsResponse = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`
         );
         const commentsData = await commentsResponse.json();
         setCommentCount(commentsData.length);
       } catch (error) {
-        return 0;
+        console.log("Error fetching initial data:");
       }
     };
 
     fetchInitialData();
   }, [post.articleId]);
 
-  // Lấy ảnh của bài viết từ API
+  // Tải hình ảnh của bài viết
   useEffect(() => {
     const fetchArticleImages = async () => {
       try {
@@ -148,12 +170,12 @@ const PostDetailScreen = ({ navigation, route }) => {
     }
   }, [post.articleId]);
 
+  // Xử lý like/unlike bài viết
   const handleLike = async () => {
     try {
       const userId = await AsyncStorage.getItem("userId");
 
       if (!liked) {
-        // Chưa like -> gọi API like
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/createArticleLike`,
           {
@@ -178,7 +200,6 @@ const PostDetailScreen = ({ navigation, route }) => {
           );
         }
       } else {
-        // Đã like -> gọi API unlike
         const response = await fetchWithAuth(
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/deleteArticleLikeByUserId`,
           {
@@ -208,6 +229,7 @@ const PostDetailScreen = ({ navigation, route }) => {
     }
   };
 
+  // Kiểm tra nội dung bình luận
   const checkCommentContent = async (content) => {
     try {
       const words = content.split(/\s+/);
@@ -240,6 +262,7 @@ const PostDetailScreen = ({ navigation, route }) => {
     }
   };
 
+  // Xử lý đăng bình luận
   const handlePostComment = async () => {
     if (newComment.trim()) {
       try {
@@ -249,13 +272,14 @@ const PostDetailScreen = ({ navigation, route }) => {
           let toastMessage =
             "Bình luận của bạn không hợp lệ, hãy bình luận lại nhé!";
           if (
-            checkResult.message === "Invalid content: contains adult language."
+            checkResult.message ===
+            "Invalid content detected: contains adult language."
           ) {
             toastMessage =
               "Bạn sử dụng ngôn từ thô tục, hãy bình luận lại nhé!";
           } else if (
             checkResult.message ===
-            "Invalid content: contains violent language."
+            "Invalid content detected: contains violent language."
           ) {
             toastMessage =
               "Bạn sử dụng ngôn từ bạo lực, hãy bình luận lại nhé!";
@@ -293,6 +317,7 @@ const PostDetailScreen = ({ navigation, route }) => {
             articleId: post.articleId,
             userName: userName,
             avatarUrl: avatarUrl,
+            commentId: Date.now(), // Giả định ID tạm thời, bạn nên lấy từ API nếu có
           };
 
           setComments((prevComments) => [newCommentData, ...prevComments]);
@@ -316,6 +341,340 @@ const PostDetailScreen = ({ navigation, route }) => {
     }
   };
 
+  // Các hàm mở/đóng modal tùy chọn bình luận
+  const openCommentOptions = (comment) => {
+    setSelectedComment(comment);
+    setIsCommentOptionsVisible(true);
+  };
+
+  const closeCommentOptions = () => {
+    setIsCommentOptionsVisible(false);
+    setSelectedComment(null);
+  };
+
+  // Các hàm mở/đóng modal xác nhận xóa bình luận
+  const openDeleteConfirmation = () => {
+    setIsCommentOptionsVisible(false);
+    setIsDeleteConfirmationVisible(true);
+  };
+
+  const closeDeleteConfirmation = () => {
+    setIsDeleteConfirmationVisible(false);
+    setSelectedComment(null);
+  };
+
+  // Xử lý xóa bình luận
+  const handleDeleteComment = async () => {
+    closeDeleteConfirmation();
+    if (selectedComment) {
+      try {
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/deleteCommentByUserId`,
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              commentId: selectedComment.commentId,
+              userId: selectedComment.userId,
+              articleId: selectedComment.articleId,
+            }),
+          }
+        );
+
+        if (response.status === 200) {
+          setComments((prevComments) =>
+            prevComments.filter(
+              (c) => c.commentId !== selectedComment.commentId
+            )
+          );
+          setCommentCount((prev) => prev - 1);
+          showToast("success", "Thành công", "Bình luận đã được xóa!");
+        } else {
+          showToast("error", "Lỗi", "Bạn không thể thực hiện chức năng này");
+        }
+      } catch (error) {
+        console.error("Error deleting comment:", error);
+        showToast("error", "Lỗi", "Bạn không thể thực hiện chức năng này");
+      } finally {
+        setSelectedComment(null);
+      }
+    }
+  };
+
+  // Các hàm mở/đóng modal chỉnh sửa bình luận
+  const openEditModal = () => {
+    setIsCommentOptionsVisible(false);
+    setEditCommentText(selectedComment.content);
+    setIsEditModalVisible(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalVisible(false);
+    setSelectedComment(null);
+    setEditCommentText("");
+  };
+
+  // Xử lý chỉnh sửa bình luận
+  const handleEditComment = async () => {
+    if (editCommentText.trim()) {
+      const checkResult = await checkCommentContent(editCommentText);
+      if (!checkResult.success) {
+        let toastMessage = "Bình luận của bạn không hợp lệ, hãy sửa lại nhé!";
+        if (
+          checkResult.message ===
+          "Invalid content detected: contains adult language."
+        ) {
+          toastMessage = "Bạn sử dụng ngôn từ thô tục, hãy sửa lại nhé!";
+        } else if (
+          checkResult.message ===
+          "Invalid content detected: contains violent language."
+        ) {
+          toastMessage = "Bạn sử dụng ngôn từ bạo lực, hãy sửa lại nhé!";
+        }
+        showToast("error", "Lỗi bình luận", toastMessage);
+        return;
+      }
+
+      try {
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/updateCommentByUserId`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              commentId: selectedComment.commentId,
+              userId: selectedComment.userId,
+              content: editCommentText,
+              postDate: selectedComment.postDate,
+              userName: selectedComment.userName,
+              articleId: selectedComment.articleId,
+            }),
+          }
+        );
+
+        if (response.status === 200) {
+          setComments((prevComments) =>
+            prevComments.map((c) =>
+              c.commentId === selectedComment.commentId
+                ? { ...c, content: editCommentText }
+                : c
+            )
+          );
+          showToast("success", "Thành công", "Bình luận đã được cập nhật!");
+          closeEditModal();
+        } else {
+          showToast("error", "Lỗi", "Bạn không thể thực hiện chức năng này");
+        }
+      } catch (error) {
+        console.error("Error updating comment:", error);
+        showToast("error", "Lỗi", "Bạn không thể thực hiện chức năng này");
+      }
+    } else {
+      showToast("error", "Lỗi", "Nội dung bình luận không được để trống.");
+    }
+  };
+
+  // Các hàm để fetch và xóa các thành phần liên quan đến bài viết
+
+  // Fetch all likes for an article
+  const fetchAllLikes = async (articleId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/getArticleLikeByArticleId/${articleId}`
+      );
+      if (response.ok) {
+        const likesData = await response.json();
+        return likesData;
+      } else {
+        console.error("Failed to fetch likes:", await response.text());
+        return [];
+      }
+    } catch (error) {
+      console.error("Error fetching likes:", error);
+      return [];
+    }
+  };
+
+  // Delete a single like
+  const deleteLike = async (likeId, articleId, userId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/deleteArticleLikeByUserId`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({
+            likeId: likeId,
+            articleId: articleId,
+            userId: userId,
+            likeDate: new Date().toISOString(), // Assuming likeDate is required
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to delete like ${likeId}: ${errorData}`);
+      }
+    } catch (error) {
+      console.error(`Error deleting like ${likeId}:`, error);
+      throw error;
+    }
+  };
+
+  // Fetch all comments for an article
+  const fetchAllComments = async (articleId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${articleId}`
+      );
+      if (response.ok) {
+        const commentsData = await response.json();
+        return commentsData;
+      } else {
+        console.error("Failed to fetch comments:", await response.text());
+        return [];
+      }
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      return [];
+    }
+  };
+
+  // Delete a single comment
+  const deleteComment = async (commentId, userId, articleId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/deleteCommentByUserId`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            commentId: commentId,
+            userId: userId,
+            articleId: articleId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to delete comment ${commentId}: ${errorData}`);
+      }
+    } catch (error) {
+      console.error(`Error deleting comment ${commentId}:`, error);
+      throw error;
+    }
+  };
+
+  // Fetch all images for an article
+  const fetchAllImages = async (articleId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/getArticleImageByArticleId/${articleId}`
+      );
+      if (response.ok) {
+        const imagesData = await response.json();
+        return imagesData;
+      } else {
+        console.error("Failed to fetch images:", await response.text());
+        return [];
+      }
+    } catch (error) {
+      console.error("Error fetching images:", error);
+      return [];
+    }
+  };
+
+  // Delete a single image
+  const deleteImage = async (articleImageId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articleImages/deleteArticleImageByArticleImageId/${articleImageId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(
+          `Failed to delete image ${articleImageId}: ${errorData}`
+        );
+      }
+    } catch (error) {
+      console.error(`Error deleting image ${articleImageId}:`, error);
+      throw error;
+    }
+  };
+
+  // Hàm xử lý xóa bài viết
+  const handleDeletePost = async () => {
+    try {
+      setIsDeleting(true); // Bắt đầu quá trình tải
+      const userId = await AsyncStorage.getItem("userId");
+      const parsedUserId = userId ? parseInt(userId, 10) : null;
+
+      if (!parsedUserId) {
+        showToast("error", "Lỗi", "Không tìm thấy thông tin người dùng.");
+        return;
+      }
+
+      const articleId = post.articleId;
+
+      // Bước 1: Xóa tất cả các Like
+      const likes = await fetchAllLikes(articleId);
+      for (const like of likes) {
+        await deleteLike(like.likeId, articleId, like.userId);
+      }
+
+      // Bước 2: Xóa tất cả các Bình luận
+      const allComments = await fetchAllComments(articleId);
+      for (const comment of allComments) {
+        await deleteComment(comment.commentId, comment.userId, articleId);
+      }
+
+      // Bước 3: Xóa tất cả các Hình ảnh
+      const images = await fetchAllImages(articleId);
+      for (const image of images) {
+        await deleteImage(image.articleImageId);
+      }
+
+      // Bước 4: Xóa bài viết
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/deleteArticleByUserId`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({
+            articleId: articleId,
+            authorId: parsedUserId,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        showToast("success", "Thành công", "Bài viết đã được xóa!");
+        navigation.goBack();
+      } else {
+        const errorData = await response.json();
+        console.error("Failed to delete post", errorData);
+        showToast("error", "Lỗi", "Không thể xóa bài viết. Vui lòng thử lại.");
+      }
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      showToast("error", "Lỗi", "Đã xảy ra lỗi, vui lòng thử lại sau.");
+    } finally {
+      setIsDeleting(false); // Kết thúc quá trình tải
+      setIsDeletePostConfirmationVisible(false);
+      setIsPostOptionsVisible(false);
+    }
+  };
+
   return (
     <>
       <Header
@@ -328,14 +687,15 @@ const PostDetailScreen = ({ navigation, route }) => {
 
       <ScrollView style={styles.container}>
         <View style={styles.articleInfo}>
-          {/* Thông tin tác giả */}
-          <View style={{ flexDirection: "row" }}>
+          {/* Thông tin tác giả và nút "..." nếu là bài viết của người dùng */}
+          <View style={styles.authorRow}>
             <TouchableOpacity
               onPress={() =>
                 navigation.navigate("UserProfileScreen", {
                   userId: post.authorId,
                 })
               }
+              style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
             >
               <Image
                 source={{
@@ -343,26 +703,31 @@ const PostDetailScreen = ({ navigation, route }) => {
                 }}
                 style={styles.authorImage}
               />
-            </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate("UserProfileScreen", {
-                    userId: post.authorId,
-                  })
-                }
-              >
+              <View>
                 <Text style={styles.authorName}>
                   {post.authorName || "Ẩn danh"}
                 </Text>
+
+                {post.moderateDate && (
+                  <Text style={styles.articleModerateDate}>
+                    Ngày duyệt:{" "}
+                    {new Date(post.moderateDate).toLocaleDateString()}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+            {currentUserId === post.authorId && (
+              <TouchableOpacity
+                style={styles.postOptionsButton}
+                onPress={() => setIsPostOptionsVisible(true)}
+              >
+                <Icon
+                  name="ellipsis-horizontal"
+                  size={18}
+                  color={COLORS.greySolid}
+                />
               </TouchableOpacity>
-              <Text style={styles.articleTime}>{post.createdAt}</Text>
-              {post.moderateDate && (
-                <Text style={styles.articleModerateDate}>
-                  Ngày duyệt: {new Date(post.moderateDate).toLocaleDateString()}
-                </Text>
-              )}
-            </View>
+            )}
           </View>
 
           {/* Nội dung bài viết */}
@@ -370,14 +735,14 @@ const PostDetailScreen = ({ navigation, route }) => {
           <Text style={styles.articleContent}>{post.content}</Text>
 
           {/* Hình ảnh bài viết */}
-          <ScrollView horizontal style={styles.imageScroll}>
-            {postImages &&
-              postImages.map((image, index) => (
+          {postImages.length > 0 && (
+            <ScrollView horizontal style={styles.imageScroll}>
+              {postImages.map((image, index) => (
                 <TouchableOpacity
                   key={index}
                   onPress={() => {
                     setImageView(true);
-                    setSelectedpictureOfArticle(index);
+                    setSelectedPictureOfArticle(index);
                   }}
                 >
                   <Image
@@ -386,7 +751,8 @@ const PostDetailScreen = ({ navigation, route }) => {
                   />
                 </TouchableOpacity>
               ))}
-          </ScrollView>
+            </ScrollView>
+          )}
 
           {/* Like - Comment */}
           {post.status === "accepted" && (
@@ -482,6 +848,18 @@ const PostDetailScreen = ({ navigation, route }) => {
                     <Text style={styles.commentText}>{item.content}</Text>
                   </View>
                 </View>
+                {currentUserId === item.userId && (
+                  <TouchableOpacity
+                    style={styles.commentOptionsButton}
+                    onPress={() => openCommentOptions(item)}
+                  >
+                    <Icon
+                      name="ellipsis-horizontal"
+                      size={18}
+                      color={COLORS.greySolid}
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
             ))
           )}
@@ -514,10 +892,164 @@ const PostDetailScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           <ImageViewer
             imageUrls={postImages.map((img) => ({ url: img.imageUrl }))}
-            index={selectedpictureOfArticle}
+            index={selectedPictureOfArticle}
           />
         </View>
       </Modal>
+
+      {/* Modal tùy chọn bình luận */}
+      <Modal
+        visible={isCommentOptionsVisible}
+        transparent
+        onRequestClose={closeCommentOptions}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={closeCommentOptions}
+        >
+          <View style={styles.commentOptionsModal}>
+            <TouchableOpacity
+              style={styles.commentOption}
+              onPress={openEditModal}
+            >
+              <Text style={styles.commentOptionText}>Sửa bình luận</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.commentOption}
+              onPress={openDeleteConfirmation}
+            >
+              <Text style={[styles.commentOptionText, { color: "red" }]}>
+                Xóa bình luận
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Modal xác nhận xóa bình luận */}
+      <Modal
+        visible={isDeleteConfirmationVisible}
+        transparent
+        onRequestClose={closeDeleteConfirmation}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>
+              Bạn có chắc chắn muốn xóa bình luận này?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonCancel]}
+                onPress={closeDeleteConfirmation}
+              >
+                <Text style={styles.textStyle}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonConfirm]}
+                onPress={handleDeleteComment}
+              >
+                <Text style={styles.textStyle}>Xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal sửa bình luận */}
+      <Modal
+        visible={isEditModalVisible}
+        transparent
+        onRequestClose={closeEditModal}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Sửa bình luận</Text>
+            <TextInput
+              style={styles.editInput}
+              multiline
+              value={editCommentText}
+              onChangeText={setEditCommentText}
+              textAlignVertical="top"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonCancel]}
+                onPress={closeEditModal}
+              >
+                <Text style={styles.textStyle}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonConfirm]}
+                onPress={handleEditComment}
+              >
+                <Text style={styles.textStyle}>Lưu</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal tùy chọn bài viết */}
+      <Modal
+        visible={isPostOptionsVisible}
+        transparent
+        onRequestClose={() => setIsPostOptionsVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsPostOptionsVisible(false)}
+        >
+          <View style={styles.postOptionsModal}>
+            <TouchableOpacity
+              style={styles.postOption}
+              onPress={() => setIsDeletePostConfirmationVisible(true)}
+            >
+              <Text style={[styles.postOptionText, { color: "red" }]}>
+                Xóa bài viết
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Modal xác nhận xóa bài viết */}
+      <Modal
+        visible={isDeletePostConfirmationVisible}
+        transparent
+        onRequestClose={() => setIsDeletePostConfirmationVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>
+              Bạn có chắc chắn muốn xóa bài viết này?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonCancel]}
+                onPress={() => setIsDeletePostConfirmationVisible(false)}
+              >
+                <Text style={styles.textStyle}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonConfirm]}
+                onPress={handleDeletePost}
+              >
+                <Text style={styles.textStyle}>Xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Loading Overlay */}
+      {isDeleting && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.green} />
+          <Text style={styles.loadingText}>Đang xóa bài viết...</Text>
+        </View>
+      )}
     </>
   );
 };
@@ -525,11 +1057,30 @@ const PostDetailScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
   articleInfo: { padding: 10 },
+  authorRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
   authorImage: { width: 45, height: 45, borderRadius: 50, marginRight: 10 },
   authorName: { fontFamily: FONTS.medium, fontSize: 14 },
-  articleTime: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.grey },
-  articleTitle: { fontFamily: FONTS.semiBold, fontSize: 15 },
-  articleContent: { fontFamily: FONTS.medium, fontSize: 14, lineHeight: 22 },
+  articleModerateDate: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: COLORS.grey,
+    marginTop: 2,
+  },
+  postOptionsButton: {
+    padding: 5,
+  },
+  articleTitle: { fontFamily: FONTS.semiBold, fontSize: 20, marginTop: 5 },
+  articleContent: {
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+    lineHeight: 22,
+    marginTop: 10,
+  },
   imageScroll: { marginTop: 10 },
   articleImage: { width: 400, height: 300, borderRadius: 8, marginRight: 10 },
   commentHeader: {
@@ -545,7 +1096,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   loadingText: { fontFamily: FONTS.medium, fontSize: 14, textAlign: "center" },
-  comment: { flexDirection: "row", marginTop: 15, marginHorizontal: 10 },
+  comment: {
+    flexDirection: "row",
+    marginTop: 15,
+    marginHorizontal: 10,
+    position: "relative",
+  },
   commentAvatar: { height: 35, width: 35, borderRadius: 50 },
   commentContent: { marginLeft: 8, flex: 1 },
   commentAuthor: { fontFamily: FONTS.semiBold, marginBottom: 5 },
@@ -562,6 +1118,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderTopWidth: 1,
     borderTopColor: COLORS.lightGray,
+    backgroundColor: COLORS.white,
   },
   commentInput: {
     flex: 1,
@@ -570,6 +1127,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 10,
     marginRight: 10,
+    fontFamily: FONTS.medium,
+    fontSize: 14,
   },
   modalContainer: {
     flex: 1,
@@ -583,11 +1142,130 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   modalCloseText: { color: COLORS.white, fontSize: 18, fontWeight: "bold" },
-  articleModerateDate: {
+  commentOptionsButton: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    padding: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  commentOptionsModal: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 15,
+  },
+  commentOption: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+    alignItems: "center",
+  },
+  commentOptionText: {
     fontFamily: FONTS.medium,
-    fontSize: 12,
-    color: COLORS.grey,
-    marginTop: -10,
+    fontSize: 16,
+    color: COLORS.black,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 25,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: "80%",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 20,
+    width: "100%",
+  },
+  button: {
+    borderRadius: 10,
+    padding: 10,
+    elevation: 2,
+    minWidth: "30%",
+    alignItems: "center",
+  },
+  buttonConfirm: {
+    backgroundColor: COLORS.green,
+  },
+  buttonCancel: {
+    backgroundColor: COLORS.greySolid,
+  },
+  textStyle: {
+    color: "white",
+    fontFamily: FONTS.semiBold,
+    textAlign: "center",
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: COLORS.greySolid,
+    borderRadius: 8,
+    padding: 10,
+    minHeight: 100,
+    textAlignVertical: "top",
+    width: "100%",
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+  },
+  postOptionsModal: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 15,
+  },
+  postOption: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+    alignItems: "center",
+  },
+  postOptionText: {
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+    color: COLORS.black,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: COLORS.white,
+    fontFamily: FONTS.medium,
+    fontSize: 16,
   },
 });
 

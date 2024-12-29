@@ -1,6 +1,8 @@
 // App.js
-
+import consoleConfig from "./utils/consoleConfig";
 import React, { useEffect, useState, useContext } from "react";
+import NutritionAnalysis from "./components/NutritionAnalysis";
+import ChatScreen from "./screens/ChatScreen";
 import {
   StatusBar,
   StyleSheet,
@@ -237,6 +239,11 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="ContactUs" component={ContactUsScreen} />
     <ProfileStack.Screen name="Membership" component={MembershipScreen} />
     <ProfileStack.Screen name="WalletScreen" component={WalletScreen} />
+    <ProfileStack.Screen
+      name="NutritionAnalysis"
+      component={NutritionAnalysis}
+    />
+    <ProfileStack.Screen name="ChatScreen" component={ChatScreen} />
   </ProfileStack.Navigator>
 );
 
@@ -497,6 +504,7 @@ const AppContent = () => {
           />
         </Stack.Navigator>
         <Stack.Screen name="WalletScreen" component={WalletScreen} />
+        <Stack.Screen name="NutritionAnalysis" component={NutritionAnalysis} />
       </NavigationContainer>
       <Toast config={toastConfig} />
     </GestureHandlerRootView>
@@ -608,8 +616,8 @@ const styles = StyleSheet.create({
   // Styles cho CustomTabBar
   tabBarContainer: {
     backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.grey,
+    borderTopWidth: 0.5,
+    // borderTopColor: COLORS.grey,
     paddingVertical: 10,
     // Shadow cho iOS
     shadowColor: "#000",
@@ -621,8 +629,8 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     // Shadow cho Android
     elevation: 5,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    // borderTopLeftRadius: 20,
+    // borderTopRightRadius: 20,
   },
   tabBar: {
     flexDirection: "row",

@@ -628,6 +628,12 @@ const ProfileScreen = ({ navigation }) => {
           >
             <Icon name="eye-outline" size={24} color={COLORS.green} />
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("NutritionAnalysis")}
+            style={styles.moreOptionsButton}
+          >
+            <Icon name="nutrition-outline" size={24} color={COLORS.green} />
+          </TouchableOpacity>
         </View>
 
         <Modal
@@ -854,7 +860,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: "#466E73",
     borderRadius: 10,
     padding: 10,

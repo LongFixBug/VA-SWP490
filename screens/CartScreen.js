@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGrey,
+    borderBottomColor: COLORS.green,
   },
   actionButtonText: {
     fontSize: 16,

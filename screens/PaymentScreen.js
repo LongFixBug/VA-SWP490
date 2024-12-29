@@ -5,6 +5,7 @@ import {
   View,
   TouchableOpacity,
   ActivityIndicator,
+  Alert, // Thêm dòng này để import Alert
 } from "react-native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
@@ -87,6 +88,7 @@ const PaymentScreen = ({ navigation, route }) => {
         status: "pending_payment",
       };
 
+      // Tạo Order
       const createOrderResponse = await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderByCustomer",
         {
@@ -99,6 +101,7 @@ const PaymentScreen = ({ navigation, route }) => {
         throw new Error("Không thể tạo đơn hàng.");
       }
 
+      // Lấy Order ID mới nhất
       const getOrdersResponse = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
       );
@@ -109,6 +112,7 @@ const PaymentScreen = ({ navigation, route }) => {
       );
       const latestOrderId = latestOrder.orderId;
 
+      // Tạo OrderDetail cho từng món ăn
       const detailedCartItems = orderDetails.items || [];
       for (const item of detailedCartItems) {
         const orderDetailData = {
@@ -133,7 +137,9 @@ const PaymentScreen = ({ navigation, route }) => {
         }
       }
 
+      // Xử lý thanh toán theo phương thức
       if (currentPayment === "COD") {
+        // Tạo PaymentDetail cho COD
         const paymentDetailData = {
           orderId: latestOrderId,
           paymentMethod: "COD",
@@ -158,6 +164,7 @@ const PaymentScreen = ({ navigation, route }) => {
           throw new Error("Không thể tạo thông tin thanh toán COD.");
         }
 
+        // Hiển thị popup thành công
         Alert.alert(
           "Thanh toán thành công",
           "Đơn hàng của bạn sẽ được xử lý. Cảm ơn bạn!",
@@ -169,6 +176,7 @@ const PaymentScreen = ({ navigation, route }) => {
           ]
         );
       } else if (currentPayment === "QR") {
+        // Tạo Payment Link cho QR
         const paymentData = {
           orderId: latestOrderId,
           decryptionKey: "Sav3CtqBonMF3f41HaoxABIi8NKVUMBU1MOHBi1qmf0=",
@@ -189,6 +197,7 @@ const PaymentScreen = ({ navigation, route }) => {
         const paymentLink = await paymentResponse.text();
         navigation.navigate("WebViewScreen", { url: paymentLink });
       } else if (currentPayment === "VnPay") {
+        // Tạo Payment Link cho VnPay
         const paymentData = {
           orderId: latestOrderId,
         };

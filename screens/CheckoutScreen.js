@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -8,25 +8,69 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  TouchableWithoutFeedback,
 } from "react-native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
 import Header from "../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Dropdown } from "react-native-element-dropdown";
 
-const CheckoutScreen = ({ navigation }) => {
+const CheckoutScreen = ({ navigation, route }) => {
   const [currentPayment, setCurrentPayment] = useState("COD");
   const [userId, setUserId] = useState(null);
   const [deliveryInfo, setDeliveryInfo] = useState({});
-  const [cartDetails, setCartDetails] = useState([]);
   const [detailedCartItems, setDetailedCartItems] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [discountRate, setDiscountRate] = useState(0);
   const [finalPrice, setFinalPrice] = useState(0);
-  const [tierInfo, setTierInfo] = useState(null);
   const [note, setNote] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [orderId, setOrderId] = useState(null);
+  const [discountOptions, setDiscountOptions] = useState([]);
+  const [selectedDiscount, setSelectedDiscount] = useState(0);
+  const [ingredientsFetched, setIngredientsFetched] = useState(false);
+  const [showInstructions, setShowInstructions] = useState({}); // State object for instruction visibility
+
+  // State for editing delivery info
+  const [isEditingDelivery, setIsEditingDelivery] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const [editedPhone, setEditedPhone] = useState("");
+  // New states for district and address detail
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [editedAddressDetail, setEditedAddressDetail] = useState("");
+  const fetchDeliveryFeeRef = useRef(null); // ref để kiểm soát việc gọi fetchDeliveryFee
+
+  const districtsHCM = [
+    { label: "Quận 1", value: "Quận 1" },
+    { label: "Quận 2", value: "Quận 2" },
+    { label: "Quận 3", value: "Quận 3" },
+    { label: "Quận 4", value: "Quận 4" },
+    { label: "Quận 5", value: "Quận 5" },
+    { label: "Quận 6", value: "Quận 6" },
+    { label: "Quận 7", value: "Quận 7" },
+    { label: "Quận 8", value: "Quận 8" },
+    { label: "Quận 9", value: "Quận 9" },
+    { label: "Quận 10", value: "Quận 10" },
+    { label: "Quận 11", value: "Quận 11" },
+    { label: "Quận 12", value: "Quận 12" },
+    { label: "Bình Thạnh", value: "Bình Thạnh" },
+    { label: "Gò Vấp", value: "Gò Vấp" },
+    { label: "Phú Nhuận", value: "Phú Nhuận" },
+    { label: "Tân Bình", value: "Tân Bình" },
+    { label: "Tân Phú", value: "Tân Phú" },
+    { label: "Thủ Đức", value: "Thủ Đức" },
+    { label: "Bình Tân", value: "Bình Tân" },
+    { label: "Huyện Nhà Bè", value: "Huyện Nhà Bè" },
+    { label: "Huyện Bình Chánh", value: "Huyện Bình Chánh" },
+    { label: "Huyện Hóc Môn", value: "Huyện Hóc Môn" },
+    { label: "Huyện Củ Chi", value: "Huyện Củ Chi" },
+    { label: "Huyện Cần Giờ", value: "Huyện Cần Giờ" },
+  ];
+
+  const { selectedItems } = route.params || { selectedItems: [] }; // Receive selected items from CartScreen
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -54,14 +98,33 @@ const CheckoutScreen = ({ navigation }) => {
     }
   };
 
+  const discountColors = {
+    0: { color: COLORS.grey, text: "Không sử dụng giảm giá" },
+    0.1: { color: COLORS.green, text: "Giảm giá 10%" },
+    0.2: { color: COLORS.star, text: "Giảm giá 20%" },
+    0.3: { color: COLORS.orange, text: "Giảm giá 30%" },
+  };
+
+  // Chỉnh sửa hàm generateFullAddress để trả về deliveryInfo.address
+  const generateFullAddress = () => {
+    return deliveryInfo.address || "";
+  };
+
   const parseAddress = (fullAddress) => {
     if (!fullAddress) return { province: "", district: "", address: "" };
-    const parts = fullAddress.split(", ");
-    return {
-      province: parts[0] || "",
-      district: parts[1] || "",
-      address: parts[2] || "",
-    };
+
+    const parts = fullAddress.split(",");
+    const province = parts[parts.length - 1]?.trim();
+    const district = parts[parts.length - 2]?.trim();
+    let address = "";
+    for (let i = 0; i < parts.length - 2; i++) {
+      address += parts[i].trim();
+      if (i < parts.length - 3) {
+        address += ", ";
+      }
+    }
+
+    return { province, district, address };
   };
 
   const { province, district, address } = parseAddress(deliveryInfo.address);
@@ -69,6 +132,7 @@ const CheckoutScreen = ({ navigation }) => {
   const dataPayment = [
     { id: "COD", name: "Thanh toán khi nhận hàng" },
     { id: "QR", name: "Thanh toán qua QR code" },
+    { id: "VnPay", name: "Thanh toán qua VnPay" },
   ];
 
   useEffect(() => {
@@ -78,8 +142,7 @@ const CheckoutScreen = ({ navigation }) => {
         if (storedUserId) {
           setUserId(storedUserId);
           await fetchDeliveryInfo(storedUserId);
-          await fetchCartDetails(storedUserId);
-          await fetchTierInfo(storedUserId);
+          await fetchDiscountHistory(storedUserId);
         } else {
           console.log("Không tìm thấy User ID trong AsyncStorage");
         }
@@ -90,89 +153,121 @@ const CheckoutScreen = ({ navigation }) => {
     getUserIdFromStorage();
   }, []);
 
-  const fetchDeliveryInfo = async (id) => {
-    try {
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
-      );
-      const data = await response.json();
-      console.log("Delivery info:", data);
-      setDeliveryInfo(data);
-      fetchDeliveryFee(data); // Tính phí giao hàng sau khi nhận được thông tin
-    } catch (error) {
-      console.error("Error fetching delivery info:", error);
-    }
-  };
-
-  const fetchCartDetails = async (id) => {
-    try {
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/carts/getCartByUserId/${id}`
-      );
-      const cartData = await response.json();
-      console.log("Cart details:", cartData);
-
-      let total = 0;
-      let items = [];
-
-      for (const item of cartData) {
-        if (item.quantity > 0) {
-          const dishResponse = await fetchWithAuth(
-            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/GetDishByID/${item.dishId}`
-          );
-          const dishData = await dishResponse.json();
-          console.log("Dish data:", dishData);
-
-          items.push({ ...dishData, quantity: item.quantity });
-          total += dishData.price * item.quantity;
-        }
+  useEffect(() => {
+    const initializeCartItems = async () => {
+      if (selectedItems && selectedItems.length > 0) {
+        let total = 0;
+        selectedItems.forEach((item) => {
+          total += item.price * item.quantity;
+        });
+        // Thêm trường removedIngredients và ingredients vào mỗi món ăn
+        const itemsWithRemovedIngredients = selectedItems.map((item) => ({
+          ...item,
+          removedIngredients: [], // Khởi tạo mảng nguyên liệu bị bỏ ra
+          ingredients: [], // Khởi tạo mảng nguyên liệu
+        }));
+        setDetailedCartItems(itemsWithRemovedIngredients);
+        setTotalPrice(total);
       }
+    };
+    initializeCartItems();
+  }, [selectedItems]);
 
-      setDetailedCartItems(items);
-      setTotalPrice(total);
-      setFinalPrice(total - total * discountRate); // Tính tổng sau chiết khấu
-    } catch (error) {
-      console.error("Error fetching cart details:", error);
-    }
-  };
-
-  const fetchTierInfo = async (id) => {
-    try {
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership/${id}`
-      );
-      const tierData = await response.json();
-      console.log("Tier info:", tierData);
-
-      if (tierData.tierId) {
-        const tierResponse = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membershipTier/${tierData.tierId}`
-        );
-        const tierDetails = await tierResponse.json();
-        console.log("Tier details:", tierDetails);
-
-        setTierInfo(tierDetails);
-        setDiscountRate(tierDetails.discountRate);
-        setFinalPrice(totalPrice - totalPrice * tierDetails.discountRate);
+  useEffect(() => {
+    const fetchAllIngredients = async () => {
+      if (detailedCartItems.length > 0 && !ingredientsFetched) {
+        await fetchIngredients(detailedCartItems);
+        setIngredientsFetched(true); // Đánh dấu đã lấy nguyên liệu
       }
+    };
+    fetchAllIngredients();
+  }, [detailedCartItems, ingredientsFetched]);
+
+  const fetchIngredients = async (items) => {
+    try {
+      const updatedItems = await Promise.all(
+        items.map(async (item) => {
+          try {
+            const dishId = item.dishId;
+            if (!dishId) {
+              console.error(
+                `Dish ID is missing for item: ${JSON.stringify(item)}`
+              );
+              return { ...item, ingredients: [] };
+            }
+
+            // Gọi API để lấy ingredientIds dựa trên dishId
+            const response1 = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByDishId/${dishId}`
+            );
+            if (!response1.ok) {
+              throw new Error(
+                `Error fetching ingredient IDs for dish ${dishId}: ${response1.status}`
+              );
+            }
+            const ingredientData = await response1.json(); // Giả sử trả về mảng các đối tượng nguyên liệu
+
+            // Gọi API để lấy tên của từng ingredientId
+            const ingredientNames = await Promise.all(
+              ingredientData.map(async (ingredientItem) => {
+                try {
+                  const ingredientId = ingredientItem.ingredientId;
+                  const response2 = await fetchWithAuth(
+                    `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByIngredientId/${ingredientId}`
+                  );
+                  if (!response2.ok) {
+                    throw new Error(
+                      `Error fetching ingredient name for ID ${ingredientId}: ${response2.status}`
+                    );
+                  }
+                  const ingredient = await response2.json(); // Giả sử trả về đối tượng chứa tên nguyên liệu
+                  return ingredient.name;
+                } catch (error) {
+                  console.error(error);
+                  return "Không xác định";
+                }
+              })
+            );
+
+            return { ...item, ingredients: ingredientNames };
+          } catch (error) {
+            console.error(error);
+            return { ...item, ingredients: ["Không xác định"] };
+          }
+        })
+      );
+
+      setDetailedCartItems(updatedItems);
     } catch (error) {
-      console.log("Error fetching tier info:", error);
+      console.error("Error fetching ingredients:", error);
     }
   };
 
   const fetchDeliveryFee = async () => {
+    if (fetchDeliveryFeeRef.current) {
+      console.log("fetchDeliveryFee đã được gọi rồi, bỏ qua lần này.");
+      return; // nếu đã có request trước đó thì không thực hiện
+    }
+
+    fetchDeliveryFeeRef.current = true; // đánh dấu request đã thực hiện
     try {
+      console.log("fetchDeliveryFee called");
+      console.log("deliveryInfo.address:", deliveryInfo.address);
+      const fullAddress = generateFullAddress();
+      const parsedAddress = parseAddress(fullAddress);
+      console.log("Parsed address for API:", parsedAddress);
+
       const queryParams = new URLSearchParams({
         pick_province: "Hồ Chí Minh",
         pick_district: "Quận 9",
-        province: deliveryInfo.province || "Hồ Chí Minh",
-        district: deliveryInfo.district || "Quận 12",
-        address: deliveryInfo.address || "338/10 Đ. Lê Thị Riêng",
+        province: "Hồ Chí Minh", // Always HCM
+        district: parsedAddress.district || "Quận 12",
+        address: parsedAddress.address || "338/10 Đ. Lê Thị Riêng", // Fallback address
         weight: 1000,
         value: totalPrice,
       }).toString();
 
-      const response = await fetchWithAuth(
+      const response = await fetch(
         `https://services.giaohangtietkiem.vn/services/shipment/fee?${queryParams}`,
         {
           method: "GET",
@@ -194,33 +289,93 @@ const CheckoutScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error("Lỗi khi lấy phí giao hàng:", error);
+      Alert.alert("Lỗi", "Không thể lấy phí giao hàng.");
+    } finally {
+      fetchDeliveryFeeRef.current = false; // Cho phép gọi request tiếp theo
     }
   };
 
-  const handleCheckout = async () => {
-    const validCartItems = detailedCartItems.filter(
-      (item) => item.quantity > 0
-    );
+  const fetchDeliveryInfo = async (id) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/getDeliveryInformationByUserId /${id}`
+      );
 
-    if (validCartItems.length === 0) {
-      Alert.alert("Thông báo", "Giỏ hàng trống.");
+      if (!response.ok) {
+        console.error("API trả về trạng thái không hợp lệ:", response.status);
+        throw new Error(`Error: ${response.status} - ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (!data) {
+        console.error("API không trả về dữ liệu hợp lệ.");
+        return;
+      }
+
+      console.log("Delivery info:", data);
+      setDeliveryInfo(data);
+    } catch (error) {
+      console.error("Error fetching delivery info:", error.message);
+      Alert.alert(
+        "Lỗi",
+        "Không thể lấy thông tin giao hàng. Vui lòng thử lại sau."
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (deliveryInfo && deliveryInfo.address && totalPrice > 0) {
+      fetchDeliveryFee();
+    }
+  }, [deliveryInfo, totalPrice, selectedDistrict, editedAddressDetail]);
+
+  useEffect(() => {
+    // Tính toán tổng tiền sau khi chọn mức giảm giá
+    const selectedOption = discountOptions.find(
+      (option) => option.id === selectedDiscount
+    );
+    const discountRate = selectedOption ? selectedOption.rate : 0;
+    setFinalPrice(totalPrice - totalPrice * discountRate + deliveryFee);
+  }, [selectedDiscount, totalPrice, deliveryFee]);
+
+  const handleCheckout = async () => {
+    if (detailedCartItems.length === 0) {
+      Alert.alert("Thông báo", "Không có món ăn nào để thanh toán.");
       return;
     }
+
+    // Sử dụng địa chỉ từ deliveryInfo.address
+    const fullAddress = generateFullAddress();
+
+    if (!fullAddress) {
+      Alert.alert("Lỗi", "Không xác định được địa chỉ giao hàng.");
+      return;
+    }
+
+    const calculatedDiscountPrice = totalPrice * discountRate;
 
     const orderData = {
       userId,
       totalPrice: finalPrice,
-      deliveryAddress: deliveryInfo.address || "Không có địa chỉ",
+      deliveryAddress: fullAddress,
       note,
       deliveryFee,
-      cartDetails: validCartItems,
+      cartDetails: detailedCartItems,
+      discountRate,
+      discountPrice: calculatedDiscountPrice,
+      phoneNumber: deliveryInfo.phoneNumber || "Không có số điện thoại",
+      receiverName: deliveryInfo.username || "Không có tên người nhận",
+      paymentMethod: currentPayment,
     };
 
     try {
-      console.log("Lưu thông tin đơn hàng vào AsyncStorage:", orderData); // Ghi log để kiểm tra
       await AsyncStorage.setItem("pendingOrder", JSON.stringify(orderData));
-      console.log("Chuyển sang trang PaymentScreen với giá:", finalPrice); // Ghi log
-      navigation.navigate("Payment", { finalPrice });
+      console.log("[DEBUG] Dữ liệu đơn hàng lưu vào AsyncStorage:", orderData);
+
+      navigation.navigate("Payment", {
+        finalPrice,
+        currentPayment,
+      });
     } catch (error) {
       console.error("Lỗi khi lưu đơn hàng vào AsyncStorage:", error);
       Alert.alert("Lỗi", "Không thể lưu thông tin đơn hàng.");
@@ -228,10 +383,119 @@ const CheckoutScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    const discountAmount = totalPrice * discountRate;
-    const adjustedFinalPrice = totalPrice - discountAmount + deliveryFee;
+    const calculatedDiscountPrice = totalPrice * discountRate;
+    const adjustedFinalPrice =
+      totalPrice - calculatedDiscountPrice + deliveryFee;
     setFinalPrice(adjustedFinalPrice);
   }, [totalPrice, discountRate, deliveryFee]);
+
+  const fetchDiscountHistory = async (id) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history/${id}`
+      );
+
+      if (!response.ok) {
+        console.error(
+          `Lỗi khi lấy lịch sử giảm giá: ${response.status} ${response.statusText}`
+        );
+        return [];
+      }
+
+      const data = await response.json();
+
+      const activeDiscounts = data.filter(
+        (discount) =>
+          discount.status === "active" &&
+          new Date(discount.expirationDate) > new Date()
+      );
+
+      const mappedDiscounts = activeDiscounts.map((discount) => ({
+        id: discount.tierId,
+        name: `Giảm giá ${discount.discountRate * 100}%`,
+        rate: discount.discountRate,
+      }));
+
+      const options = [
+        { id: 0, name: "Không sử dụng giảm giá", rate: 0 },
+        ...mappedDiscounts,
+      ];
+
+      setDiscountOptions(options);
+      setSelectedDiscount(0);
+    } catch (error) {
+      console.error("Lỗi khi lấy lịch sử giảm giá:", error);
+      Alert.alert("Lỗi", "Không thể lấy lịch sử giảm giá.");
+    }
+  };
+
+  const handleRemoveIngredient = (dishId, ingredient) => {
+    // Tìm món ăn trước khi cập nhật
+    const item = detailedCartItems.find((item) => item.dishId === dishId);
+    const itemName = item ? item.name : "Món ăn";
+
+    // Cập nhật detailedCartItems
+    setDetailedCartItems((prevItems) =>
+      prevItems.map((item) => {
+        if (item.dishId === dishId) {
+          return {
+            ...item,
+            ingredients: item.ingredients.filter((ing) => ing !== ingredient),
+            removedIngredients: [...item.removedIngredients, ingredient],
+          };
+        }
+        return item;
+      })
+    );
+
+    // Cập nhật phần ghi chú với nguyên liệu bị bỏ ra
+    setNote((prevNote) => {
+      const ingredientInfo = `(${itemName}: ${ingredient} bị bỏ ra)`;
+      // Tránh ghi đè nếu nguyên liệu đã được ghi nhận trước đó
+      if (prevNote.includes(ingredientInfo)) {
+        return prevNote;
+      }
+      return prevNote ? `${prevNote} ${ingredientInfo}` : ingredientInfo;
+    });
+  };
+
+  const handleSaveDeliveryInfo = () => {
+    if (
+      !editedName ||
+      !editedPhone ||
+      !selectedDistrict ||
+      !editedAddressDetail
+    ) {
+      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+    const fullAddress = `${editedAddressDetail}, ${selectedDistrict}, Thành phố Hồ Chí Minh`;
+    setDeliveryInfo({
+      username: editedName,
+      phoneNumber: editedPhone,
+      address: fullAddress,
+    });
+
+    setIsEditingDelivery(false);
+  };
+  const renderIngredientItem = (item, ingredient, idx) => (
+    <View key={idx} style={styles.ingredientItem}>
+      <Text style={styles.textIngredient}>- {ingredient}</Text>
+      <TouchableOpacity
+        onPress={() => handleRemoveIngredient(item.dishId, ingredient)}
+        style={styles.removeIngredientButton}
+      >
+        <Icon name="close-circle" size={16} color={COLORS.red} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const handleToggleInstruction = (dishId) => {
+    setShowInstructions((prev) => ({
+      ...prev,
+      [dishId]: !prev[dishId],
+    }));
+  };
 
   return (
     <>
@@ -256,28 +520,158 @@ const CheckoutScreen = ({ navigation }) => {
             style={{ marginHorizontal: 5 }}
           />
           <View style={{ flex: 1 }}>
-            <Text style={styles.textBold}>
-              Tên: {deliveryInfo.username || "Người dùng"}
-            </Text>
-            <Text style={styles.text}>
-              Số điện thoại: {deliveryInfo.phoneNumber || "N/A"}
-            </Text>
-            <Text style={styles.text}>
-              Địa chỉ: {deliveryInfo.address || "Không xác định"}
-            </Text>
+            {isEditingDelivery ? (
+              <>
+                <View>
+                  <Text style={styles.textInputLabel}>Tên người nhận</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editedName}
+                    onChangeText={setEditedName}
+                  />
+                </View>
+
+                <View>
+                  <Text style={styles.textInputLabel}>Số điện thoại</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editedPhone}
+                    onChangeText={setEditedPhone}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+
+                <View>
+                  <Text style={styles.textInputLabel}>Chọn Quận</Text>
+                  <Dropdown
+                    style={styles.dropdown}
+                    placeholder="Chọn Quận"
+                    data={districtsHCM}
+                    labelField="label"
+                    valueField="value"
+                    value={selectedDistrict}
+                    onChange={(item) => {
+                      setSelectedDistrict(item.value);
+                    }}
+                  />
+                </View>
+                <View>
+                  <Text style={styles.textInputLabel}>Địa chỉ chi tiết</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editedAddressDetail}
+                    onChangeText={setEditedAddressDetail}
+                  />
+                </View>
+
+                <View
+                  style={{ flexDirection: "row", justifyContent: "flex-end" }}
+                >
+                  <TouchableOpacity
+                    onPress={handleSaveDeliveryInfo}
+                    style={styles.saveButton}
+                  >
+                    <Text
+                      style={{
+                        color: COLORS.white,
+                        fontFamily: FONTS.semiBold,
+                      }}
+                    >
+                      Lưu
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setIsEditingDelivery(false)}
+                    style={styles.cancelButton}
+                  >
+                    <Text
+                      style={{ color: COLORS.grey, fontFamily: FONTS.semiBold }}
+                    >
+                      Hủy
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <View style={styles.deliveryInfoWrapper}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.textBold}>
+                    Tên: {deliveryInfo.username || "Người dùng"}
+                  </Text>
+                  <Text style={styles.text}>
+                    Số điện thoại: {deliveryInfo.phoneNumber || "N/A"}
+                  </Text>
+                  <Text style={styles.text}>
+                    Địa chỉ: {deliveryInfo.address || "Không xác định"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsEditingDelivery(true);
+                    setEditedName(deliveryInfo.username || "");
+                    setEditedPhone(deliveryInfo.phoneNumber || "");
+                    const { address, district, province } = parseAddress(
+                      deliveryInfo.address
+                    );
+                    setEditedAddressDetail(address || "");
+                    setSelectedDistrict(district || "");
+                  }}
+                  style={styles.editButton}
+                >
+                  <Text
+                    style={{ color: COLORS.green, fontFamily: FONTS.semiBold }}
+                  >
+                    Sửa
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
 
-        {tierInfo && (
-          <View style={styles.tierInfoContainer}>
-            <Text style={styles.textBold}>Bậc thành viên:</Text>
-            <Text style={styles.text}>
-              {`Bậc ${tierInfo.tierName} - Giảm giá: ${
-                tierInfo.discountRate * 100
-              }%`}
+        <View style={styles.discountContainer}>
+          <Text style={styles.textBold}>Chọn mức giảm giá:</Text>
+
+          <Dropdown
+            data={discountOptions}
+            labelField="name"
+            valueField="id"
+            value={selectedDiscount}
+            onChange={(item) => {
+              console.log(
+                "[DEBUG] Giá trị selectedDiscount được chọn:",
+                item.id
+              );
+              setSelectedDiscount(item.id);
+
+              const selectedOption = discountOptions.find(
+                (opt) => opt.id === item.id
+              );
+              setDiscountRate(selectedOption ? selectedOption.rate : 0);
+            }}
+            placeholder="Chọn mức giảm giá"
+            style={styles.dropdown}
+          />
+
+          <View
+            style={[
+              styles.discountDisplay,
+              {
+                backgroundColor:
+                  discountColors[
+                    discountOptions.find((opt) => opt.id === selectedDiscount)
+                      ?.rate
+                  ]?.color || COLORS.white,
+              },
+            ]}
+          >
+            <Text style={[styles.textBold, { color: COLORS.white }]}>
+              {discountColors[
+                discountOptions.find((opt) => opt.id === selectedDiscount)?.rate
+              ]?.text || "Không có mức giảm giá"}
             </Text>
           </View>
-        )}
+        </View>
 
         <View style={styles.noteContainer}>
           <Text style={styles.textBold}>Ghi chú</Text>
@@ -307,10 +701,56 @@ const CheckoutScreen = ({ navigation }) => {
                 <Text style={styles.textDishType}>
                   {item.dishType || "Món ăn"}
                 </Text>
-                <Text style={styles.textDishPrice}>{item.price}đ</Text>
+                <Text style={styles.textDishPrice}>
+                  {item.price.toLocaleString()} đ
+                  {discountRate > 0 && (
+                    <Text
+                      style={{
+                        color: COLORS.grey,
+                        textDecorationLine: "line-through",
+                      }}
+                    >
+                      - {(item.price * discountRate).toLocaleString()} đ
+                    </Text>
+                  )}
+                </Text>
                 <View style={styles.quantityContainer}>
                   <Text style={styles.textBold}>x{item.quantity}</Text>
                 </View>
+                {/* Hiển thị nguyên liệu với nút "X" để bỏ ra */}
+                {item.ingredients && item.ingredients.length > 0 ? (
+                  <View style={styles.ingredientsContainer}>
+                    <View style={styles.ingredientsHeader}>
+                      <Text style={styles.textIngredients}>Nguyên liệu:</Text>
+                      <TouchableWithoutFeedback
+                        onPress={() => handleToggleInstruction(item.dishId)}
+                      >
+                        <View style={styles.instructionContainer}>
+                          <Text style={styles.instructionButton}>?</Text>
+                          {showInstructions[item.dishId] && (
+                            <View style={styles.instructionBox}>
+                              <Text style={styles.instructionText}>
+                                Nếu bạn bị dị ứng với nguyên liệu nào hãy bấm x
+                                để loại bỏ nguyên liệu đó ra nhé
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </TouchableWithoutFeedback>
+                    </View>
+                    <View style={styles.ingredientsList}>
+                      {item.ingredients.map((ingredient, idx) =>
+                        renderIngredientItem(item, ingredient, idx)
+                      )}
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.ingredientsContainer}>
+                    <Text style={styles.textIngredients}>
+                      Không có nguyên liệu.
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           ))}
@@ -341,22 +781,35 @@ const CheckoutScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </View>
+
+        <View style={styles.deliveryFeeContainer}>
+          <Text style={styles.textBold}>Phí giao hàng:</Text>
+          <Text style={{ ...styles.textBold, color: COLORS.green }}>
+            {deliveryFee > 0
+              ? `${deliveryFee.toLocaleString()} đ`
+              : "Đang tính..."}
+          </Text>
+        </View>
       </ScrollView>
 
       <View style={styles.containerButtonFloatBottom}>
         <View style={styles.totalContainer}>
           <Text style={styles.textBold}>Số tiền đã giảm:</Text>
           <Text style={{ ...styles.textBold, color: COLORS.green }}>
-            {discountRate > 0
-              ? (totalPrice * discountRate).toFixed(0) + "đ"
-              : "0đ"}
+            {selectedDiscount > 0
+              ? (
+                  totalPrice *
+                  discountOptions.find((opt) => opt.id === selectedDiscount)
+                    .rate
+                ).toLocaleString() + " đ"
+              : "0 đ"}
           </Text>
         </View>
         <View style={styles.boxButtonFloatBottom}>
           <TouchableOpacity style={styles.totalButton}>
             <Text style={styles.textBold}>Tổng thanh toán:</Text>
             <Text style={{ ...styles.textBold, color: COLORS.green }}>
-              {finalPrice.toFixed(0)}đ
+              {finalPrice.toLocaleString()} đ
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -372,8 +825,18 @@ const CheckoutScreen = ({ navigation }) => {
 };
 
 export default CheckoutScreen;
-
 const styles = StyleSheet.create({
+  ingredientsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  ingredientsList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 5,
+  },
   deliveryInfoContainer: {
     padding: 10,
     borderWidth: 1,
@@ -382,13 +845,61 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 10,
   },
-  tierInfoContainer: {
+  discountContainer: {
     padding: 10,
     borderWidth: 1,
     borderColor: COLORS.greyPastel,
     borderRadius: 10,
     marginBottom: 10,
-    backgroundColor: COLORS.lightGrey,
+  },
+  dropdown: {
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 50,
+    marginBottom: 10,
+  },
+  discountDisplay: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deliveryInfoWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  editButton: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderRadius: 10,
+    borderColor: COLORS.green,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveButton: {
+    backgroundColor: COLORS.green,
+    padding: 10,
+    marginRight: 5,
+    borderRadius: 10,
+  },
+  cancelButton: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.grey,
+    padding: 10,
+    borderRadius: 10,
+  },
+  textInputLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    marginBottom: 5,
+    color: COLORS.black,
   },
   textBold: {
     fontFamily: FONTS.semiBold,
@@ -408,8 +919,13 @@ const styles = StyleSheet.create({
   },
   textInput: {
     fontFamily: FONTS.medium,
-    height: 60,
+    height: 40,
     flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
   },
   cartDetailsContainer: {
     padding: 5,
@@ -460,6 +976,30 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     alignItems: "center",
     backgroundColor: COLORS.white,
+  },
+  ingredientsContainer: {
+    marginTop: 5,
+  },
+  textIngredients: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    color: COLORS.black,
+    marginBottom: 2,
+  },
+  textIngredient: {
+    fontFamily: FONTS.light,
+    fontSize: 13,
+    color: COLORS.green,
+    marginRight: 5,
+  },
+  ingredientItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+    marginRight: 5,
+  },
+  removeIngredientButton: {
+    marginLeft: 5,
   },
   paymentMethodContainer: {
     padding: 10,
@@ -525,5 +1065,43 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     fontSize: 18,
     color: COLORS.white,
+  },
+  deliveryFeeContainer: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  instructionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 5,
+    position: "relative",
+  },
+  instructionButton: {
+    fontSize: 16,
+    color: COLORS.grey,
+    fontWeight: "bold",
+  },
+  instructionBox: {
+    position: "absolute",
+    top: -60,
+    right: 10,
+    backgroundColor: COLORS.white,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.grey,
+    width: 200,
+    zIndex: 10, // Đảm bảo hiển thị trên các thành phần khác
+    backgroundColor: COLORS.white,
+  },
+  instructionText: {
+    fontSize: 10,
+    color: COLORS.black,
+    fontFamily: FONTS.medium,
   },
 });

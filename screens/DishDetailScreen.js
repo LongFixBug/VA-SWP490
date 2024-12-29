@@ -26,6 +26,8 @@ const DishDetailScreen = ({ navigation, route }) => {
   const [averageRating, setAverageRating] = useState(0);
   const [userId, setUserId] = useState(null);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [ingredients, setIngredients] = useState([]);
+  const [nutrition, setNutrition] = useState({});
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -90,6 +92,62 @@ const DishDetailScreen = ({ navigation, route }) => {
       }
     };
 
+    const fetchIngredients = async () => {
+      try {
+        // Fetch danh sách nguyên liệu theo dishId
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByDishId/${dishId}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+
+          // Lấy chi tiết từng nguyên liệu (gọi thêm API để lấy tên)
+          const ingredientsWithNames = await Promise.all(
+            data.map(async (ingredient) => {
+              const ingredientDetailResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByIngredientId/${ingredient.ingredientId}`
+              );
+
+              if (ingredientDetailResponse.ok) {
+                const ingredientDetail = await ingredientDetailResponse.json();
+                return {
+                  ...ingredient,
+                  name: ingredientDetail.name, // Thêm tên nguyên liệu
+                };
+              } else {
+                console.error(
+                  `Error fetching ingredient detail for ID: ${ingredient.ingredientId}`
+                );
+                return ingredient; // Nếu lỗi, trả về nguyên liệu không có tên
+              }
+            })
+          );
+
+          setIngredients(ingredientsWithNames);
+        } else {
+          console.error("Error fetching ingredients:", response.status);
+        }
+      } catch (error) {
+        console.error("Error fetching ingredients:", error);
+      }
+    };
+
+    const fetchNutrition = async () => {
+      try {
+        const response = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Dish/dishs/calculateNutrition/${dishId}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setNutrition(data);
+        } else {
+          console.error("Error fetching nutrition:", response.status);
+        }
+      } catch (error) {
+        console.error("Error fetching nutrition:", error);
+      }
+    };
+
     const fetchFeedbacks = async () => {
       try {
         const response = await fetchWithAuth(
@@ -117,6 +175,8 @@ const DishDetailScreen = ({ navigation, route }) => {
     };
 
     fetchDishDetail();
+    fetchIngredients();
+    fetchNutrition();
     fetchFeedbacks();
   }, [dishId]);
 
@@ -344,7 +404,9 @@ const DishDetailScreen = ({ navigation, route }) => {
             </View>
           </Swiper>
           <View style={styles.priceTag}>
-            <Text style={styles.priceText}>{dish.price} đ</Text>
+            <Text style={styles.priceText}>
+              {dish.price ? `${dish.price.toLocaleString()} đ` : "0.000 đ"}
+            </Text>
           </View>
         </View>
 
@@ -404,8 +466,52 @@ const DishDetailScreen = ({ navigation, route }) => {
               <Text style={styles.textAttribute}>
                 {dish.recipe || "Không có công thức"}
               </Text>
+
+              {/* Hiển thị nguyên liệu */}
+              <Text style={styles.titleAttribute}>Nguyên liệu</Text>
+              {ingredients.length > 0 ? (
+                ingredients.map((ingredient) => (
+                  <Text
+                    key={ingredient.dishIngredientId}
+                    style={styles.textAttribute}
+                  >
+                    {ingredient.name || "Tên không xác định"}:{" "}
+                    {ingredient.weight}g
+                  </Text>
+                ))
+              ) : (
+                <Text style={styles.textAttribute}>Không có nguyên liệu</Text>
+              )}
+
+              {/* Hiển thị thông tin dinh dưỡng */}
+              <Text style={styles.titleAttribute}>Thành phần dinh dưỡng</Text>
+              {Object.keys(nutrition).length > 0 ? (
+                <>
+                  <Text style={styles.textAttribute}>
+                    Calories: {nutrition?.totalCalories || 0} kcal
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    Fat: {nutrition?.totalFat || 0} g
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    Carbs: {nutrition?.totalCarbs || 0} g
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    Protein: {nutrition?.totalProtein || 0} g
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    Khối lượng: {nutrition?.totalWeights || "Không rõ"} g
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.textAttribute}>
+                  Không có thông tin dinh dưỡng
+                </Text>
+              )}
+
+              {/* Nút Thu gọn */}
               <TouchableOpacity
-                style={{ marginTop: 5 }}
+                style={{ marginTop: 10 }}
                 activeOpacity={0.6}
                 onPress={() => setShowMoreAttribute(!showMoreAttribute)}
               >
@@ -454,7 +560,10 @@ const DishDetailScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.navigate("Cart")}
+            onPress={async () => {
+              await handleAddToCart(); // Gọi API thêm vào giỏ hàng
+              navigation.navigate("Cart"); // Điều hướng sang trang giỏ hàng
+            }}
             style={styles.orderButton}
           >
             <Text style={styles.orderButtonText}>Đặt hàng</Text>

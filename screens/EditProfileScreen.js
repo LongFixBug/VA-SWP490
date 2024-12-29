@@ -7,6 +7,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
+  StatusBar,
+  ImageBackground,
+  SafeAreaView,
+  Modal, // Import Modal
 } from "react-native";
 import { Menu, Provider } from "react-native-paper";
 import COLORS from "../constants/color";
@@ -14,8 +19,13 @@ import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
 import RadioGroup from "react-native-radio-buttons-group";
 import { ButtonFlex } from "../components/Button";
+import Header from "../components/Header";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ButtonFloatBottom } from "../components/Button";
+import { Dropdown } from "react-native-element-dropdown";
+import { launchImageLibrary, launchCamera } from "react-native-image-picker";
+import { useUser } from "../context/UserContext";
 
 const EditProfileScreen = ({ navigation }) => {
   const [username, setUsername] = useState("");
@@ -36,19 +46,217 @@ const EditProfileScreen = ({ navigation }) => {
   const [visibleActivityMenu, setVisibleActivityMenu] = useState(false);
   const [visibleGoalMenu, setVisibleGoalMenu] = useState(false);
   const [visibleDietaryMenu, setVisibleDietaryMenu] = useState(false);
+  // const { setUser } = useUser();
+  const [avatar, setAvatar] = useState(null); // State for avatar
+  const CLOUD_NAME = "dpzzzifpa"; // Tên Cloudinary
+  const UPLOAD_PRESET = "vegetarian assistant"; // Upload preset
+  const [showFullImage, setShowFullImage] = useState(false); // Hiển thị ảnh lớn
+
+  // State for password change modal
+  const [isChangePasswordModalVisible, setIsChangePasswordModalVisible] =
+    useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+
+  const dataActivityLevel = [
+    { id: 1, name: "Cao" },
+    { id: 2, name: "Trung bình" },
+    { id: 3, name: "Ít" },
+  ];
+
+  const dataGoal = [
+    { id: 1, name: "Tăng cân" },
+    { id: 2, name: "Giảm cân" },
+    { id: 3, name: "Giữ nguyên" },
+  ];
+
+  const dataPreferences = [
+    { id: 1, name: "Thuần chay" },
+    { id: 2, name: "Chay không trứng, có thể có sữa, phô mai" },
+    { id: 3, name: "Chay không sữa, có thể có trứng" },
+    { id: 4, name: "Hỗn hợp, có thể sử dụng cả trứng, sữa" },
+    { id: 5, name: "Chay bán phần (không thịt, có thể ăn cá)" },
+  ];
+
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!token) {
+      console.error("Không tìm thấy token.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
+      }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
+    }
+  };
+
+  const filterDropdownData = (data, selectedValue) => {
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+    return data.filter((item) => item.id !== selectedValue);
+  };
+
+  const uploadImageToCloudinary = async (imageUri) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", {
+        uri: imageUri,
+        type: "image/jpeg", // Hoặc image/png
+        name: "avatar_upload.jpg",
+      });
+      formData.append("upload_preset", UPLOAD_PRESET);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("Upload thành công. URL ảnh:", result.secure_url);
+        return result.secure_url;
+      } else {
+        console.error("Lỗi khi upload ảnh lên Cloudinary:", result);
+        throw new Error("Upload không thành công.");
+      }
+    } catch (error) {
+      console.error("Lỗi trong quá trình upload ảnh:", error);
+      throw error;
+    }
+  };
+
+  const handleChooseAvatar = () => {
+    launchImageLibrary(
+      {
+        mediaType: "photo",
+        selectionLimit: 1,
+      },
+      async (response) => {
+        if (response.didCancel) {
+          console.log("Người dùng đã huỷ chọn ảnh.");
+        } else if (response.errorMessage) {
+          console.error("Lỗi khi chọn ảnh:", response.errorMessage);
+        } else if (response.assets && response.assets.length > 0) {
+          const selectedImage = response.assets[0].uri;
+
+          // Hỏi xác nhận trước khi upload
+          Alert.alert(
+            "Xác nhận",
+            "Bạn có chắc chắn muốn thay đổi ảnh đại diện?",
+            [
+              {
+                text: "Hủy",
+                style: "cancel",
+              },
+              {
+                text: "Đồng ý",
+                onPress: async () => {
+                  try {
+                    const uploadedUrl = await uploadImageToCloudinary(
+                      selectedImage
+                    );
+                    setAvatar(uploadedUrl); // Cập nhật URL ảnh
+                  } catch (error) {
+                    Alert.alert(
+                      "Lỗi",
+                      "Không thể upload ảnh. Vui lòng thử lại."
+                    );
+                  }
+                },
+              },
+            ]
+          );
+        }
+      }
+    );
+  };
+
+  const handleTakePhoto = () => {
+    launchCamera(
+      {
+        mediaType: "photo",
+      },
+      async (response) => {
+        if (response.didCancel) {
+          console.log("Người dùng đã huỷ chụp ảnh.");
+        } else if (response.errorMessage) {
+          console.error("Lỗi khi chụp ảnh:", response.errorMessage);
+        } else if (response.assets) {
+          const takenPhoto = response.assets[0].uri;
+
+          // Hỏi xác nhận trước khi upload
+          Alert.alert(
+            "Xác nhận",
+            "Bạn có chắc chắn muốn thay đổi ảnh đại diện?",
+            [
+              {
+                text: "Hủy",
+                style: "cancel",
+              },
+              {
+                text: "Đồng ý",
+                onPress: async () => {
+                  try {
+                    const uploadedUrl = await uploadImageToCloudinary(
+                      takenPhoto
+                    );
+                    setAvatar(uploadedUrl); // Cập nhật URL ảnh
+                  } catch (error) {
+                    Alert.alert(
+                      "Lỗi",
+                      "Không thể upload ảnh. Vui lòng thử lại."
+                    );
+                  }
+                },
+              },
+            ]
+          );
+        }
+      }
+    );
+  };
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const storedUserId = await AsyncStorage.getItem("userId");
         console.log("Stored userId:", storedUserId);
+
         if (storedUserId) {
-          const response = await axios.get(
+          const response = await fetchWithAuth(
             `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/GetUserByID/${storedUserId}`
           );
-          console.log("User data fetched from API:", response.data);
-          const userData = response.data;
 
+          if (!response.ok) {
+            console.error("Failed to fetch user data:", response.status);
+            Alert.alert("Lỗi", "Không thể lấy dữ liệu người dùng.");
+            return;
+          }
+
+          const userData = await response.json();
+          console.log("User data fetched from API:", userData);
+
+          // Set state với dữ liệu người dùng
           setUsername(userData.username);
           setEmail(userData.email);
           setPhoneNumber(userData.phoneNumber);
@@ -61,9 +269,10 @@ const EditProfileScreen = ({ navigation }) => {
           setSelectedPreferencesId(
             userData.dietaryPreferenceId?.toString() || "1"
           );
-          setGender(userData.gender); // Directly set gender
+          setGender(userData.gender); // Set gender
           setAge(userData.age); // Set age
-          setPassword(userData.password); // Lấy password từ API
+          setPassword(userData.password); // Set password
+          setAvatar(userData.imageUrl || null); // Set avatar from API
         }
       } catch (error) {
         console.error("Lỗi khi lấy dữ liệu người dùng:", error);
@@ -91,6 +300,7 @@ const EditProfileScreen = ({ navigation }) => {
       phoneNumber,
       address,
       age, // Send age instead of dob
+      imageUrl: avatar, // Include avatar in updated data
       height: parseFloat(height),
       weight: parseFloat(weight),
       profession,
@@ -100,29 +310,46 @@ const EditProfileScreen = ({ navigation }) => {
       dietaryPreferenceId: parseInt(selectedPreferencesId),
       gender, // Use the direct gender value
       isPhoneVerified: true,
+      status: "active", // Thêm status mặc định là active
+      roleId: 3, // Thêm role mặc định là 3
     };
 
     // Log dữ liệu trước khi gửi tới API
     console.log("Updated data to be sent:", updatedData);
 
     try {
-      const response = await axios.put(
+      const response = await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/EditCustomer",
-        updatedData
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json", // Đảm bảo định dạng JSON
+          },
+          body: JSON.stringify(updatedData), // Chuyển đổi dữ liệu thành chuỗi JSON
+        }
       );
 
-      if (response.status === 200) {
+      if (response.ok) {
         Alert.alert("Thành công", "Thông tin đã được cập nhật!");
+
+        // Cập nhật thông tin mới vào AsyncStorage
+        await AsyncStorage.setItem("userData", JSON.stringify(updatedData));
+        console.log("Thông tin mới đã được lưu vào AsyncStorage");
+        // Cập nhật Context
+        // setUser(updatedData);
+
+        // Quay về trang trước đó
         navigation.goBack();
       } else {
         console.log("API response status:", response.status);
-        Alert.alert("Lỗi", "Không thể cập nhật thông tin. Vui lòng thử lại.");
+        const errorData = await response.json();
+        Alert.alert(
+          "Lỗi",
+          errorData.message || "Không thể cập nhật thông tin. Vui lòng thử lại."
+        );
       }
     } catch (error) {
       console.error("Lỗi khi cập nhật thông tin:", error);
-      if (error.response) {
-        console.log("API error response:", error.response.data); // In ra chi tiết từ API nếu có
-      }
       Alert.alert("Lỗi", "Có lỗi xảy ra khi cập nhật thông tin.");
     }
   };
@@ -130,7 +357,7 @@ const EditProfileScreen = ({ navigation }) => {
   const handleLogout = async () => {
     try {
       await AsyncStorage.clear(); // Xóa toàn bộ dữ liệu lưu trữ
-      Alert.alert("Đăng xuất thành công", "Bạn đã được đăng xuất.");
+
       navigation.reset({
         index: 0,
         routes: [{ name: "Login" }], // Điều hướng đến màn hình Login
@@ -141,376 +368,472 @@ const EditProfileScreen = ({ navigation }) => {
     }
   };
 
+  const handleChangePassword = async () => {
+    // ... (phần kiểm tra input)
+
+    try {
+      const response = await fetchWithAuth(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/changePassword",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            phoneNumber: phoneNumber,
+            password: oldPassword,
+            newPassword: newPassword,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const responseText = await response.text();
+        if (responseText.includes("success")) {
+          // Thay "success" bằng thông báo thành công thực tế từ server
+          Alert.alert("Thành công", "Mật khẩu đã được cập nhật thành công.");
+          setIsChangePasswordModalVisible(false);
+          handleLogout();
+        } else {
+          Alert.alert("Lỗi", responseText || "Đổi mật khẩu không thành công.");
+        }
+      } else {
+        const errorText = await response.text();
+        Alert.alert(
+          "Lỗi",
+          errorText || "Đổi mật khẩu không thành công. Vui lòng thử lại."
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi khi đổi mật khẩu:", error);
+      Alert.alert("Lỗi", "Có lỗi xảy ra khi đổi mật khẩu. Vui lòng thử lại.");
+    } finally {
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    }
+  };
+
   return (
-    <Provider>
-      <ScrollView contentContainerStyle={styles.formContainer}>
-        <View style={{ alignItems: "center", marginBottom: 30 }}>
-          <Text style={styles.titleText}>CHỈNH SỬA THÔNG TIN</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.white }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: COLORS.white }}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
+        <ImageBackground
+          source={{
+            uri: "https://img.freepik.com/premium-photo/glowing-green-gradient-background-smooth-gradient-flat-design-high-resolution-high-quality-high_1110519-4518.jpg",
+          }}
+          style={{
+            width: "100%",
+            height: 200,
+          }}
+        >
+          <View
+            style={{ padding: 20, flexDirection: "row", alignItems: "center" }}
+          >
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Icon name="arrow-back-outline" size={25} color={COLORS.white} />
+            </TouchableOpacity>
+            <Text
+              style={{
+                fontFamily: FONTS.bold,
+                fontSize: 20,
+                color: COLORS.white,
+                marginLeft: 10,
+              }}
+            >
+              Chỉnh sửa trang cá nhân
+            </Text>
+          </View>
+        </ImageBackground>
+        {/* Phần hiển thị ảnh đại diện */}
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity onPress={() => setShowFullImage(true)}>
+            <Image
+              source={{ uri: avatar || "https://via.placeholder.com/100" }}
+              style={styles.avatar}
+            />
+          </TouchableOpacity>
+
+          <View style={styles.buttonContainer}>
+            {/* Nút chọn ảnh từ thư viện */}
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleChooseAvatar}
+            >
+              <Text style={styles.buttonText}>Chọn ảnh</Text>
+            </TouchableOpacity>
+
+            {/* Nút chụp ảnh */}
+            <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
+              <Text style={styles.buttonText}>Chụp ảnh</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {[
-          {
-            label: "Họ tên",
-            value: username,
-            onChange: setUsername,
-            field: "username",
-          },
-          { label: "Email", value: email, onChange: setEmail, field: "email" },
-          {
-            label: "Số điện thoại",
-            value: phoneNumber,
-            onChange: setPhoneNumber,
-            field: "phoneNumber",
-            editable: false,
-          },
-          {
-            label: "Chiều cao (cm)",
-            value: height,
-            onChange: setHeight,
-            field: "height",
-          },
-          {
-            label: "Cân nặng (kg)",
-            value: weight,
-            onChange: setWeight,
-            field: "weight",
-          },
-          {
-            label: "Địa chỉ",
-            value: address,
-            onChange: setAddress,
-            field: "address",
-          },
-          {
-            label: "Nghề nghiệp",
-            value: profession,
-            onChange: setProfession,
-            field: "profession",
-            isDropdown: true,
-            menuVisible: visibleProfessionMenu,
-            setMenuVisible: setVisibleProfessionMenu,
-          },
-          {
-            label: "Mức độ hoạt động",
-            value: activityLevel,
-            onChange: setActivityLevel,
-            field: "activityLevel",
-            isDropdown: true,
-            menuVisible: visibleActivityMenu,
-            setMenuVisible: setVisibleActivityMenu,
-          },
-          {
-            label: "Mục tiêu",
-            value: goal,
-            onChange: setGoal,
-            field: "goal",
-            isDropdown: true,
-            menuVisible: visibleGoalMenu,
-            setMenuVisible: setVisibleGoalMenu,
-          },
-        ].map((input, index) => (
-          <View key={index} style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>{input.label}</Text>
-            <View style={styles.inputRow}>
-              {input.isDropdown ? (
-                <Menu
-                  visible={input.menuVisible}
-                  onDismiss={() => input.setMenuVisible(false)}
-                  anchor={
-                    <TouchableOpacity
-                      style={styles.menuAnchor}
-                      onPress={() => input.setMenuVisible(true)}
-                    >
-                      <Text style={styles.textInput}>{input.value}</Text>
-                    </TouchableOpacity>
-                  }
-                >
-                  {input.field === "profession" && (
-                    <>
-                      <Menu.Item
-                        onPress={() => {
-                          setProfession("Đang đi học");
-                          setVisibleProfessionMenu(false);
-                        }}
-                        title="Đang đi học"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setProfession("Văn phòng");
-                          setVisibleProfessionMenu(false);
-                        }}
-                        title="Văn phòng"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setProfession("Nội trợ");
-                          setVisibleProfessionMenu(false);
-                        }}
-                        title="Nội trợ"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setProfession("Công nhân lao động nặng");
-                          setVisibleProfessionMenu(false);
-                        }}
-                        title="Công nhân lao động nặng"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setProfession("Thầy tu");
-                          setVisibleProfessionMenu(false);
-                        }}
-                        title="Thầy tu"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setProfession("Nghệ sĩ");
-                          setVisibleProfessionMenu(false);
-                        }}
-                        title="Nghệ sĩ"
-                      />
-                    </>
-                  )}
-                  {input.field === "activityLevel" && (
-                    <>
-                      <Menu.Item
-                        onPress={() => {
-                          setActivityLevel("Cao");
-                          setVisibleActivityMenu(false);
-                        }}
-                        title="Cao"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setActivityLevel("Trung bình");
-                          setVisibleActivityMenu(false);
-                        }}
-                        title="Trung bình"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setActivityLevel("Ít");
-                          setVisibleActivityMenu(false);
-                        }}
-                        title="Ít"
-                      />
-                    </>
-                  )}
-                  {input.field === "goal" && (
-                    <>
-                      <Menu.Item
-                        onPress={() => {
-                          setGoal("Tăng cân");
-                          setVisibleGoalMenu(false);
-                        }}
-                        title="Tăng cân"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setGoal("Giảm cân");
-                          setVisibleGoalMenu(false);
-                        }}
-                        title="Giảm cân"
-                      />
-                      <Menu.Item
-                        onPress={() => {
-                          setGoal("Giữ nguyên");
-                          setVisibleGoalMenu(false);
-                        }}
-                        title="Giữ nguyên"
-                      />
-                    </>
-                  )}
-                </Menu>
-              ) : (
+        {/* Hiển thị ảnh lớn khi bấm vào ảnh đại diện */}
+        {showFullImage && (
+          <View style={styles.fullImageOverlay}>
+            <Image source={{ uri: avatar }} style={styles.fullImage} />
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowFullImage(false)}
+            >
+              <Icon name="close" size={30} color={COLORS.white} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.formContainer}>
+          {/* Họ tên */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Họ tên</Text>
+            <TextInput
+              style={styles.textInput}
+              value={username}
+              onChangeText={setUsername}
+            />
+          </View>
+          {/* Email */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={styles.textInput}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+            />
+          </View>
+
+          {/* Địa chỉ */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Địa chỉ</Text>
+            <TextInput
+              style={styles.textInput}
+              value={address}
+              onChangeText={setAddress}
+            />
+          </View>
+
+          {/* Tuổi */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Tuổi</Text>
+            <TextInput
+              style={styles.textInput}
+              value={age?.toString()}
+              onChangeText={(value) => setAge(parseInt(value) || "")}
+              keyboardType="numeric"
+            />
+          </View>
+
+          {/* Chiều cao và Cân nặng */}
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between" }}
+          >
+            {/* Chiều cao */}
+            <View style={[styles.attributeRow, { width: "45%" }]}>
+              <View>
+                <Text style={styles.textTitle}>Chiều cao (cm): </Text>
+              </View>
+              <View style={styles.inputRow}>
                 <TextInput
                   style={styles.textInput}
-                  placeholder={`Nhập ${input.label.toLowerCase()}`}
+                  value={height}
+                  onChangeText={(value) => setHeight(value)}
+                  placeholder="Nhập chiều cao"
                   placeholderTextColor={COLORS.lightGrey}
-                  value={input.value}
-                  onChangeText={input.onChange}
-                  editable={editableField === input.field}
+                  inputMode="numeric"
+                  keyboardType="numeric"
                 />
-              )}
-              {input.editable !== false && (
-                <TouchableOpacity onPress={() => handleFieldEdit(input.field)}>
-                  <Icon name="pencil" size={20} color={COLORS.green} />
-                </TouchableOpacity>
-              )}
+              </View>
+            </View>
+
+            {/* Cân nặng */}
+            <View style={[styles.attributeRow, { width: "50%" }]}>
+              <View>
+                <Text style={styles.textTitle}>Cân nặng (kg): </Text>
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.textInput}
+                  value={weight}
+                  onChangeText={(value) => setWeight(value)}
+                  placeholder="Nhập cân nặng"
+                  placeholderTextColor={COLORS.lightGrey}
+                  inputMode="numeric"
+                  keyboardType="numeric"
+                />
+              </View>
             </View>
           </View>
-        ))}
 
-        {/* <View style={styles.inputContainer}>
-  <Text style={styles.inputLabel}>
-    Sở thích ăn uống <Text style={{ color: COLORS.red }}>*</Text>
-  </Text>
-  <RadioGroup
-    radioButtons={[
-      {
-        id: '1',
-        label: 'Thuần chay',
-        value: '1',
-        color: COLORS.green,
-      },
-      {
-        id: '2',
-        label: 'Chay không trứng, có thể có sữa, phô mai',
-        value: '2',
-        color: COLORS.green,
-      },
-      {
-        id: '3',
-        label: 'Chay không sữa, có thể có trứng',
-        value: '3',
-        color: COLORS.green,
-      },
-      {
-        id: '4',
-        label: 'Hỗn hợp, có thể sử dụng cả trứng, sữa',
-        value: '4',
-        color: COLORS.green,
-      },
-      {
-        id: '5',
-        label: 'Chay bán phần (không thịt, có thể ăn cá)',
-        value: '5',
-        color: COLORS.green,
-      },
-    ]}
-    onPress={(selectedValue) => {
-      if (selectedValue && selectedValue.id) {
-        setSelectedPreferencesId(selectedValue.id);
-        console.log('Updated dietaryPreferenceId:', selectedValue.id);
-      } else {
-        console.log('Selected value is invalid:', selectedValue);
-      }
-    }}
-    selectedId={selectedPreferencesId}
-    layout="column"
-    labelStyle={{ fontFamily: FONTS.medium }}
-    containerStyle={{ flexDirection: 'row', flexWrap: 'wrap' }}
-  />
-</View> */}
+          {/* Mức độ hoạt động */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Mức độ hoạt động</Text>
+            <Dropdown
+              data={filterDropdownData(
+                dataActivityLevel,
+                dataActivityLevel.find((item) => item.name === activityLevel)
+                  ?.id
+              )}
+              labelField="name"
+              valueField="name" // Sử dụng name làm giá trị
+              value={activityLevel} // Giá trị hiện tại (chuỗi)
+              onChange={(item) => setActivityLevel(item.name)} // Lưu tên vào state
+              placeholder={
+                dataActivityLevel.find((item) => item.name === activityLevel)
+                  ?.name || "Chọn mức độ"
+              }
+              style={styles.dropdown}
+            />
+          </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>
-            Sở thích ăn uống <Text style={{ color: COLORS.red }}>*</Text>
-          </Text>
-          <Menu
-            visible={visibleDietaryMenu}
-            onDismiss={() => setVisibleDietaryMenu(false)}
-            anchor={
-              <TouchableOpacity
-                style={styles.menuAnchor}
-                onPress={() => setVisibleDietaryMenu(true)}
-              >
-                <Text style={styles.textInput}>
-                  {[
-                    "Thuần chay",
-                    "Chay không trứng, có thể có sữa, phô mai",
-                    "Chay không sữa, có thể có trứng",
-                    "Hỗn hợp, có thể sử dụng cả trứng, sữa",
-                    "Chay bán phần (không thịt, có thể ăn cá)",
-                  ][parseInt(selectedPreferencesId) - 1] || "Chọn sở thích"}
-                </Text>
-              </TouchableOpacity>
-            }
+          {/* Mục tiêu */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Mục tiêu</Text>
+            <Dropdown
+              data={filterDropdownData(
+                dataGoal,
+                dataGoal.find((item) => item.name === goal)?.id
+              )}
+              labelField="name"
+              valueField="name" // Sử dụng name làm giá trị
+              value={goal} // Giá trị hiện tại (chuỗi)
+              onChange={(item) => setGoal(item.name)} // Lưu tên vào state
+              placeholder={
+                dataGoal.find((item) => item.name === goal)?.name ||
+                "Chọn mục tiêu"
+              }
+              style={styles.dropdown}
+            />
+          </View>
+
+          {/* Sở thích ăn uống */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Sở thích ăn uống</Text>
+            <Dropdown
+              data={filterDropdownData(
+                dataPreferences,
+                parseInt(selectedPreferencesId)
+              )}
+              labelField="name"
+              valueField="id"
+              value={parseInt(selectedPreferencesId)}
+              onChange={(item) => setSelectedPreferencesId(item.id.toString())}
+              placeholder={
+                dataPreferences.find(
+                  (item) => item.id === parseInt(selectedPreferencesId)
+                )?.name || "Chọn sở thích"
+              }
+              style={styles.dropdown}
+            />
+          </View>
+
+          {/* Nút Mở form đổi mật khẩu */}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => setIsChangePasswordModalVisible(true)}
           >
-            <Menu.Item
-              onPress={() => {
-                setSelectedPreferencesId("1");
-                setVisibleDietaryMenu(false);
-              }}
-              title="Thuần chay"
-            />
-            <Menu.Item
-              onPress={() => {
-                setSelectedPreferencesId("2");
-                setVisibleDietaryMenu(false);
-              }}
-              title="Chay không trứng, có thể có sữa, phô mai"
-            />
-            <Menu.Item
-              onPress={() => {
-                setSelectedPreferencesId("3");
-                setVisibleDietaryMenu(false);
-              }}
-              title="Chay không sữa, có thể có trứng"
-            />
-            <Menu.Item
-              onPress={() => {
-                setSelectedPreferencesId("4");
-                setVisibleDietaryMenu(false);
-              }}
-              title="Hỗn hợp, có thể sử dụng cả trứng, sữa"
-            />
-            <Menu.Item
-              onPress={() => {
-                setSelectedPreferencesId("5");
-                setVisibleDietaryMenu(false);
-              }}
-              title="Chay bán phần (không thịt, có thể ăn cá)"
-            />
-          </Menu>
-        </View>
+            <Text style={styles.buttonText}>Đổi mật khẩu</Text>
+          </TouchableOpacity>
 
-        <ButtonFlex
-          title={"Lưu thay đổi"}
-          stylesButton={{
-            paddingVertical: 15,
-            backgroundColor: COLORS.green,
-            borderRadius: 10,
-          }}
-          stylesText={{ fontSize: 14 }}
-          onPress={handleSaveChanges}
-        />
-        <ButtonFlex
-          title={"Đăng xuất"}
-          stylesButton={{
-            paddingVertical: 15,
-            backgroundColor: COLORS.red,
-            borderRadius: 10,
-            marginTop: 20,
-          }}
-          stylesText={{ fontSize: 14 }}
-          onPress={handleLogout}
-        />
+          {!isChangePasswordModalVisible && (
+            <ButtonFlex
+              title="Lưu thay đổi"
+              stylesButton={{
+                marginTop: 10,
+                backgroundColor: COLORS.green,
+                height: 40,
+              }}
+              onPress={handleSaveChanges}
+            />
+          )}
+        </View>
       </ScrollView>
-    </Provider>
+
+      {/* Password change modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isChangePasswordModalVisible}
+        onRequestClose={() => {
+          setIsChangePasswordModalVisible(!isChangePasswordModalVisible);
+        }}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Đổi mật khẩu</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Mật khẩu cũ</Text>
+              <TextInput
+                style={styles.textInput}
+                secureTextEntry
+                value={oldPassword}
+                onChangeText={setOldPassword}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Mật khẩu mới</Text>
+              <TextInput
+                style={styles.textInput}
+                secureTextEntry
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Xác nhận mật khẩu mới</Text>
+              <TextInput
+                style={styles.textInput}
+                secureTextEntry
+                value={confirmNewPassword}
+                onChangeText={setConfirmNewPassword}
+              />
+            </View>
+            <ButtonFlex
+              title="Đổi mật khẩu"
+              stylesButton={{
+                marginTop: 10,
+                backgroundColor: COLORS.green,
+                height: 40,
+              }}
+              onPress={handleChangePassword}
+            />
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: COLORS.grey }]}
+              onPress={() => setIsChangePasswordModalVisible(false)}
+            >
+              <Text style={styles.buttonText}>Hủy</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 };
 
 export default EditProfileScreen;
 
 const styles = StyleSheet.create({
+  avatarContainer: {
+    alignItems: "center",
+    marginTop: -30,
+    marginBottom: 30,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: COLORS.white,
+  },
+  changeAvatarText: {
+    marginTop: 10,
+    fontFamily: FONTS.medium,
+    color: COLORS.green,
+    fontSize: 14,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "80%",
+    marginTop: 20,
+  },
+  button: {
+    backgroundColor: COLORS.green,
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  buttonText: {
+    color: COLORS.white,
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+  },
+  fullImageOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  fullImage: {
+    width: "90%",
+    height: "70%",
+    borderRadius: 10,
+  },
+  closeButton: {
+    position: "absolute",
+    top: 30,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 20,
+    padding: 10,
+  },
+
   formContainer: {
+    padding: 20,
     backgroundColor: COLORS.white,
-    padding: 30,
-    flexGrow: 1,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    marginTop: -30,
   },
   inputContainer: {
-    marginBottom: 25,
+    marginBottom: 15,
   },
   inputLabel: {
     fontFamily: FONTS.semiBold,
-    fontSize: 15,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: "#ccc",
-    marginTop: 5,
-  },
-  menuAnchor: {
-    borderBottomWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
+    fontSize: 14,
+    marginBottom: 5,
   },
   textInput: {
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+    padding: 10,
     fontFamily: FONTS.medium,
-    fontSize: 15,
+    fontSize: 14,
+  },
+  dropdown: {
+    borderWidth: 1,
+    borderColor: COLORS.greyPastel,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 50,
+  },
+  centeredView: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Add a semi-transparent background
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: "80%", // Adjust the width as needed
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontFamily: FONTS.bold,
+    fontSize: 18,
   },
 });

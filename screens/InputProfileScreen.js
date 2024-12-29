@@ -10,7 +10,6 @@ import {
   Alert,
 } from "react-native";
 import { Menu, Provider } from "react-native-paper";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -32,6 +31,7 @@ const InputProfileScreen = ({ navigation, route }) => {
 
   const [dob, setDob] = useState(new Date());
   const age = moment().diff(dob, "years");
+  const [dobInput, setDobInput] = useState("");
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -42,19 +42,18 @@ const InputProfileScreen = ({ navigation, route }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [height, setHeight] = useState(""); // New state for height
   const [weight, setWeight] = useState(""); // New state for weight
+  const [heightError, setHeightError] = useState("");
+  const [weightError, setWeightError] = useState("");
   const [profession, setProfession] = useState("Đang đi học");
   const [activityLevel, setActivityLevel] = useState("Cao");
   const [goal, setGoal] = useState("Tăng cân");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [visibleProfessionMenu, setVisibleProfessionMenu] = useState(false);
   const [visibleActivityMenu, setVisibleActivityMenu] = useState(false);
   const [visibleGoalMenu, setVisibleGoalMenu] = useState(false);
   const [province, setProvince] = useState("Hồ Chí Minh");
   const [district, setDistrict] = useState("");
   const [address, setAddress] = useState("");
 
-  const openProfessionMenu = () => setVisibleProfessionMenu(true);
-  const closeProfessionMenu = () => setVisibleProfessionMenu(false);
   const openActivityMenu = () => setVisibleActivityMenu(true);
   const closeActivityMenu = () => setVisibleActivityMenu(false);
   const openGoalMenu = () => setVisibleGoalMenu(true);
@@ -68,12 +67,6 @@ const InputProfileScreen = ({ navigation, route }) => {
   const closeDistrictModal = () => setVisibleDistrictModal(false);
   const openProvinceMenu = () => setVisibleProvinceMenu(true);
   const closeProvinceMenu = () => setVisibleProvinceMenu(false);
-
-  const onDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || dob;
-    setShowDatePicker(false);
-    setDob(currentDate);
-  };
 
   const districts = [
     "Quận 1",
@@ -101,21 +94,25 @@ const InputProfileScreen = ({ navigation, route }) => {
   ];
 
   const handleRegister = async () => {
-    // Check if address is complete
+    // Kiểm tra chiều cao và cân nặng
+    if (!validateHeightAndWeight()) {
+      return; // Dừng nếu kiểm tra không hợp lệ
+    }
+    // Kiểm tra địa chỉ
     if (!province || !selectedDistrict || !address.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ địa chỉ!");
       return;
     }
 
-    const fullAddress = `${province}, ${selectedDistrict}, ${address}`;
-    console.log("Địa chỉ đầy đủ:", fullAddress);
+    // Sắp xếp địa chỉ theo thứ tự Địa chỉ, Quận/Huyện, Tỉnh/Thành phố
+    const fullAddress = `${address}, ${selectedDistrict}, ${province}`;
 
-    // Check required fields
+    // Kiểm tra các trường bắt buộc
     if (
       !username ||
       !email ||
       !phoneNumber ||
-      !dob ||
+      !dobInput ||
       !password ||
       !confirmPassword
     ) {
@@ -123,93 +120,341 @@ const InputProfileScreen = ({ navigation, route }) => {
       return;
     }
 
-    // Check password confirmation
+    // Kiểm tra định dạng ngày sinh
+    if (!validateDOB(dobInput)) {
+      Alert.alert("Lỗi", "Ngày sinh không hợp lệ (định dạng: dd/mm/yyyy).");
+      return;
+    }
+
+    // Kiểm tra mật khẩu khớp
     if (password !== confirmPassword) {
       Alert.alert("Lỗi", "Mật khẩu và xác nhận mật khẩu không khớp!");
       return;
     }
 
+    // Định dạng lại số điện thoại
     const formattedPhoneNumber = phoneNumber.startsWith("0")
       ? phoneNumber
       : "0" + phoneNumber;
 
-    // Prepare data for the API request
-    const age = moment().diff(dob, "years");
+    // Chuyển đổi ngày sinh sang dạng Date
+    const formattedDob = moment(dobInput, "DD/MM/YYYY").toDate();
+    const age = moment().diff(moment(dobInput, "DD/MM/YYYY"), "years");
+
     const gender =
       selectedSexId === "1" ? "Man" : selectedSexId === "2" ? "Woman" : "Other";
-    const defaultImageUrl =
-      "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg?t=st=1731033718~exp=1731037318~hmac=2705f80ce81289818508e796cf321f2dbc40c8b93ee5cbe6aaf29a1728c38682&w=740";
 
+    const defaultImageUrl =
+      "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg";
+
+    // Dữ liệu gửi lên API
     const requestData = {
       username,
       password,
       email,
       phoneNumber: formattedPhoneNumber,
-      address: fullAddress,
+      dob: formattedDob,
+      address: fullAddress, // Địa chỉ đã được sắp xếp lại
       height: parseFloat(height),
       weight: parseFloat(weight),
       age,
       gender,
+      profession, // Dùng ID để gửi lên API
       dietaryPreferenceId: parseInt(selectedPreferencesId),
-      profession,
       activityLevel,
       goal,
       isPhoneVerified: true,
-      imageUrl: defaultImageUrl, // Set default image URL here
+      imageUrl: defaultImageUrl,
     };
 
-    // Log request data
-    console.log("Dữ liệu đã nhập:", requestData);
+    console.log("Dữ liệu gửi lên API đăng ký:", requestData);
+
     try {
-      const response = await axios.post(
+      // Gọi API đăng ký
+      const registerResponse = await axios.post(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/RegisterCustomer",
         requestData
       );
 
-      if (response.status === 200) {
-        console.log("Đăng ký thành công:", response.data);
-        // Additional steps after successful registration
+      console.log("Phản hồi API đăng ký:", registerResponse.data);
+
+      if (registerResponse.status === 200) {
+        console.log("Đăng ký thành công. Bắt đầu tự động đăng nhập...");
+
+        // Tự động đăng nhập sau khi đăng ký thành công
         try {
-          const userResponse = await axios.get(
-            `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByUsername/${username}`
+          console.log("Dữ liệu gửi lên API login:", {
+            phoneNumber: formattedPhoneNumber,
+            password,
+          });
+
+          const loginResponse = await axios.post(
+            "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/login",
+            {
+              phoneNumber: formattedPhoneNumber,
+              password,
+            }
           );
 
-          if (userResponse.status === 200 && userResponse.data) {
-            const userId =
-              userResponse.data?.userId || userResponse.data?.[0]?.userId;
-            console.log("Lấy được userId:", userId);
+          console.log("Phản hồi API login:", loginResponse.data);
 
-            // Store userId in AsyncStorage
-            await AsyncStorage.setItem("userId", userId.toString());
+          if (loginResponse.status === 200) {
+            const { token, user } = loginResponse.data;
 
-            Alert.alert("Thông báo", "Đăng ký thành công!", [
+            console.log("Đăng nhập thành công. Thông tin user:", user);
+
+            // Lưu JWT và thông tin user vào AsyncStorage
+            await AsyncStorage.multiSet([
+              ["authToken", token],
+              ["userId", String(user.userId)],
+              ["username", user.username],
+              ["imageUrl", user.imageUrl],
+              ["dietaryPreferenceId", String(user.dietaryPreferenceId)],
+              ["userData", JSON.stringify(user)], // Save user data
+            ]);
+
+            // Create notification settings after successful registration and login
+            try {
+              const notificationSettingsData = {
+                userId: user.userId,
+                newArticleNotification: true,
+                orderStatusNotification: true,
+                promotionNotification: true,
+                followNotification: true,
+              };
+
+              console.log(
+                "Dữ liệu gửi lên API tạo notification settings:",
+                notificationSettingsData
+              );
+
+              const notificationSettingResponse = await axios.post(
+                "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/createNotificationSetting",
+                notificationSettingsData,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+
+              console.log(
+                "Phản hồi API tạo notification settings:",
+                notificationSettingResponse.data
+              );
+              if (notificationSettingResponse.status === 200) {
+                console.log("Tạo notification setting thành công");
+              } else {
+                console.error(
+                  "Không thể tạo notification settings:",
+                  notificationSettingResponse.data
+                );
+              }
+            } catch (notificationSettingError) {
+              console.error(
+                "Lỗi khi gọi API tạo notification settings:",
+                notificationSettingError.response?.data ||
+                  notificationSettingError.message
+              );
+            }
+            // Tự động tạo membership sau khi đăng nhập thành công
+            try {
+              const membershipData = {
+                userId: user.userId,
+                tierId: 1, // Bronze level
+                accumulatedPoints: 0,
+                discountGrantedDate: new Date().toISOString(),
+                lastDiscountUsed: new Date().toISOString(),
+              };
+
+              console.log(
+                "Dữ liệu gửi lên API tạo membership:",
+                membershipData
+              );
+
+              const membershipResponse = await axios.post(
+                "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/membership",
+                membershipData,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+
+              console.log(
+                "Phản hồi API tạo membership:",
+                membershipResponse.data
+              );
+
+              if (membershipResponse.status === 200) {
+                console.log("Tạo membership thành công.");
+              } else {
+                console.error(
+                  "Không thể tạo membership:",
+                  membershipResponse.data
+                );
+              }
+            } catch (membershipError) {
+              console.error(
+                "Lỗi khi gọi API tạo membership:",
+                membershipError.response?.data || membershipError.message
+              );
+            }
+            // Điều hướng tới trang Home
+            Alert.alert("Thành công", "Đăng ký và đăng nhập thành công!", [
               { text: "OK", onPress: () => navigation.navigate("Home") },
             ]);
           } else {
-            console.log(
-              "Phản hồi từ getUserByName không hợp lệ:",
-              userResponse.data
-            );
+            console.error("Đăng nhập thất bại sau khi đăng ký.");
             Alert.alert(
               "Lỗi",
-              "Không thể lấy thông tin người dùng sau khi đăng ký."
+              "Đăng nhập tự động thất bại. Vui lòng thử đăng nhập lại."
             );
           }
-        } catch (getUserError) {
-          console.error("Lỗi khi gọi API getUserByName:", getUserError.message);
+        } catch (loginError) {
+          console.error(
+            "Lỗi khi gọi API login:",
+            loginError.response?.data || loginError.message
+          );
           Alert.alert(
             "Lỗi",
-            "Không thể lấy thông tin user sau khi đăng ký. Vui lòng thử lại sau."
+            "Đăng nhập tự động thất bại. Vui lòng thử đăng nhập lại."
           );
         }
       } else {
-        console.log("Phản hồi không thành công:", response.data);
-        Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại sau.");
+        console.error(
+          "Phản hồi không thành công từ API đăng ký:",
+          registerResponse.data
+        );
+        Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại.");
       }
     } catch (registerError) {
-      console.error("Lỗi đăng ký:", registerError.message);
-      Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại sau.");
+      console.error(
+        "Lỗi khi gọi API đăng ký:",
+        registerError.response?.data || registerError.message
+      );
+      Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại.");
     }
+  };
+
+  const validateDOB = (input) => {
+    const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+    return regex.test(input);
+  };
+
+  const handleDobChange = (input) => {
+    setDobInput(input);
+
+    // Kiểm tra nếu trường nhập rỗng
+    if (!input.trim()) {
+      setErrorDoB(""); // Không hiển thị lỗi nếu trường rỗng
+      return;
+    }
+
+    // Validate format
+    if (!validateDOB(input)) {
+      setErrorDoB("Ngày hoặc tháng không tồn tại (định dạng: dd/mm/yyyy).");
+      return;
+    }
+
+    const [day, month, year] = input
+      .split("/")
+      .map((part) => parseInt(part, 10));
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1; // `getMonth` is 0-based
+    const currentDay = today.getDate();
+    const minYear = currentYear - 100; // Minimum year (100 years ago)
+    const maxAllowedYear = currentYear - 10; // Maximum year (at least 10 years old)
+
+    // Validate year range (too far in the past)
+    if (year < minYear) {
+      setErrorDoB(`Năm sinh không được cách năm hiện tại quá 100 năm.`);
+      return;
+    }
+
+    // Validate year is not in the future
+    if (year > currentYear) {
+      setErrorDoB("Ngày sinh không thể ở tương lai.");
+      return;
+    }
+
+    // Validate month is not in the future (if the year is the current year)
+    if (year === currentYear && month > currentMonth) {
+      setErrorDoB("Ngày sinh không thể ở tương lai.");
+      return;
+    }
+
+    // Validate day is not in the future (if the year and month are current)
+    if (year === currentYear && month === currentMonth && day > currentDay) {
+      setErrorDoB("Ngày sinh không thể ở tương lai.");
+      return;
+    }
+
+    // Validate age restriction (must be at least 10 years old)
+    if (year > maxAllowedYear) {
+      setErrorDoB("Bạn phải từ 10 tuổi trở lên để sử dụng ứng dụng này.");
+      return;
+    }
+
+    // Validate if the day/month/year combination is valid
+    const dob = new Date(year, month - 1, day);
+    if (
+      dob.getFullYear() !== year ||
+      dob.getMonth() + 1 !== month ||
+      dob.getDate() !== day
+    ) {
+      setErrorDoB("Ngày sinh không hợp lệ.");
+      return;
+    }
+
+    // Clear errors if valid
+    setErrorDoB("");
+  };
+
+  const handleHeightChange = (input) => {
+    setHeight(input);
+
+    if (!input.trim()) {
+      setHeightError(""); // Không hiển thị lỗi nếu trường rỗng
+      return;
+    }
+    const value = parseFloat(input);
+    if (isNaN(value) || value < 50 || value > 250) {
+      setHeightError("Chiều cao phải từ 50-250 cm.");
+    } else {
+      setHeightError("");
+    }
+  };
+
+  const handleWeightChange = (input) => {
+    setWeight(input);
+
+    if (!input.trim()) {
+      setWeightError(""); // Không hiển thị lỗi nếu trường rỗng
+      return;
+    }
+    const value = parseFloat(input);
+    if (isNaN(value) || value < 10 || value > 200) {
+      setWeightError("Cân nặng phải từ 10-200 kg.");
+    } else {
+      setWeightError("");
+    }
+  };
+
+  const validateHeightAndWeight = () => {
+    const heightValue = parseFloat(height);
+    const weightValue = parseFloat(weight);
+
+    if (isNaN(heightValue) || heightValue < 50 || heightValue > 250) {
+      Alert.alert("Lỗi", "Chiều cao phải nằm trong khoảng từ 50-250 cm.");
+      return false;
+    }
+
+    if (isNaN(weightValue) || weightValue < 10 || weightValue > 200) {
+      Alert.alert("Lỗi", "Cân nặng phải nằm trong khoảng từ 10-200 kg.");
+      return false;
+    }
+
+    return true;
   };
 
   const radioButtonsPreferences = [
@@ -282,12 +527,6 @@ const InputProfileScreen = ({ navigation, route }) => {
     },
   ];
 
-  // React.useEffect(() => {
-  //   console.log("Số điện thoại truyền vào:", phoneNumber);
-  // }, [phoneNumber]);
-  // React.useEffect(() => {
-  //   console.log("Route params:", route.params);
-  // }, [route.params]);
   const renderDistrictItem = ({ item }) => (
     <TouchableOpacity
       style={styles.districtItem}
@@ -334,20 +573,7 @@ const InputProfileScreen = ({ navigation, route }) => {
             />
           </View>
         </View>
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>
-            Email <Text style={{ color: COLORS.red }}>*</Text>
-          </Text>
-          <View style={styles.inputRow}>
-            <Icon name="mail" size={20} color={COLORS.green} />
-            <TextInput
-              style={styles.textInput}
-              placeholder="Nhập email"
-              placeholderTextColor={COLORS.lightGrey}
-              onChangeText={setEmail}
-            />
-          </View>
-        </View>
+
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
             Số điện thoại <Text style={{ color: COLORS.red }}>*</Text>
@@ -356,8 +582,8 @@ const InputProfileScreen = ({ navigation, route }) => {
             <Icon name="call" size={20} color={COLORS.green} />
             <TextInput
               style={styles.textInput}
-              value={"0" + phoneNumber}
-              editable={false} // Hiển thị nhưng không cho phép chỉnh sửa
+              value={phoneNumber}
+              editable={false}
             />
           </View>
         </View>
@@ -409,93 +635,61 @@ const InputProfileScreen = ({ navigation, route }) => {
           </View>
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>
-              Chiều cao (cm) <Text style={{ color: COLORS.red }}>*</Text>
+              Email <Text style={{ color: COLORS.red }}>*</Text>
             </Text>
             <View style={styles.inputRow}>
+              <Icon name="mail" size={20} color={COLORS.green} />
               <TextInput
                 style={styles.textInput}
-                placeholder="Nhập chiều cao"
+                placeholder="Nhập email"
                 placeholderTextColor={COLORS.lightGrey}
-                keyboardType="numeric"
-                onChangeText={setHeight}
+                onChangeText={setEmail}
               />
             </View>
           </View>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>
-              Cân nặng (kg) <Text style={{ color: COLORS.red }}>*</Text>
-            </Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Nhập cân nặng"
-                placeholderTextColor={COLORS.lightGrey}
-                keyboardType="numeric"
-                onChangeText={setWeight}
-              />
+          <View>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
+              {/* Input chiều cao */}
+              <View style={[styles.attributeRow, { width: "45%" }]}>
+                <Text style={styles.textTitle}>Chiều cao (cm):</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Nhập chiều cao"
+                    value={height}
+                    placeholderTextColor={COLORS.lightGrey}
+                    onChangeText={handleHeightChange}
+                    keyboardType="numeric"
+                  />
+                </View>
+                {heightError ? (
+                  <Text style={styles.errorText}>{heightError}</Text>
+                ) : null}
+              </View>
+
+              {/* Input cân nặng */}
+              <View style={[styles.attributeRow, { width: "50%" }]}>
+                <Text style={styles.textTitle}>Cân nặng (kg):</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Nhập cân nặng"
+                    value={weight}
+                    placeholderTextColor={COLORS.lightGrey}
+                    onChangeText={handleWeightChange}
+                    keyboardType="numeric"
+                  />
+                </View>
+                {weightError ? (
+                  <Text style={styles.errorText}>{weightError}</Text>
+                ) : null}
+              </View>
             </View>
           </View>
         </View>
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>
-            Nghề nghiệp <Text style={{ color: COLORS.red }}>*</Text>
-          </Text>
-          <Menu
-            visible={visibleProfessionMenu}
-            onDismiss={closeProfessionMenu}
-            anchor={
-              <TouchableOpacity
-                style={styles.menuAnchor}
-                onPress={openProfessionMenu}
-              >
-                <Text style={styles.textInput}>{profession}</Text>
-              </TouchableOpacity>
-            }
-          >
-            <Menu.Item
-              onPress={() => {
-                setProfession("Đang đi học");
-                closeProfessionMenu();
-              }}
-              title="Đang đi học"
-            />
-            <Menu.Item
-              onPress={() => {
-                setProfession("Văn phòng");
-                closeProfessionMenu();
-              }}
-              title="Văn phòng"
-            />
-            <Menu.Item
-              onPress={() => {
-                setProfession("Nội trợ");
-                closeProfessionMenu();
-              }}
-              title="Nội trợ"
-            />
-            <Menu.Item
-              onPress={() => {
-                setProfession("Công nhân lao động nặng");
-                closeProfessionMenu();
-              }}
-              title="Công nhân lao động nặng"
-            />
-            <Menu.Item
-              onPress={() => {
-                setProfession("Thầy tu");
-                closeProfessionMenu();
-              }}
-              title="Thầy tu"
-            />
-            <Menu.Item
-              onPress={() => {
-                setProfession("Nghệ sĩ");
-                closeProfessionMenu();
-              }}
-              title="Nghệ sĩ"
-            />
-          </Menu>
-        </View>
+
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
             Mức độ hoạt động <Text style={{ color: COLORS.red }}>*</Text>
@@ -576,26 +770,22 @@ const InputProfileScreen = ({ navigation, route }) => {
         </View>
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
-            Ngày sinh <Text style={{ color: COLORS.red }}>*</Text>
+            Ngày sinh (dd/mm/yyyy) <Text style={{ color: COLORS.red }}>*</Text>
           </Text>
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            style={styles.inputRow}
-          >
-            <Icon name="calendar" size={20} color={COLORS.green} />
-            <Text style={styles.textInput}>
-              {moment(dob).format("DD/MM/YYYY")}
-            </Text>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={dob}
-              mode="date"
-              display="default"
-              onChange={onDateChange}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Nhập ngày sinh (dd/mm/yyyy)"
+              placeholderTextColor={COLORS.lightGrey}
+              value={dobInput}
+              onChangeText={handleDobChange}
             />
-          )}
+          </View>
+          {errorDoB ? (
+            <Text style={styles.errorDoBText}>{errorDoB}</Text>
+          ) : null}
         </View>
+
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
             Giới tính <Text style={{ color: COLORS.red }}>*</Text>
@@ -623,7 +813,7 @@ const InputProfileScreen = ({ navigation, route }) => {
             <RadioGroup
               radioButtons={radioButtonsPreferences}
               onPress={(selectedValue) => {
-                setSelectedPreferencesId(selectedValue); // Giả sử selectedValue là ID hoặc value bạn cần
+                setSelectedPreferencesId(selectedValue);
               }}
               selectedId={selectedPreferencesId}
               layout="column"
@@ -720,6 +910,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 25,
+    width: "100%",
   },
   inputLabel: {
     fontFamily: FONTS.semiBold,
@@ -740,6 +931,7 @@ const styles = StyleSheet.create({
   textInput: {
     fontFamily: FONTS.medium,
     fontSize: 15,
+    width: "100%",
   },
   errorDoBText: {
     color: COLORS.red,
@@ -801,5 +993,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "400",
     textAlign: "center",
+  },
+  attributeRow: {
+    marginBottom: 15,
+  },
+  textTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 15,
+    marginBottom: 5,
+    color: COLORS.black,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderColor: COLORS.lightGrey,
+  },
+  textInput: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    width: "100%",
+    paddingVertical: 5,
+  },
+  errorText: {
+    color: COLORS.red,
+    fontFamily: FONTS.medium,
+    marginTop: 5,
   },
 });

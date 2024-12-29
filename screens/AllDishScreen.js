@@ -1,3 +1,5 @@
+// screens/AllDishScreen.js
+
 import {
   StyleSheet,
   View,
@@ -8,6 +10,7 @@ import {
   TextInput,
   ScrollView,
   FlatList,
+  Modal, // Import Modal
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import COLORS from "../constants/color";
@@ -22,6 +25,10 @@ const AllDishScreen = ({ navigation, route }) => {
   const [filteredDishes, setFilteredDishes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [ratings, setRatings] = useState({});
+
+  // State mới cho filter
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [selectedFilterOption, setSelectedFilterOption] = useState(null); // Giá trị null cho lần đầu
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -42,16 +49,21 @@ const AllDishScreen = ({ navigation, route }) => {
         );
         const jsonData = await response.json();
 
+        // Lọc các món ăn có status là "active"
+        const activeDishes = jsonData.filter(
+          (dish) => dish.status && dish.status.toLowerCase() === "active"
+        );
+
         // Thêm dummy dish nếu cần
-        if (jsonData.length % 2 !== 0) {
-          jsonData.push({ dishId: "dummy" });
+        if (activeDishes.length % 2 !== 0) {
+          activeDishes.push({ dishId: "dummy" });
         }
 
-        setAllDishes(jsonData);
-        setFilteredDishes(jsonData);
+        setAllDishes(activeDishes);
+        setFilteredDishes(activeDishes);
 
         // Lấy toàn bộ rating cho tất cả món ăn
-        const dishIds = jsonData
+        const dishIds = activeDishes
           .filter((dish) => dish.dishId !== "dummy")
           .map((dish) => dish.dishId);
 
@@ -112,7 +124,7 @@ const AllDishScreen = ({ navigation, route }) => {
     setCurrentDishType(typeId);
 
     if (typeId === 0) {
-      // Hiển thị tất cả món ăn
+      // Hiển thị tất cả món ăn có status là "active"
       setFilteredDishes(allDishes);
     } else {
       const selectedType = dataDishType.find((type) => type.id === typeId);
@@ -121,16 +133,25 @@ const AllDishScreen = ({ navigation, route }) => {
           `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/getDishByDishType/${selectedType.dishType}`
         );
 
-        const jsonData = await response.json();
-
-        if (jsonData.length % 2 !== 0) {
-          jsonData.push({ dishId: "dummy" });
+        if (!response.ok) {
+          throw new Error(`Error fetching dishes by type: ${response.status}`);
         }
 
-        setFilteredDishes(jsonData);
+        const jsonData = await response.json();
+
+        // Lọc các món ăn có status là "active"
+        const activeFilteredDishes = jsonData.filter(
+          (dish) => dish.status && dish.status.toLowerCase() === "active"
+        );
+
+        if (activeFilteredDishes.length % 2 !== 0) {
+          activeFilteredDishes.push({ dishId: "dummy" });
+        }
+
+        setFilteredDishes(activeFilteredDishes);
 
         // Lấy danh sách dishId và fetch ratings
-        const dishIds = jsonData
+        const dishIds = activeFilteredDishes
           .filter((dish) => dish.dishId !== "dummy")
           .map((dish) => dish.dishId);
 
@@ -143,23 +164,105 @@ const AllDishScreen = ({ navigation, route }) => {
     }
   };
 
+  useEffect(() => {
+    const fetchDishesAndIngredients = async () => {
+      try {
+        // Gọi API để lấy danh sách món ăn
+        const dishResponse = await fetchWithAuth(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/alldish"
+        );
+
+        if (!dishResponse.ok) {
+          throw new Error(`Error fetching dishes: ${dishResponse.status}`);
+        }
+
+        const dishes = await dishResponse.json();
+
+        // Lọc các món ăn có status là "active"
+        const activeDishes = dishes.filter(
+          (dish) => dish.status && dish.status.toLowerCase() === "active"
+        );
+
+        // Tạo danh sách các Promise để lấy nguyên liệu
+        const ingredientPromises = activeDishes.map(async (dish) => {
+          try {
+            // Gọi API getIngredientByDishId
+            const ingredientResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByDishId/${dish.dishId}`
+            );
+
+            if (!ingredientResponse.ok) {
+              console.log(
+                `Failed to fetch ingredients for dish ${dish.dishId}`
+              );
+              return { ...dish, ingredients: [] };
+            }
+
+            const ingredients = await ingredientResponse.json();
+
+            // Gọi API getIngredientByIngredientId cho từng nguyên liệu
+            const ingredientDetailsPromises = ingredients.map(async (ing) => {
+              const ingredientDetailResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByIngredientId/${ing.ingredientId}`
+              );
+
+              if (!ingredientDetailResponse.ok) {
+                console.log(
+                  `Failed to fetch ingredient details for ingredientId ${ing.ingredientId}`
+                );
+                return null;
+              }
+
+              return await ingredientDetailResponse.json();
+            });
+
+            // Chờ tất cả các lời gọi API getIngredientByIngredientId hoàn thành
+            const detailedIngredients = await Promise.all(
+              ingredientDetailsPromises
+            );
+
+            // Lọc bỏ các giá trị null nếu có lỗi
+            const validIngredients = detailedIngredients.filter((item) => item);
+
+            return { ...dish, ingredients: validIngredients };
+          } catch (error) {
+            console.error(
+              `Error fetching ingredients for dish ${dish.dishId}`,
+              error
+            );
+            return { ...dish, ingredients: [] };
+          }
+        });
+
+        // Chờ tất cả các lời gọi API hoàn thành
+        const dishesWithIngredients = await Promise.all(ingredientPromises);
+
+        setAllDishes(dishesWithIngredients);
+        setFilteredDishes(dishesWithIngredients);
+      } catch (error) {
+        console.error("Error fetching dishes or ingredients:", error);
+      }
+    };
+
+    fetchDishesAndIngredients();
+  }, []);
+
   const handleSearch = (text) => {
     setSearchQuery(text);
 
-    const cleanedQuery = text
-      .replace(/[\d.,\/?'";:{}[\]+=_)(*&%$#@!~\\|]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
+    const cleanedQuery = text.trim().toLowerCase();
 
     const filtered = allDishes.filter((dish) => {
-      const dishName = dish.name
-        ?.replace(/[\d.,\/?'";:{}[\]+=_)(*&%$#@!~\\|]/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
+      const dishName = dish.name?.toLowerCase() || "";
+      const ingredientNames =
+        dish.ingredients
+          ?.map((ingredient) => ingredient.name.toLowerCase()) // Lấy `name` từ thông tin nguyên liệu
+          .join(" ") || "";
 
-      return dishName?.includes(cleanedQuery);
+      return (
+        dishName.includes(cleanedQuery) ||
+        ingredientNames.includes(cleanedQuery)
+      );
     });
 
     setFilteredDishes(filtered);
@@ -172,6 +275,56 @@ const AllDishScreen = ({ navigation, route }) => {
     { id: 3, name: "Món tráng miệng", dishType: "Tráng miệng" },
     { id: 4, name: "Đồ uống", dishType: "Đồ uống" },
   ];
+
+  // Hàm xử lý khi chọn filter option
+  const handleFilterOptionSelect = (option) => {
+    setSelectedFilterOption(option);
+    setIsFilterModalVisible(false); // Đóng modal khi chọn xong
+    sortDishes(option); // Gọi hàm sắp xếp
+  };
+
+  const sortDishes = (option) => {
+    let sortedDishes = [...filteredDishes];
+    switch (option) {
+      case "rating_high_to_low":
+        sortedDishes.sort((a, b) => {
+          const ratingA = ratings[a.dishId] || 0;
+          const ratingB = ratings[b.dishId] || 0;
+          return ratingB - ratingA; // Sắp xếp giảm dần theo rating
+        });
+        break;
+      case "rating_low_to_high":
+        sortedDishes.sort((a, b) => {
+          const ratingA = ratings[a.dishId] || 0;
+          const ratingB = ratings[b.dishId] || 0;
+          return ratingA - ratingB; // Sắp xếp tăng dần theo rating
+        });
+        break;
+      case "price_low_to_high":
+        sortedDishes.sort((a, b) => {
+          const priceA = a.price || 0;
+          const priceB = b.price || 0;
+          return priceA - priceB;
+        }); // Sắp xếp tăng dần theo giá
+        break;
+      case "price_high_to_low":
+        sortedDishes.sort((a, b) => {
+          const priceA = a.price || 0;
+          const priceB = b.price || 0;
+          return priceB - priceA; // Sắp xếp giảm dần theo giá
+        });
+        break;
+      case "a-z":
+        sortedDishes.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        break;
+      case "z-a":
+        sortedDishes.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+        break;
+      default:
+        break; // Không sắp xếp nếu không có option nào được chọn
+    }
+    setFilteredDishes(sortedDishes);
+  };
 
   return (
     <>
@@ -202,7 +355,7 @@ const AllDishScreen = ({ navigation, route }) => {
             value={searchQuery}
             onChangeText={handleSearch}
             placeholder="Tìm kiếm món ăn..."
-            autoFocus={fromSearch === true}
+            autoFocus={fromSearch === true} // Bật tự động focus nếu được chuyển từ trang Home
             style={{
               fontFamily: FONTS.medium,
               fontSize: 19,
@@ -225,6 +378,7 @@ const AllDishScreen = ({ navigation, route }) => {
               backgroundColor: COLORS.grey,
               marginRight: 10,
             }}
+            onPress={() => setIsFilterModalVisible(true)} // Mở modal
           >
             <Icon name="filter" size={24} color={COLORS.white} />
           </TouchableOpacity>
@@ -269,6 +423,59 @@ const AllDishScreen = ({ navigation, route }) => {
         </View>
       </View>
 
+      {/* Modal chứa các option filter */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackground}
+          activeOpacity={1}
+          onPress={() => setIsFilterModalVisible(false)} // Close modal when tap outside
+        >
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("rating_high_to_low")}
+            >
+              <Text style={styles.filterOptionText}>Rating: Cao đến thấp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("rating_low_to_high")}
+            >
+              <Text style={styles.filterOptionText}>Rating: Thấp đến cao</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("price_low_to_high")}
+            >
+              <Text style={styles.filterOptionText}>Giá: Thấp đến cao</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("price_high_to_low")}
+            >
+              <Text style={styles.filterOptionText}>Giá: Cao đến thấp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("a-z")}
+            >
+              <Text style={styles.filterOptionText}>A-Z</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => handleFilterOptionSelect("z-a")}
+            >
+              <Text style={styles.filterOptionText}>Z-A</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <FlatList
         data={filteredDishes}
         showsVerticalScrollIndicator={false}
@@ -286,37 +493,33 @@ const AllDishScreen = ({ navigation, route }) => {
               }}
               style={styles.gridItem}
             >
-              <Image
-                source={{
-                  uri: item.imageUrl || "https://picsum.photos/300",
-                }}
-                style={{
-                  width: "100%",
-                  height: 100,
-                  resizeMode: "cover",
-                  borderTopLeftRadius: 8,
-                  borderTopRightRadius: 8,
-                }}
-              />
-              <View style={{ padding: 5 }}>
-                <Text style={styles.textNameDish} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.textDishType}>{item.dishType}</Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{
+                    uri: item.imageUrl || "https://picsum.photos/300",
                   }}
-                >
-                  <View style={{ flexDirection: "row" }}>
+                  style={styles.dishImage}
+                />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.textNameDish} numberOfLines={1}>
+                  {item.name || "Tên món ăn"}
+                </Text>
+                <Text style={styles.textDishType}>
+                  {item.dishType || "Loại món ăn"}
+                </Text>
+                <View style={styles.ratingAndPrice}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Icon name="star" size={16} color={COLORS.star} />
-                    <Text style={styles.textDishType} numberOfLines={1}>
-                      {" "}
+                    <Text style={styles.textDishType}>
                       {ratings[item.dishId]?.toFixed(1) || "0.0"}
                     </Text>
                   </View>
-                  <Text style={styles.textDishType}>{item.price} đ</Text>
+                  <Text style={styles.price}>
+                    {item.price
+                      ? `${item.price.toLocaleString()} đ`
+                      : "0.000 đ"}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -351,23 +554,73 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderRadius: 8,
     overflow: "hidden",
-    maxWidth: "48%",
+    maxWidth: "48%", // Đảm bảo các item có cùng chiều rộng
+  },
+  imageContainer: {
+    width: "100%",
+    height: 120, // Đặt chiều cao cố định cho hình ảnh
+    overflow: "hidden",
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  dishImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover", // Đảm bảo hình ảnh lấp đầy không gian
+  },
+  textContainer: {
+    padding: 5,
+    backgroundColor: COLORS.white,
   },
   textNameDish: {
     color: COLORS.black,
     fontSize: 14,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
+    height: 20, // Đặt chiều cao cố định để tránh thay đổi bố cục
   },
   textDishType: {
     color: COLORS.grey,
     fontSize: 12,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
+    height: 15, // Đặt chiều cao cố định
+  },
+  ratingAndPrice: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 5,
   },
   dummyItem: {
     flex: 1,
     margin: 10,
     backgroundColor: "transparent",
+  },
+  price: {
+    fontSize: 14,
+    color: COLORS.black,
+    fontFamily: FONTS.bold,
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+  },
+  filterOption: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: COLORS.lightGrey,
+  },
+  filterOptionText: {
+    fontSize: 16,
+    fontFamily: FONTS.medium,
   },
 });

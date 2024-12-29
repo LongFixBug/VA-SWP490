@@ -7,6 +7,7 @@ import {
   View,
   Image,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import COLORS from "../constants/color";
 import { TextInput } from "react-native-gesture-handler";
@@ -16,10 +17,12 @@ import createAxios from "../utils/axios";
 const API = createAxios();
 import axios from "axios";
 import Icon from "react-native-vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function InputOTPScreen({ navigation, route }) {
   const phone = route.params.phone;
   const otp = route.params.otp;
+  const fromScreen = route.params.fromScreen; // Nhận thông tin từ màn hình trước (Register hoặc Login)
 
   const [noti, setNoti] = React.useState();
 
@@ -30,18 +33,52 @@ export default function InputOTPScreen({ navigation, route }) {
     setInternalVal(value);
   };
 
-  const handleCheckOTP = () => {
-    if (internalVal.length !== 6) return;
-    if (internalVal.toString() === otp.toString()) {
-      navigation.navigate("InputProfile", { phone: phone });
-    } else {
+  // Hàm xử lý xác minh OTP
+  const handleCheckOTP = async () => {
+    if (internalVal.length !== 6) {
+      setNoti("Vui lòng nhập đủ 6 ký tự của mã OTP!");
+      return;
+    }
+
+    if (internalVal.toString() !== otp.toString()) {
       setNoti("OTP không đúng. Vui lòng thử lại!");
+      return;
+    }
+
+    // Logic khi OTP hợp lệ
+    if (fromScreen === "Register") {
+      // Điều hướng đến InputProfile nếu từ Register
+      navigation.navigate("InputProfile", { phone: phone });
+    } else if (fromScreen === "Login") {
+      // Gọi API login nếu từ Login
+      try {
+        const loginResponse = await axios.post(
+          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/login",
+          { phoneNumber: phone, password: "dummyPassword" } // Mật khẩu giả
+        );
+
+        const { token, user } = loginResponse.data;
+
+        // Lưu thông tin người dùng và token
+        await AsyncStorage.multiSet([
+          ["authToken", token],
+          ["userId", String(user.userId)],
+          ["username", user.username],
+        ]);
+
+        Alert.alert("Thành công", `Chào mừng ${user.username}!`);
+        navigation.navigate("Home");
+      } catch (error) {
+        console.error("Lỗi đăng nhập:", error);
+        Alert.alert("Lỗi", "Đăng nhập thất bại! Vui lòng thử lại.");
+      }
     }
   };
 
   React.useEffect(() => {
     textInput.focus();
   }, []);
+
   React.useEffect(() => {
     console.log("Phone nè: ", phone);
     console.log("OTP nè: ", otp);

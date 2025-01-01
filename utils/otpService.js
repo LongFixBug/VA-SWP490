@@ -1,8 +1,8 @@
 import axios from "axios";
 
-const INFOPBIP_BASE_URL = "https://z34zmw.api.infobip.com";
+const INFOPBIP_BASE_URL = "https://8kxy61.api.infobip.com";
 const API_KEY =
-  "7dee3cc6b8b83cfc8aae47ba87f4a399-7186db86-e9c0-4e65-840c-cfed9cf0e60c";
+  "3ad782a4ff29b042ef5a8426fa1d5b16-b3fd27de-4454-496d-b3bc-1b2221ab8f8a";
 
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000);

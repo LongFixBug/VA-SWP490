@@ -1,8 +1,9 @@
 // App.js
 import consoleConfig from "./utils/consoleConfig";
 import React, { useEffect, useState, useContext } from "react";
-import NutritionAnalysis from "./components/NutritionAnalysis";
-import ChatScreen from "./screens/ChatScreen";
+// import NutritionAnalysis from "./components/NutritionAnalysis";
+// import ChatScreen from "./screens/ChatScreen";
+import CombinedScreen from "./screens/CombineScreen";
 import {
   StatusBar,
   StyleSheet,
@@ -67,7 +68,7 @@ import LoginWithPhone from "./screens/LoginWithPhone";
 import OTPScreen from "./screens/OTPScreen";
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 import WalletScreen from "./screens/WalletScreen";
-
+import WebViewsScreen from "./screens/WebViewsScreen";
 import COLORS from "./constants/color";
 import FONTS from "./constants/font";
 
@@ -199,6 +200,11 @@ const HomeStackScreen = () => (
       component={OrderScreen}
       options={{ unmountOnBlur: true }}
     />
+    <HomeStack.Screen
+      name="CombineScreen"
+      component={CombinedScreen}
+      options={{ unmountOnBlur: true }}
+    />
   </HomeStack.Navigator>
 );
 
@@ -239,11 +245,8 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="ContactUs" component={ContactUsScreen} />
     <ProfileStack.Screen name="Membership" component={MembershipScreen} />
     <ProfileStack.Screen name="WalletScreen" component={WalletScreen} />
-    <ProfileStack.Screen
-      name="NutritionAnalysis"
-      component={NutritionAnalysis}
-    />
-    <ProfileStack.Screen name="ChatScreen" component={ChatScreen} />
+    <ProfileStack.Screen name="WebViewsScreen" component={WebViewsScreen} />
+    {/* <ProfileStack.Screen name="ChatScreen" component={ChatScreen} /> */}
   </ProfileStack.Navigator>
 );
 
@@ -504,7 +507,7 @@ const AppContent = () => {
           />
         </Stack.Navigator>
         <Stack.Screen name="WalletScreen" component={WalletScreen} />
-        <Stack.Screen name="NutritionAnalysis" component={NutritionAnalysis} />
+        <Stack.Screen name="WebViewsScreen" component={WebViewsScreen} />
       </NavigationContainer>
       <Toast config={toastConfig} />
     </GestureHandlerRootView>

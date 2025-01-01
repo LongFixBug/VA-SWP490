@@ -397,26 +397,8 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
             </View>
           </View>
 
-          <View style={styles.titleContainer}>
-            <RenderHTML
-              contentWidth={width}
-              source={{ html: article?.title || "<p>Không có nội dung</p>" }}
-              customHTMLElementModels={customHTMLElementModels}
-              tagsStyles={{
-                p: {
-                  fontFamily: FONTS.medium,
-                  fontSize: 14,
-                  color: COLORS.black,
-                  marginBottom: 10,
-                },
-                h1: {
-                  fontFamily: FONTS.semiBold,
-                  fontSize: 20,
-                  color: COLORS.black,
-                  marginBottom: 10,
-                },
-              }}
-            />
+          <View style={styles.articleTitleContainer}>
+            <Text style={styles.articleTitle}>{article?.title}</Text>
           </View>
 
           {/* Render Image from content */}
@@ -588,9 +570,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.grey,
   },
-  titleContainer: {
+  articleTitleContainer: {
+    marginTop: 5,
     marginBottom: 10,
   },
+  articleTitle: { fontFamily: FONTS.semiBold, fontSize: 20 },
   contentContainer: {
     marginBottom: 15,
     flex: 1,

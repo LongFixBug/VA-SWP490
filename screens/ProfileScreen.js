@@ -628,12 +628,6 @@ const ProfileScreen = ({ navigation }) => {
           >
             <Icon name="eye-outline" size={24} color={COLORS.green} />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("NutritionAnalysis")}
-            style={styles.moreOptionsButton}
-          >
-            <Icon name="nutrition-outline" size={24} color={COLORS.green} />
-          </TouchableOpacity>
         </View>
 
         <Modal

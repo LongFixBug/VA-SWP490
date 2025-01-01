@@ -70,6 +70,7 @@ const OrderDetailScreen = ({ navigation }) => {
     delivering: { color: COLORS.blue, text: "Đang giao hàng" },
     delivered: { color: COLORS.green, text: "Đã giao" },
     cancel: { color: COLORS.red, text: "Đã hủy" },
+    failed: { color: COLORS.black, text: "Giao hàng thất bại" },
   };
 
   const fetchWithAuth = async (url, options = {}) => {

@@ -28,6 +28,7 @@ const dataTabViewOrder = [
   { id: 3, name: "Đang giao hàng" },
   { id: 4, name: "Đã giao" },
   { id: 5, name: "Đã hủy" },
+  { id: 6, name: "Giao hàng thất bại" },
 ];
 
 const OrderScreen = ({ navigation }) => {
@@ -41,11 +42,12 @@ const OrderScreen = ({ navigation }) => {
   const [showSortButton, setShowSortButton] = useState(false);
 
   const orderStatus = {
-    pending: { color: COLORS.yellow, text: "Chờ xác nhận" },
+    pending: { color: COLORS.grey, text: "Chờ xác nhận" },
     processing: { color: COLORS.orange, text: "Đang xử lí" },
     delivering: { color: COLORS.blue, text: "Đang giao hàng" },
     delivered: { color: COLORS.green, text: "Đã giao" },
     cancel: { color: COLORS.red, text: "Đã hủy" },
+    failed: { color: COLORS.black, text: "Giao hàng thất bại" },
   };
 
   const fetchWithAuth = async (url, options = {}) => {
@@ -458,6 +460,7 @@ const OrderScreen = ({ navigation }) => {
         "delivering",
         "delivered",
         "cancel",
+        "failed",
       ];
       const filteredData = data.filter((order) =>
         validStatuses.includes(order.status)

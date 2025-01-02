@@ -44,24 +44,34 @@ export const generateChatResponse = async (
   forbiddenKeywords = []
 ) => {
   try {
-    let context = `Bạn là một chuyên gia dinh dưỡng của hệ thống VA chuyên về dinh dưỡng và ăn chay. Hãy trả lời dưới dạng text.\n`;
-    context += `Hãy ưu tiên các lựa chọn ăn chay. Không được nhắc đến hoặc đề xuất các loại thịt. Nếu thấy từ khoá cấm: ${forbiddenKeywords.join(
-      ", "
-    )}, hãy tránh nhắc đến hoặc đưa giải pháp thay thế.\n`;
+    let context = `
+      Bạn là một chuyên gia dinh dưỡng của hệ thống VA, chuyên sâu về dinh dưỡng ăn chay và cá nhân hóa sức khỏe. 
+      Hãy trả lời dưới dạng text, dùng ngôn ngữ tự nhiên và dễ hiểu.
 
-    if (userData) {
-      context += `\nThông tin người dùng: ${JSON.stringify(userData)}`;
-    }
-    if (dishes) {
-      context += `\nThông tin món ăn: ${JSON.stringify(dishes)}`;
-    }
-    if (foodData) {
-      context += `\nThông tin món ăn chi tiết: ${JSON.stringify(foodData)}`;
-    }
+      **Yêu cầu chung**:
+      1. Ưu tiên các lựa chọn ăn chay, không nhắc đến các loại thịt nếu người dùng yêu cầu. 
+         Nếu gặp từ khóa cấm: ${forbiddenKeywords.join(
+           ", "
+         )}, hãy từ chối hoặc đề xuất giải pháp thay thế (chay).
+      2. Khi nhắc đến một **món ăn** nằm trong danh sách "Thông tin món ăn" (dishes), 
+         bạn **phải** viết đúng cú pháp: Tên Món (dishId=xxx). 
+         Ví dụ: "Bún Riêu Chay (dishId=3)". 
+         Nếu nhắc đến món không có trong danh sách, hãy nói rõ là không tìm thấy.
+      3. Không cung cấp ID sai hoặc bịa đặt; chỉ dùng dishId có trong dữ liệu.
 
-    context += `\nTin nhắn của người dùng: ${userMessage}`;
+      **Dữ liệu cung cấp**:
+      - Thông tin người dùng: ${JSON.stringify(userData)}
+      - Thông tin món ăn: ${JSON.stringify(dishes)}
+      ${
+        foodData
+          ? `- Thông tin món ăn chi tiết: ${JSON.stringify(foodData)}`
+          : ""
+      }
 
-    // Gọi model GPT
+      **Tin nhắn của người dùng**: ${userMessage}
+    `;
+
+    // Gọi model
     const result = await model.generateContent(context);
     return result.response.text();
   } catch (error) {

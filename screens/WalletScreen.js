@@ -1,323 +1,15 @@
-// import React, { useState, useEffect } from "react";
-// import {
-//   StyleSheet,
-//   View,
-//   Text,
-//   TouchableOpacity,
-//   ScrollView,
-//   StatusBar,
-// } from "react-native";
-// import Icon from "react-native-vector-icons/Ionicons";
-// import COLORS from "../constants/color";
-// import FONTS from "../constants/font";
-// import Header from "../components/Header";
-// import AsyncStorage from "@react-native-async-storage/async-storage";
-
-// const WalletScreen = ({ navigation }) => {
-//   const [balance, setBalance] = useState("525.000"); // State for displaying balance
-//   const [transactionHistory, setTransactionHistory] = useState([
-//     // Example transaction data
-//     {
-//       id: "1",
-//       type: "deposit",
-//       amount: "1000000.00",
-//       date: "2024-07-28 10:00",
-//     },
-//     {
-//       id: "2",
-//       type: "withdrawal",
-//       amount: "100000.0",
-//       date: "2024-07-27 15:30",
-//     },
-//     {
-//       id: "3",
-//       type: "withdrawal",
-//       amount: "100000.0",
-//       date: "2024-07-27 15:30",
-//     },
-//     {
-//       id: "4",
-//       type: "deposit",
-//       amount: "1000000.00",
-//       date: "2024-07-28 10:00",
-//     },
-//     {
-//       id: "5",
-//       type: "deposit",
-//       amount: "1000000.00",
-//       date: "2024-07-28 10:00",
-//     },
-//     {
-//       id: "6",
-//       type: "withdrawal",
-//       amount: "100000.0",
-//       date: "2024-07-27 15:30",
-//     },
-//     {
-//       id: "7",
-//       type: "withdrawal",
-//       amount: "100000.0",
-//       date: "2024-07-27 15:30",
-//     },
-//     {
-//       id: "8",
-//       type: "deposit",
-//       amount: "1000000.00",
-//       date: "2024-07-28 10:00",
-//     },
-//     {
-//       id: "9",
-//       type: "deposit",
-//       amount: "1000000.00",
-//       date: "2024-07-28 10:00",
-//     },
-//     {
-//       id: "10",
-//       type: "withdrawal",
-//       amount: "100000.0",
-//       date: "2024-07-27 15:30",
-//     },
-//     {
-//       id: "11",
-//       type: "withdrawal",
-//       amount: "100000.0",
-//       date: "2024-07-27 15:30",
-//     },
-//     {
-//       id: "12",
-//       type: "deposit",
-//       amount: "1000000.00",
-//       date: "2024-07-28 10:00",
-//     },
-//   ]);
-
-//   useEffect(() => {
-//     // Fetch user balance from API or AsyncStorage
-//     const fetchBalance = async () => {
-//       // Replace with your actual API call or AsyncStorage retrieval
-//       // Example using AsyncStorage:
-//       try {
-//         const storedBalance = await AsyncStorage.getItem("walletBalance");
-//         if (storedBalance) {
-//           setBalance(storedBalance);
-//         }
-//       } catch (error) {
-//         console.error("Error fetching balance:", error);
-//       }
-//     };
-
-//     fetchBalance();
-//   }, []);
-
-//   const handleDeposit = () => {
-//     // Navigate to deposit screen or show deposit options
-//     console.log("Navigate to deposit options");
-//   };
-
-//   return (
-//     <>
-//       <View style={styles.headerContainer}>
-//         <Header
-//           title="Ví của bạn"
-//           leftIcon="arrow-back-outline"
-//           colorBackground={COLORS.white}
-//           colorText={COLORS.black}
-//           onPress={() => navigation.goBack()}
-//           rightIcon="wallet-outline"
-//           size={24}
-//           color={COLORS.greySolid}
-//         />
-//       </View>
-
-//       <View style={styles.container}>
-//         {/* Balance Display */}
-//         <View style={styles.balanceContainer}>
-//           <View style={styles.balanceHeader}>
-//             <Text style={styles.balanceLabel}>Số dư hiện tại</Text>
-//           </View>
-
-//           <Text style={styles.balanceAmount}>{balance} Đ</Text>
-//           <Text style={styles.balanceChange}>
-//             <Icon name="arrow-up" size={12} color={COLORS.green} /> 28.43%
-//           </Text>
-//         </View>
-
-//         {/* Deposit Section */}
-//         <TouchableOpacity style={styles.actionButton} onPress={handleDeposit}>
-//           <Icon name="add-outline" size={24} color={COLORS.white} />
-//           <Text style={styles.actionButtonText}>Nạp tiền</Text>
-//         </TouchableOpacity>
-
-//         {/* Transaction History */}
-//         <View style={styles.historyContainer}>
-//           <Text style={styles.historyTitle}>Lịch sử giao dịch</Text>
-//           <ScrollView style={styles.transactionScrollView}>
-//             {transactionHistory.map((transaction) => (
-//               <View key={transaction.id} style={styles.transactionItem}>
-//                 <View style={styles.transactionLeft}>
-//                   <Icon
-//                     name={
-//                       transaction.type === "deposit"
-//                         ? "arrow-down-circle-outline"
-//                         : "arrow-up-circle-outline"
-//                     }
-//                     size={20}
-//                     color={
-//                       transaction.type === "deposit" ? COLORS.green : COLORS.red
-//                     }
-//                   />
-//                   <Text style={styles.transactionText}>
-//                     {transaction.type === "deposit"
-//                       ? "Nạp tiền"
-//                       : "Thanh toán đơn hàng"}
-//                   </Text>
-//                 </View>
-//                 <View style={styles.transactionRight}>
-//                   <Text
-//                     style={[
-//                       styles.transactionAmount,
-//                       {
-//                         color:
-//                           transaction.type === "deposit"
-//                             ? COLORS.green
-//                             : COLORS.red,
-//                       },
-//                     ]}
-//                   >
-//                     {transaction.type === "deposit" ? "+" : "-"}
-//                     {transaction.amount}
-//                   </Text>
-//                   <Text style={styles.transactionDate}>{transaction.date}</Text>
-//                 </View>
-//               </View>
-//             ))}
-//             {transactionHistory.length === 0 && (
-//               <Text style={styles.emptyHistoryText}>
-//                 Chưa có giao dịch nào.
-//               </Text>
-//             )}
-//           </ScrollView>
-//         </View>
-//       </View>
-//     </>
-//   );
-// };
-
-// export default WalletScreen;
-
-// const styles = StyleSheet.create({
-//   headerContainer: {
-//     backgroundColor: COLORS.white,
-//   },
-//   container: {
-//     flex: 1,
-//     backgroundColor: COLORS.white,
-//     paddingHorizontal: 20,
-//   },
-//   balanceContainer: {
-//     backgroundColor: "#f0f0f0",
-//     padding: 20,
-//     borderRadius: 10,
-//     marginTop: 20,
-//   },
-//   balanceHeader: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     marginBottom: 5,
-//   },
-//   balanceLabel: {
-//     fontFamily: FONTS.medium,
-//     fontSize: 14,
-//     color: COLORS.black,
-//   },
-//   balanceAmount: {
-//     fontFamily: FONTS.bold,
-//     fontSize: 28,
-//     color: COLORS.black,
-//   },
-//   balanceChange: {
-//     fontFamily: FONTS.medium,
-//     fontSize: 12,
-//     color: COLORS.green,
-//     marginTop: 5,
-//   },
-//   actionButton: {
-//     backgroundColor: "#191919",
-//     flexDirection: "row",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     paddingVertical: 15,
-//     borderRadius: 8,
-//     marginTop: 20,
-//   },
-//   actionButtonText: {
-//     color: COLORS.white,
-//     fontFamily: FONTS.semiBold,
-//     fontSize: 16,
-//     marginLeft: 10,
-//   },
-//   historyContainer: {
-//     marginTop: 30,
-//   },
-//   historyTitle: {
-//     fontFamily: FONTS.semiBold,
-//     fontSize: 18,
-//     color: COLORS.black,
-//     marginBottom: 15,
-//   },
-//   transactionScrollView: {
-//     maxHeight: 300,
-//   },
-//   transactionItem: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     paddingVertical: 10,
-//     borderBottomWidth: 1,
-//     borderBottomColor: "#e0e0e0",
-//   },
-//   transactionLeft: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//   },
-//   transactionRight: {
-//     alignItems: "flex-end",
-//   },
-//   transactionText: {
-//     fontFamily: FONTS.medium,
-//     fontSize: 16,
-//     color: COLORS.black,
-//     marginLeft: 10,
-//   },
-//   transactionAmount: {
-//     fontFamily: FONTS.semiBold,
-//     fontSize: 16,
-//   },
-//   transactionDate: {
-//     fontFamily: FONTS.regular,
-//     fontSize: 12,
-//     color: COLORS.grey,
-//   },
-//   emptyHistoryText: {
-//     fontFamily: FONTS.regular,
-//     fontSize: 16,
-//     color: COLORS.grey,
-//     textAlign: "center",
-//     marginTop: 20,
-//   },
-// });
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   TextInput,
   Alert,
   Modal,
+  ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
@@ -326,35 +18,152 @@ import Header from "../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
+const API_BASE_URL =
+  "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net";
+
 const WalletScreen = ({ navigation }) => {
-  const [balance, setBalance] = useState("525.000");
+  const [balance, setBalance] = useState("0");
+  const [previousBalance, setPreviousBalance] = useState("0");
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [depositAmount, setDepositAmount] = useState("");
   const [showDepositModal, setShowDepositModal] = useState(false);
-  const [userId, setUserId] = useState(null); // State for storing userId
+  const [userId, setUserId] = useState(null);
+  const [walletId, setWalletId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  const { height } = Dimensions.get("window");
+
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = await AsyncStorage.getItem("authToken");
+    if (!token) {
+      console.error("Token không tồn tại.");
+      throw new Error("Unauthorized: Missing token");
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401) {
+        console.error("Token hết hạn hoặc không hợp lệ.");
+      }
+      return response;
+    } catch (error) {
+      console.error("Error fetching with auth:", error);
+      throw error;
+    }
+  };
+
+  const fetchWalletBalance = useCallback(async () => {
+    setBalanceLoading(true);
+    try {
+      const storedUserId = await AsyncStorage.getItem("userId");
+      if (!storedUserId) {
+        console.warn("No User ID found");
+        setBalanceLoading(false);
+        return;
+      }
+
+      const response = await fetchWithAuth(
+        `${API_BASE_URL}/api/v1/wallet?userId=${storedUserId}`
+      );
+
+      if (!response.ok) {
+        const errorMessage = `Failed to fetch wallet balance data: ${response.status}`;
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+      const walletData = await response.json();
+
+      setPreviousBalance(balance);
+      setBalance(walletData.balance.toLocaleString("vi-VN") || "0");
+      setWalletId(walletData.walletId);
+    } catch (error) {
+      console.error("Error fetching wallet balance:", error.message);
+      Alert.alert("Lỗi", "Không thể tải số dư ví.");
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [balance]);
+
+  const fetchTransactionHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      if (!walletId) {
+        console.log("No wallet Id to fetch transactions");
+        setHistoryLoading(false);
+        return;
+      }
+      const url = `${API_BASE_URL}/api/v1/wallet/transactions?walletId=${walletId}`;
+      const response = await fetchWithAuth(url);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          "Failed to fetch transaction history data:",
+          response.status,
+          errorText
+        );
+        throw new Error(
+          `Failed to fetch transaction history data: ${response.status}`
+        );
+      }
+
+      const transactionData = await response.json();
+      console.log("Full transaction data:", transactionData);
+
+      const transformedHistory = transactionData.map((transaction) => ({
+        id: transaction.transactionId,
+        type:
+          transaction.transactionType === "Nạp tiền"
+            ? "deposit"
+            : transaction.transactionType === "Thanh toán hóa đơn"
+            ? "billPayment"
+            : transaction.transactionType === "Hoàn tiền"
+            ? "refund"
+            : "withdraw",
+        amount: transaction.amount.toLocaleString("vi-VN"),
+        date: new Date(transaction.createdDate).toLocaleDateString(),
+      }));
+
+      transformedHistory.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        if (dateA > dateB) return -1;
+        if (dateA < dateB) return 1;
+        return b.id - a.id;
+      });
+
+      console.log("Transformed transaction data:", transformedHistory);
+
+      setTransactionHistory(transformedHistory);
+    } catch (error) {
+      console.error("Error fetching transaction history:", error);
+      Alert.alert("Lỗi", "Không thể tải lịch sử giao dịch.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [walletId]);
 
   useEffect(() => {
-    const fetchBalanceAndUserId = async () => {
-      try {
-        const storedBalance = await AsyncStorage.getItem("walletBalance");
-        const storedUserId = await AsyncStorage.getItem("userId");
-        if (storedBalance) {
-          setBalance(storedBalance);
-        }
-        if (storedUserId) {
-          setUserId(storedUserId);
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    };
-    fetchBalanceAndUserId();
-  }, []);
+    fetchWalletBalance();
+  }, [fetchWalletBalance]);
+
+  useEffect(() => {
+    if (walletId) {
+      fetchTransactionHistory();
+    }
+  }, [walletId, fetchTransactionHistory]);
 
   const handleOpenDepositModal = () => {
     setShowDepositModal(true);
-    setDepositAmount(""); // Reset deposit amount when opening modal
+    setDepositAmount("");
   };
 
   const handleCloseDepositModal = () => {
@@ -374,14 +183,14 @@ const WalletScreen = ({ navigation }) => {
     try {
       const token = await AsyncStorage.getItem("authToken");
       const depositData = {
-        walletId: parseInt(userId), // Use userId from state, ensure it's a number
+        walletId: parseInt(walletId),
         amount: parseFloat(depositAmount),
         transactionType: "Nạp tiền",
       };
       console.log("Dữ liệu gửi lên API tạo link:", depositData);
 
       const response = await axios.post(
-        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/wallet/create-payment-link",
+        `${API_BASE_URL}/api/v1/wallet/create-payment-link`,
         depositData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -392,6 +201,8 @@ const WalletScreen = ({ navigation }) => {
       if (response.status === 200) {
         handleCloseDepositModal();
         navigation.navigate("WebViewsScreen", { url: response.data });
+        fetchWalletBalance();
+        fetchTransactionHistory();
       } else {
         Alert.alert(
           "Lỗi",
@@ -408,6 +219,72 @@ const WalletScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
+
+  const calculateBalanceChangePercentage = () => {
+    const prev = parseFloat(previousBalance.replace(/,/g, "")) || 0;
+    const current = parseFloat(balance.replace(/,/g, "")) || 0;
+    if (prev === 0) return 0;
+    const change = ((current - prev) / prev) * 100;
+    return change.toFixed(2);
+  };
+
+  const renderTransactionItem = ({ item }) => (
+    <View style={styles.transactionItem}>
+      <View style={styles.transactionLeft}>
+        <Icon
+          name={
+            item.type === "deposit"
+              ? "arrow-down-circle-outline"
+              : item.type === "billPayment"
+              ? "receipt-outline"
+              : item.type === "refund"
+              ? "arrow-down-circle-outline"
+              : "arrow-up-circle-outline"
+          }
+          size={20}
+          color={
+            item.type === "deposit"
+              ? COLORS.green
+              : item.type === "billPayment"
+              ? COLORS.blue
+              : item.type === "refund"
+              ? COLORS.green
+              : COLORS.red
+          }
+        />
+        <Text style={styles.transactionText}>
+          {item.type === "deposit"
+            ? "Nạp tiền"
+            : item.type === "billPayment"
+            ? "Thanh toán hóa đơn"
+            : item.type === "refund"
+            ? "Hoàn tiền"
+            : "Thanh toán đơn hàng"}
+        </Text>
+      </View>
+      <View style={styles.transactionRight}>
+        <Text
+          style={[
+            styles.transactionAmount,
+            {
+              color:
+                item.type === "deposit"
+                  ? COLORS.green
+                  : item.type === "billPayment"
+                  ? COLORS.red
+                  : item.type === "refund"
+                  ? COLORS.green
+                  : COLORS.red,
+            },
+          ]}
+        >
+          {item.type === "deposit" || item.type === "refund" ? "+" : "-"}
+          {item.amount}
+        </Text>
+        <Text style={styles.transactionDate}>{item.date}</Text>
+      </View>
+    </View>
+  );
 
   return (
     <>
@@ -430,10 +307,40 @@ const WalletScreen = ({ navigation }) => {
             <Text style={styles.balanceLabel}>Số dư hiện tại</Text>
           </View>
 
-          <Text style={styles.balanceAmount}>{balance} Đ</Text>
-          <Text style={styles.balanceChange}>
-            <Icon name="arrow-up" size={12} color={COLORS.green} /> 28.43%
-          </Text>
+          {balanceLoading ? (
+            <ActivityIndicator size="small" color={COLORS.green} />
+          ) : (
+            <Text style={styles.balanceAmount}>{balance} Đ</Text>
+          )}
+
+          {!balanceLoading && (
+            <Text
+              style={[
+                styles.balanceChange,
+                {
+                  color:
+                    calculateBalanceChangePercentage() >= 0
+                      ? COLORS.green
+                      : COLORS.red,
+                },
+              ]}
+            >
+              <Icon
+                name={
+                  calculateBalanceChangePercentage() >= 0
+                    ? "arrow-up"
+                    : "arrow-down"
+                }
+                size={12}
+                color={
+                  calculateBalanceChangePercentage() >= 0
+                    ? COLORS.green
+                    : COLORS.red
+                }
+              />{" "}
+              {calculateBalanceChangePercentage()}%
+            </Text>
+          )}
         </View>
 
         <TouchableOpacity
@@ -444,56 +351,28 @@ const WalletScreen = ({ navigation }) => {
           <Text style={styles.actionButtonText}>Nạp tiền</Text>
         </TouchableOpacity>
 
-        {/* Transaction History */}
         <View style={styles.historyContainer}>
           <Text style={styles.historyTitle}>Lịch sử giao dịch</Text>
-          <ScrollView style={styles.transactionScrollView}>
-            {transactionHistory.map((transaction) => (
-              <View key={transaction.id} style={styles.transactionItem}>
-                <View style={styles.transactionLeft}>
-                  <Icon
-                    name={
-                      transaction.type === "deposit"
-                        ? "arrow-down-circle-outline"
-                        : "arrow-up-circle-outline"
-                    }
-                    size={20}
-                    color={
-                      transaction.type === "deposit" ? COLORS.green : COLORS.red
-                    }
-                  />
-                  <Text style={styles.transactionText}>
-                    {transaction.type === "deposit"
-                      ? "Nạp tiền"
-                      : "Thanh toán đơn hàng"}
-                  </Text>
-                </View>
-                <View style={styles.transactionRight}>
-                  <Text
-                    style={[
-                      styles.transactionAmount,
-                      {
-                        color:
-                          transaction.type === "deposit"
-                            ? COLORS.green
-                            : COLORS.red,
-                      },
-                    ]}
-                  >
-                    {transaction.type === "deposit" ? "+" : "-"}
-                    {transaction.amount}
-                  </Text>
-                  <Text style={styles.transactionDate}>{transaction.date}</Text>
-                </View>
-              </View>
-            ))}
-            {transactionHistory.length === 0 && (
-              <Text style={styles.emptyHistoryText}>
-                Chưa có giao dịch nào.
-              </Text>
-            )}
-          </ScrollView>
+          {historyLoading ? (
+            <ActivityIndicator size="large" color={COLORS.green} />
+          ) : (
+            <FlatList
+              data={transactionHistory}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderTransactionItem}
+              ListEmptyComponent={
+                <Text style={styles.emptyHistoryText}>
+                  Chưa có giao dịch nào.
+                </Text>
+              }
+              contentContainerStyle={
+                transactionHistory.length === 0 && styles.emptyContainer
+              }
+              showsVerticalScrollIndicator={false}
+            />
+          )}
         </View>
+
         <Modal
           visible={showDepositModal}
           transparent={true}
@@ -569,7 +448,6 @@ const styles = StyleSheet.create({
   balanceChange: {
     fontFamily: FONTS.medium,
     fontSize: 12,
-    color: COLORS.green,
     marginTop: 5,
   },
   actionButton: {
@@ -586,6 +464,58 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     fontSize: 16,
     marginLeft: 10,
+  },
+  historyContainer: {
+    marginTop: 30,
+    flex: 1,
+  },
+  historyTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 18,
+    color: COLORS.black,
+    marginBottom: 15,
+  },
+  transactionItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  transactionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  transactionRight: {
+    alignItems: "flex-end",
+  },
+  transactionText: {
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+    color: COLORS.black,
+    marginLeft: 10,
+  },
+  transactionAmount: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 16,
+  },
+  transactionDate: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.grey,
+  },
+  emptyHistoryText: {
+    fontFamily: FONTS.regular,
+    fontSize: 16,
+    color: COLORS.grey,
+    textAlign: "center",
+    marginTop: 20,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContainer: {
     flex: 1,
@@ -637,54 +567,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontFamily: FONTS.semiBold,
     fontSize: 16,
-  },
-  historyContainer: {
-    marginTop: 30,
-  },
-  historyTitle: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 18,
-    color: COLORS.black,
-    marginBottom: 15,
-  },
-  transactionScrollView: {
-    maxHeight: 300,
-  },
-  transactionItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  transactionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  transactionRight: {
-    alignItems: "flex-end",
-  },
-  transactionText: {
-    fontFamily: FONTS.medium,
-    fontSize: 16,
-    color: COLORS.black,
-    marginLeft: 10,
-  },
-  transactionAmount: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 16,
-  },
-  transactionDate: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.grey,
-  },
-  emptyHistoryText: {
-    fontFamily: FONTS.regular,
-    fontSize: 16,
-    color: COLORS.grey,
-    textAlign: "center",
-    marginTop: 20,
   },
 });

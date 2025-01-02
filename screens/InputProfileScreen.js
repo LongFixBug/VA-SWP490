@@ -44,7 +44,7 @@ const InputProfileScreen = ({ navigation, route }) => {
   const [weight, setWeight] = useState(""); // New state for weight
   const [heightError, setHeightError] = useState("");
   const [weightError, setWeightError] = useState("");
-  const [profession, setProfession] = useState("Đang đi học");
+  const [profession, setProfession] = useState("không có dữ liệu");
   const [activityLevel, setActivityLevel] = useState("Cao");
   const [goal, setGoal] = useState("Tăng cân");
   const [showDatePicker, setShowDatePicker] = useState(false);

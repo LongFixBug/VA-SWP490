@@ -337,6 +337,9 @@ const OrderScreen = ({ navigation }) => {
                 currentOrderStatus === "pending_payment") ||
               (paymentDetail?.paymentMethod === "PayOs" &&
                 paymentDetail?.paymentStatus === "completed" &&
+                currentOrderStatus === "pending_payment") ||
+              (paymentDetail?.paymentMethod === "Wallet" &&
+                paymentDetail?.paymentStatus === "completed" &&
                 currentOrderStatus === "pending_payment")
             ) {
               console.log(
@@ -365,7 +368,8 @@ const OrderScreen = ({ navigation }) => {
             // 4) VnPay/PayOs + completed + orderStatus != pending_payment
             else if (
               (paymentDetail?.paymentMethod === "VnPay" ||
-                paymentDetail?.paymentMethod === "PayOs") &&
+                paymentDetail?.paymentMethod === "PayOs" ||
+                paymentDetail?.paymentMethod === "Wallet") &&
               paymentDetail?.paymentStatus === "completed" &&
               currentOrderStatus !== "pending_payment"
             ) {

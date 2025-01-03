@@ -11,8 +11,8 @@ const WebViewsScreen = ({ navigation, route }) => {
 
     // Phát hiện URL chứa từ khóa "cancel"
     if (
-      currentUrl.includes("/wallet/result") ||
-      currentUrl.includes("/wallet/result")
+      currentUrl.includes("api/v1/wallet/transaction/result") ||
+      currentUrl.includes("api/v1/wallet/transaction/result")
     ) {
       // Ngăn không cho WebView điều hướng
       if (webViewRef.current) {
@@ -20,7 +20,7 @@ const WebViewsScreen = ({ navigation, route }) => {
       }
 
       // Điều hướng trực tiếp về Checkout
-      navigation.navigate("Profile");
+      navigation.navigate("WalletScreen");
     }
   };
 

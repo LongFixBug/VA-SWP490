@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -17,6 +17,7 @@ import FONTS from "../constants/font";
 import Header from "../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { useFocusEffect } from "@react-navigation/native";
 
 const API_BASE_URL =
   "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net";
@@ -34,6 +35,8 @@ const WalletScreen = ({ navigation }) => {
   const [historyLoading, setHistoryLoading] = useState(true);
 
   const { height } = Dimensions.get("window");
+
+  const balanceRef = useRef(balance);
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -81,8 +84,14 @@ const WalletScreen = ({ navigation }) => {
       }
       const walletData = await response.json();
 
-      setPreviousBalance(balance);
-      setBalance(walletData.balance.toLocaleString("vi-VN") || "0");
+      // Check if the balance has changed before updating state
+      const newBalance = walletData.balance.toLocaleString("vi-VN") || "0";
+      if (newBalance !== balanceRef.current) {
+        setPreviousBalance(balanceRef.current);
+        setBalance(newBalance);
+        balanceRef.current = newBalance;
+      }
+
       setWalletId(walletData.walletId);
     } catch (error) {
       console.error("Error fetching wallet balance:", error.message);
@@ -90,7 +99,7 @@ const WalletScreen = ({ navigation }) => {
     } finally {
       setBalanceLoading(false);
     }
-  }, [balance]);
+  }, [balance, setBalance, setPreviousBalance]);
 
   const fetchTransactionHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -118,7 +127,11 @@ const WalletScreen = ({ navigation }) => {
       const transactionData = await response.json();
       console.log("Full transaction data:", transactionData);
 
-      const transformedHistory = transactionData.map((transaction) => ({
+      const successfulTransactions = transactionData.filter(
+        (transaction) => transaction.status === "Thành công"
+      );
+
+      const transformedHistory = successfulTransactions.map((transaction) => ({
         id: transaction.transactionId,
         type:
           transaction.transactionType === "Nạp tiền"
@@ -151,9 +164,15 @@ const WalletScreen = ({ navigation }) => {
     }
   }, [walletId]);
 
-  useEffect(() => {
-    fetchWalletBalance();
-  }, [fetchWalletBalance]);
+  // Use useFocusEffect to fetch data when the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchWalletBalance();
+      if (walletId) {
+        fetchTransactionHistory();
+      }
+    }, [walletId, fetchWalletBalance, fetchTransactionHistory])
+  );
 
   useEffect(() => {
     if (walletId) {

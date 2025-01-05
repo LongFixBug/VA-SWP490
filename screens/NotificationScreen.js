@@ -20,7 +20,7 @@ import {
 import Icon from "react-native-vector-icons/Ionicons";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { NotificationContext } from "../context/NotificationContext"; // Import NotificationContext
 import Header from "../components/Header";
 import BottomSheet, {
   BottomSheetBackdrop,
@@ -28,14 +28,10 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { format } from "date-fns";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  NotificationProvider,
-  NotificationContext,
-} from "../context/NotificationContext"; // Import NotificationProvider và Context
 
 const NotificationScreen = ({ navigation }) => {
-  const { fetchNotifications } = useContext(NotificationContext); // Sử dụng context
-  const [notifications, setNotifications] = useState([]);
+  const { notifications, markAllAsRead, markAsRead } =
+    useContext(NotificationContext); // Sử dụng context
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [selectedNotificationDate, setSelectedNotificationDate] =
     useState(null);
@@ -50,127 +46,24 @@ const NotificationScreen = ({ navigation }) => {
     new_follower: "Bạn có người follow mới",
   };
 
-  const fetchWithAuth = async (url, options = {}) => {
-    const token = await AsyncStorage.getItem("authToken");
-    if (!token) {
-      console.error("Không tìm thấy token.");
-      throw new Error("Unauthorized: Missing token");
-    }
-
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
-
-    try {
-      const response = await fetch(url, { ...options, headers });
-      if (response.status === 401) {
-        console.error("Token hết hạn hoặc không hợp lệ.");
-      }
-      return response;
-    } catch (error) {
-      console.error("Error fetching with auth:", error);
-      throw error;
+  // Hàm mở thông báo
+  const handleOpenPress = (item) => {
+    setSelectedNotification(item);
+    setSelectedNotificationDate(item.date);
+    bottomSheetRef.current?.expand();
+    if (item.status === "unread") {
+      markAsRead(item.id);
     }
   };
 
-  const fetchNotificationsLocal = async () => {
-    setIsRefreshing(true);
-    try {
-      const storedUserData = await AsyncStorage.getItem("userData");
-      if (!storedUserData) {
-        console.log("Không tìm thấy userData.");
-        setNotifications([]);
-        return;
-      }
-      const parsedData = JSON.parse(storedUserData);
-      const userId = parsedData.userId;
-
-      if (!userId) {
-        console.log("UserId is null, skip fetching notification");
-        setNotifications([]);
-        return;
-      }
-
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/getNotificationByUserId/${userId}`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Fetched notification data:", data);
-
-        if (data.length === 0) {
-          // Không có thông báo
-          console.log("Không có thông báo nào.");
-          setNotifications([]);
-          return;
-        }
-
-        const sortedNotifications = [...data].sort(
-          (a, b) => b.notificationId - a.notificationId
-        );
-        setNotifications(sortedNotifications);
-      } else if (response.status === 404) {
-        // Nếu không có thông báo
-        console.log("Không có thông báo nào.");
-        setNotifications([]); // Đặt danh sách thông báo thành rỗng
-      } else {
-        console.error(
-          "Lỗi khi lấy thông báo:",
-          response.status,
-          await response.text()
-        );
-        Alert.alert("Lỗi", "Không thể tải thông báo. Vui lòng thử lại.");
-      }
-    } catch (error) {
-      console.error("Lỗi khi lấy thông báo:", error);
-      // Không hiển thị lỗi cho người dùng, chỉ log trong console
-      console.log(
-        "Không thể tải thông báo. Vui lòng kiểm tra kết nối hoặc thử lại sau."
-      );
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const fetchNotificationDetails = async (notificationId) => {
-    try {
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/getNotificationByNotificationId/${notificationId}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setSelectedNotification(data);
-        bottomSheetRef.current?.expand();
-      } else {
-        console.error(
-          "Lỗi khi lấy chi tiết thông báo:",
-          response.status,
-          await response.text()
-        );
-        Alert.alert("Lỗi", "Không thể tải chi tiết thông báo.");
-      }
-    } catch (error) {
-      console.error("Lỗi khi lấy chi tiết thông báo:", error);
-      Alert.alert("Lỗi", "Không thể tải chi tiết thông báo.");
-    }
-  };
-
-  const handleOpenPress = async (item) => {
-    setSelectedNotificationDate(item.sentDate);
-    await fetchNotificationDetails(item.notificationId);
-    if (item.status === "Unread") {
-      await updateNotificationStatus(item.notificationId);
-    }
-  };
-
+  // Hàm đóng modal
   const handleClosePress = () => {
     setSelectedNotification(null);
     setSelectedNotificationDate(null);
     bottomSheetRef.current?.close();
   };
+
+  // Hàm render backdrop cho BottomSheet
   const renderBackdrop = useCallback(
     (props) => (
       <BottomSheetBackdrop
@@ -183,72 +76,6 @@ const NotificationScreen = ({ navigation }) => {
     []
   );
 
-  const updateNotificationStatus = async (notificationId) => {
-    try {
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/updateStatusNotificationByNotificationId/${notificationId}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ newStatus: "Read" }),
-        }
-      );
-      if (!response.ok) {
-        console.error(
-          "Lỗi khi thay đổi trạng thái thông báo:",
-          response.status,
-          await response.text()
-        );
-      } else {
-        fetchNotifications(); // Sử dụng hàm từ context để cập nhật unreadCount
-        fetchNotificationsLocal(); // Cập nhật danh sách thông báo local
-      }
-    } catch (error) {
-      console.error("Lỗi khi thay đổi trạng thái thông báo:", error);
-    }
-  };
-
-  const updateAllNotificationsStatus = async () => {
-    try {
-      if (notifications.length === 0) {
-        Alert.alert("Thông báo", "Không có thông báo nào để đánh dấu.");
-        return;
-      }
-
-      // Map each notification id to a promise which updates the notification status
-      const updatePromises = notifications.map((notification) =>
-        fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/updateStatusNotificationByNotificationId/${notification.notificationId}`,
-          {
-            method: "PUT",
-            body: JSON.stringify({ newStatus: "Read" }),
-          }
-        )
-      );
-
-      const results = await Promise.all(updatePromises);
-      const failedUpdates = results.filter((result) => !result.ok);
-      if (failedUpdates.length > 0) {
-        console.error(
-          "Lỗi khi thay đổi trạng thái tất cả thông báo:",
-          failedUpdates.map((result) => `${result.status} ${result.text}`)
-        );
-        Alert.alert(
-          "Lỗi",
-          "Không thể đánh dấu tất cả thông báo là đã đọc, vui lòng thử lại"
-        );
-      } else {
-        Alert.alert("Thành công", "Đã đánh dấu tất cả thông báo là đã đọc");
-        fetchNotifications(); // Sử dụng hàm từ context để cập nhật unreadCount
-        fetchNotificationsLocal(); // Cập nhật danh sách thông báo local
-      }
-    } catch (error) {
-      console.error("Lỗi khi thay đổi trạng thái tất cả thông báo:", error);
-      Alert.alert(
-        "Lỗi",
-        "Có lỗi xảy ra khi đánh dấu tất cả thông báo là đã đọc"
-      );
-    }
-  };
   // Function to format the sent date
   const formatSentDate = (dateString) => {
     try {
@@ -260,17 +87,14 @@ const NotificationScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    fetchNotificationsLocal();
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchNotificationsLocal();
-    }, [])
-  );
+  // Hàm refresh
   const onRefresh = useCallback(() => {
-    fetchNotificationsLocal();
+    setIsRefreshing(true);
+    // Trong context, notifications đã được tự động cập nhật khi có thông báo mới
+    // Nếu bạn cần refresh từ AsyncStorage, hãy gọi loadNotifications từ context
+    // Tuy nhiên, vì chúng ta đã tải notifications khi component mount và khi có thông báo mới,
+    // nên không cần thực hiện thêm hành động nào ở đây trừ khi bạn muốn thực hiện logic bổ sung
+    setIsRefreshing(false);
   }, []);
 
   return (
@@ -282,20 +106,14 @@ const NotificationScreen = ({ navigation }) => {
         colorText={COLORS.black}
         onPress={() => navigation.goBack()}
       />
-      {/* Removed ScrollView to prevent nested scrolling */}
       <FlatList
         data={notifications}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <TouchableOpacity
             activeOpacity={0.8}
             style={[
               styles.listItem,
-              item.status === "Unread"
-                ? {
-                    ...styles.unreadNotification,
-                    backgroundColor: COLORS.lightGreen,
-                  }
-                : {},
+              item.status === "unread" ? styles.unreadNotification : {},
             ]}
             onPress={() => handleOpenPress(item)}
           >
@@ -312,7 +130,7 @@ const NotificationScreen = ({ navigation }) => {
                   styles.titleText,
                   {
                     color:
-                      item.status === "Unread"
+                      item.status === "unread"
                         ? COLORS.black
                         : COLORS.greySolid,
                   },
@@ -322,18 +140,18 @@ const NotificationScreen = ({ navigation }) => {
                   item.notificationTypeName}
               </Text>
               <View style={styles.contentStatusContainer}>
-                <Text style={styles.contentText}>{item.content}</Text>
+                <Text style={styles.contentText}>{item.body}</Text>
                 <Text style={styles.statusText}>
-                  {item.status === "Unread" ? "Chưa xem" : "Đã xem"}
+                  {item.status === "unread" ? "Chưa xem" : "Đã xem"}
                 </Text>
               </View>
               <Text style={styles.sentDateText}>
-                {formatSentDate(item.sentDate)}
+                {formatSentDate(item.date)}
               </Text>
             </View>
           </TouchableOpacity>
         )}
-        keyExtractor={(item) => item.notificationId.toString()}
+        keyExtractor={(item) => item.id.toString()}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Bạn không có thông báo nào</Text>
@@ -346,7 +164,7 @@ const NotificationScreen = ({ navigation }) => {
           <View style={styles.markAllReadContainer}>
             <TouchableOpacity
               style={styles.markAllReadButton}
-              onPress={updateAllNotificationsStatus}
+              onPress={markAllAsRead}
             >
               <Text style={styles.markAllReadText}>Đánh dấu tất cả đã đọc</Text>
             </TouchableOpacity>
@@ -372,7 +190,7 @@ const NotificationScreen = ({ navigation }) => {
                 ] || selectedNotification.notificationTypeName}
               </Text>
               <Text style={styles.bottomSheetContent}>
-                {selectedNotification.content}
+                {selectedNotification.body}
               </Text>
               <Text style={styles.bottomSheetDate}>
                 {formatSentDate(selectedNotificationDate)}
@@ -413,11 +231,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     color: COLORS.black,
   },
-  unreadNotification: {},
+  unreadNotification: {
+    backgroundColor: COLORS.lightGreenBackground, // Bạn có thể định nghĩa màu nền cho thông báo chưa đọc
+  },
   iconContainer: {
     flexDirection: "column",
     alignItems: "center",
-    marginBottom: 50,
     marginRight: 10,
   },
   textContainer: {
@@ -501,7 +320,7 @@ const styles = StyleSheet.create({
     elevation: 5,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    backgroundColor: "transparent", // Để LinearGradient xử lý nền
+    backgroundColor: "transparent", // Để BottomTabBar xử lý nền
   },
   tabBar: {
     flexDirection: "row",
@@ -531,8 +350,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     flexDirection: "column",
     alignItems: "center",
-    marginBottom: 50,
-    marginRight: 10,
+    marginBottom: 5,
   },
   tabLabel: {
     fontSize: 12,

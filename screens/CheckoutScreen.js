@@ -1,3 +1,4 @@
+// checkout.js
 import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
@@ -19,7 +20,7 @@ import { Dropdown } from "react-native-element-dropdown";
 import Toast from "react-native-toast-message";
 
 const CheckoutScreen = ({ navigation, route }) => {
-  const [currentPayment, setCurrentPayment] = useState(null); // Khởi tạo là null
+  const [currentPayment, setCurrentPayment] = useState(null);
   const [userId, setUserId] = useState(null);
   const [deliveryInfo, setDeliveryInfo] = useState({});
   const [detailedCartItems, setDetailedCartItems] = useState([]);
@@ -40,7 +41,10 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [editedAddressDetail, setEditedAddressDetail] = useState("");
   const fetchDeliveryFeeRef = useRef(null);
-
+  // New state for wallet balance
+  const [walletBalance, setWalletBalance] = useState(0);
+  // Ref to store wallet balance
+  const walletBalanceRef = useRef(0);
   const districtsHCM = [
     { label: "Quận 1", value: "Quận 1" },
     { label: "Quận 2", value: "Quận 2" },
@@ -141,6 +145,7 @@ const CheckoutScreen = ({ navigation, route }) => {
           setUserId(storedUserId);
           await fetchDeliveryInfo(storedUserId);
           await fetchDiscountHistory(storedUserId);
+          await fetchWalletBalance(storedUserId); // Fetch wallet balance here
         } else {
           console.log("Không tìm thấy User ID trong AsyncStorage");
         }
@@ -332,6 +337,31 @@ const CheckoutScreen = ({ navigation, route }) => {
     setFinalPrice(totalPrice - totalPrice * discountRate + deliveryFee);
   }, [selectedDiscount, totalPrice, deliveryFee]);
 
+  // New function to fetch wallet balance
+  const fetchWalletBalance = async (userId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/wallet?userId=${userId}`
+      );
+      if (!response.ok) {
+        const errorMessage = `Failed to fetch wallet balance data: ${response.status}`;
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+      const walletData = await response.json();
+
+      // Check if the balance has changed before updating state
+      const newBalance = walletData.balance;
+      if (newBalance !== walletBalanceRef.current) {
+        setWalletBalance(newBalance);
+        walletBalanceRef.current = newBalance;
+      }
+    } catch (error) {
+      console.error("Error fetching wallet balance:", error.message);
+      Alert.alert("Lỗi", "Không thể tải số dư ví.");
+    }
+  };
+
   const handleCheckout = async () => {
     if (!currentPayment) {
       Toast.show({
@@ -343,6 +373,24 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
     if (detailedCartItems.length === 0) {
       Alert.alert("Thông báo", "Không có món ăn nào để thanh toán.");
+      return;
+    }
+    if (currentPayment === "Wallet" && finalPrice > walletBalance) {
+      Alert.alert(
+        "Thông báo",
+        "Số dư trong ví không đủ để thanh toán.",
+        [
+          {
+            text: "Hủy",
+            style: "cancel",
+          },
+          {
+            text: "Nạp tiền",
+            onPress: () => navigation.navigate("WalletScreen"),
+          },
+        ],
+        { cancelable: true }
+      );
       return;
     }
 
@@ -790,6 +838,12 @@ const CheckoutScreen = ({ navigation, route }) => {
               />
             </TouchableOpacity>
           ))}
+          <View style={styles.walletBalanceContainer}>
+            <Text style={styles.textBold}>Số dư ví:</Text>
+            <Text style={{ ...styles.textBold, color: COLORS.green }}>
+              {walletBalance.toLocaleString()} đ
+            </Text>
+          </View>
         </View>
 
         <View style={styles.deliveryFeeContainer}>
@@ -815,6 +869,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               : "0 đ"}
           </Text>
         </View>
+
         <View style={styles.boxButtonFloatBottom}>
           <TouchableOpacity style={styles.totalButton}>
             <Text style={styles.textBold}>Tổng thanh toán:</Text>
@@ -1026,6 +1081,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     marginBottom: 10,
+    alignItems: "center",
+  },
+  walletBalanceContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 10,
     alignItems: "center",
   },
   containerButtonFloatBottom: {

@@ -701,11 +701,15 @@ const PostDetailScreen = ({ navigation, route }) => {
           {/* Thông tin tác giả và nút "..." nếu là bài viết của người dùng */}
           <View style={styles.authorRow}>
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate("UserProfileScreen", {
-                  userId: post.authorId,
-                })
-              }
+              onPress={() => {
+                if (currentUserId === post.authorId) {
+                  navigation.navigate("Profile"); // Điều hướng đến hồ sơ cá nhân
+                } else {
+                  navigation.navigate("UserProfileScreen", {
+                    userId: post.authorId,
+                  });
+                }
+              }}
               style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
             >
               <Image

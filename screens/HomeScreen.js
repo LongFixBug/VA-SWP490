@@ -652,7 +652,7 @@ const HomeScreen = () => {
             </View>
           </View>
         </TouchableOpacity>
-        <View style={{ width: "50%", marginRight: 50 }}>
+        <View style={{ width: "80%", marginRight: 50 }}>
           <Text style={styles.greetingText}>Xin chào!</Text>
           <Text style={styles.usernameText}>{userData?.username}</Text>
         </View>
@@ -772,14 +772,14 @@ const styles = StyleSheet.create({
   greetingText: {
     fontFamily: FONTS.bold,
     color: COLORS.white,
-    fontSize: 23,
-    marginLeft: 55,
+    fontSize: 21,
+    marginLeft: 50,
   },
   usernameText: {
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
-    fontSize: 16,
-    marginLeft: 60,
+    fontSize: 15,
+    marginLeft: 50,
   },
   pointsText: {
     fontFamily: FONTS.bold,

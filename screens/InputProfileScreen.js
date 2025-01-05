@@ -44,13 +44,13 @@ const InputProfileScreen = ({ navigation, route }) => {
   const [weight, setWeight] = useState(""); // New state for weight
   const [heightError, setHeightError] = useState("");
   const [weightError, setWeightError] = useState("");
-  const [profession, setProfession] = useState("Đang đi học");
+  const [profession, setProfession] = useState("không có dữ liệu");
   const [activityLevel, setActivityLevel] = useState("Cao");
   const [goal, setGoal] = useState("Tăng cân");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [visibleActivityMenu, setVisibleActivityMenu] = useState(false);
   const [visibleGoalMenu, setVisibleGoalMenu] = useState(false);
-  const [province, setProvince] = useState("Hồ Chí Minh");
+  const [province, setProvince] = useState("Thành Phố Hồ Chí Minh");
   const [district, setDistrict] = useState("");
   const [address, setAddress] = useState("");
 
@@ -212,7 +212,33 @@ const InputProfileScreen = ({ navigation, route }) => {
               ["dietaryPreferenceId", String(user.dietaryPreferenceId)],
               ["userData", JSON.stringify(user)], // Save user data
             ]);
+            // Gọi API tạo ví sau khi đăng nhập thành công
+            try {
+              const walletData = {
+                userId: user.userId,
+              };
+              console.log("Dữ liệu gửi lên API tạo ví:", walletData);
+              const walletResponse = await axios.post(
+                "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/wallet/create",
+                walletData,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
 
+              console.log("Phản hồi API tạo ví:", walletResponse.data);
+
+              if (walletResponse.status === 200) {
+                console.log("Tạo ví thành công.");
+              } else {
+                console.error("Không thể tạo ví:", walletResponse.data);
+              }
+            } catch (walletError) {
+              console.error(
+                "Lỗi khi gọi API tạo ví:",
+                walletError.response?.data || walletError.message
+              );
+            }
             // Create notification settings after successful registration and login
             try {
               const notificationSettingsData = {

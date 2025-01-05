@@ -5,7 +5,7 @@ import {
   View,
   TouchableOpacity,
   ActivityIndicator,
-  Alert, // Thêm dòng này để import Alert
+  Alert,
 } from "react-native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
@@ -18,7 +18,9 @@ const PaymentScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const { currentPayment } = route.params || {};
   const [userId, setUserId] = useState(null);
+  const [latestOrderId, setLatestOrderId] = useState(null);
 
+  // Hàm fetch kèm token
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
     if (!token) throw new Error("Không tìm thấy token.");
@@ -27,9 +29,11 @@ const PaymentScreen = ({ navigation, route }) => {
       "Content-Type": "application/json",
       ...options.headers,
     };
+    console.log(`API Request: ${url}`); // Log API request URL
     return fetch(url, { ...options, headers });
   };
 
+  // Lấy thông tin giỏ hàng từ AsyncStorage (pendingOrder)
   const fetchOrderDetails = async () => {
     try {
       const storedOrder = await AsyncStorage.getItem("pendingOrder");
@@ -51,6 +55,7 @@ const PaymentScreen = ({ navigation, route }) => {
     }
   };
 
+  // Lấy userId và thông tin đơn hàng
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -67,13 +72,17 @@ const PaymentScreen = ({ navigation, route }) => {
     fetchData();
   }, []);
 
+  // Hàm confirm thanh toán chính
   const handleConfirmPayment = async () => {
     try {
+      // Chặn double-click
+      if (loading) return;
       setLoading(true);
 
       if (!userId) throw new Error("Không tìm thấy User ID.");
       if (!orderDetails) throw new Error("Không tìm thấy thông tin đơn hàng.");
 
+      // Bước 1: Tạo Order (code cũ giữ nguyên)
       const orderData = {
         userId: parseInt(userId, 10),
         totalPrice: orderDetails.totalPrice,
@@ -88,7 +97,6 @@ const PaymentScreen = ({ navigation, route }) => {
         status: "pending_payment",
       };
 
-      // Tạo Order
       const createOrderResponse = await fetchWithAuth(
         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderByCustomer",
         {
@@ -96,32 +104,34 @@ const PaymentScreen = ({ navigation, route }) => {
           body: JSON.stringify(orderData),
         }
       );
-
       if (!createOrderResponse.ok) {
         throw new Error("Không thể tạo đơn hàng.");
       }
 
-      // Lấy Order ID mới nhất
+      // Bước 2: Lấy Order mới tạo
       const getOrdersResponse = await fetchWithAuth(
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
       );
+      if (!getOrdersResponse.ok) {
+        throw new Error("Không thể lấy thông tin đơn hàng từ server.");
+      }
 
       const orders = await getOrdersResponse.json();
       const latestOrder = orders.reduce((maxOrder, order) =>
         order.orderId > maxOrder.orderId ? order : maxOrder
       );
-      const latestOrderId = latestOrder.orderId;
+      const newOrderId = latestOrder.orderId;
+      setLatestOrderId(newOrderId);
 
-      // Tạo OrderDetail cho từng món ăn
+      // Bước 3: Tạo OrderDetail cho từng món ăn (code cũ giữ nguyên)
       const detailedCartItems = orderDetails.items || [];
       for (const item of detailedCartItems) {
         const orderDetailData = {
-          orderId: latestOrderId,
+          orderId: newOrderId,
           dishId: item.dishId,
           quantity: item.quantity,
           price: item.price,
         };
-
         const createOrderDetailResponse = await fetchWithAuth(
           "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderDetail",
           {
@@ -129,7 +139,6 @@ const PaymentScreen = ({ navigation, route }) => {
             body: JSON.stringify(orderDetailData),
           }
         );
-
         if (!createOrderDetailResponse.ok) {
           throw new Error(
             `Không thể tạo chi tiết đơn hàng cho món: ${item.dishId}`
@@ -137,12 +146,16 @@ const PaymentScreen = ({ navigation, route }) => {
         }
       }
 
-      // Xử lý thanh toán theo phương thức
-      if (currentPayment === "COD") {
-        // Tạo PaymentDetail cho COD
+      // Bước 4: Tùy theo phương thức thanh toán
+      if (currentPayment === "Wallet") {
+        // Với WALLET: KHÔNG gọi /payment/create nữa
+        // -> Gọi hàm xử lý ví (logic mới)
+        await processWalletPayment(newOrderId);
+      } else {
+        // Trường hợp COD, VnPay, QR -> Vẫn tạo PaymentDetail như cũ
         const paymentDetailData = {
-          orderId: latestOrderId,
-          paymentMethod: "COD",
+          orderId: newOrderId,
+          paymentMethod: currentPayment, // COD, VnPay, QR
           paymentStatus: "pending",
           transactionId: "",
           paymentDate: new Date().toISOString(),
@@ -152,6 +165,7 @@ const PaymentScreen = ({ navigation, route }) => {
           cancelUrl: "",
         };
 
+        // Tạo PaymentDetail
         const createPaymentDetailResponse = await fetchWithAuth(
           "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/create",
           {
@@ -159,63 +173,56 @@ const PaymentScreen = ({ navigation, route }) => {
             body: JSON.stringify(paymentDetailData),
           }
         );
-
         if (!createPaymentDetailResponse.ok) {
-          throw new Error("Không thể tạo thông tin thanh toán COD.");
+          throw new Error("Không thể tạo thông tin thanh toán");
         }
 
-        // Hiển thị popup thành công
-        Alert.alert(
-          "Thanh toán thành công",
-          "Đơn hàng của bạn sẽ được xử lý. Cảm ơn bạn!",
-          [
+        // Logic cũ cho từng loại thanh toán
+        if (currentPayment === "COD") {
+          Alert.alert(
+            "Thanh toán thành công",
+            "Đơn hàng của bạn sẽ được xử lý. Cảm ơn bạn!",
+            [
+              {
+                text: "OK",
+                onPress: () => navigation.navigate("Order"),
+              },
+            ]
+          );
+        } else if (currentPayment === "QR") {
+          // Tạo Payment Link cho QR
+          const paymentData = {
+            orderId: newOrderId,
+            decryptionKey: "Sav3CtqBonMF3f41HaoxABIi8NKVUMBU1MOHBi1qmf0=",
+          };
+          const paymentResponse = await fetchWithAuth(
+            "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/pay-os",
             {
-              text: "OK",
-              onPress: () => navigation.navigate("Order"),
-            },
-          ]
-        );
-      } else if (currentPayment === "QR") {
-        // Tạo Payment Link cho QR
-        const paymentData = {
-          orderId: latestOrderId,
-          decryptionKey: "Sav3CtqBonMF3f41HaoxABIi8NKVUMBU1MOHBi1qmf0=",
-        };
-
-        const paymentResponse = await fetchWithAuth(
-          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/pay-os",
-          {
-            method: "POST",
-            body: JSON.stringify(paymentData),
+              method: "POST",
+              body: JSON.stringify(paymentData),
+            }
+          );
+          if (!paymentResponse.ok) {
+            throw new Error("Không thể tạo mã QR.");
           }
-        );
-
-        if (!paymentResponse.ok) {
-          throw new Error("Không thể tạo mã QR.");
-        }
-
-        const paymentLink = await paymentResponse.text();
-        navigation.navigate("WebViewScreen", { url: paymentLink });
-      } else if (currentPayment === "VnPay") {
-        // Tạo Payment Link cho VnPay
-        const paymentData = {
-          orderId: latestOrderId,
-        };
-
-        const paymentResponse = await fetchWithAuth(
-          "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/vnpay",
-          {
-            method: "POST",
-            body: JSON.stringify(paymentData),
+          const paymentLink = await paymentResponse.text();
+          navigation.navigate("WebViewScreen", { url: paymentLink });
+        } else if (currentPayment === "VnPay") {
+          // Tạo Payment Link cho VnPay
+          const paymentData = { orderId: newOrderId };
+          const paymentResponse = await fetchWithAuth(
+            "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/vnpay",
+            {
+              method: "POST",
+              body: JSON.stringify(paymentData),
+            }
+          );
+          if (!paymentResponse.ok) {
+            throw new Error("Không thể chuyển sang trang thanh toán VnPay.");
           }
-        );
-
-        if (!paymentResponse.ok) {
-          throw new Error("Không thể chuyển sang trang thanh toán VnPay.");
+          const paymentLink = await paymentResponse.text();
+          navigation.navigate("WebViewScreen", { url: paymentLink });
         }
-
-        const paymentLink = await paymentResponse.text();
-        navigation.navigate("WebViewScreen", { url: paymentLink });
       }
     } catch (error) {
       console.error("Lỗi:", error.message);
@@ -225,6 +232,69 @@ const PaymentScreen = ({ navigation, route }) => {
     }
   };
 
+  // Hàm xử lý thanh toán ví (Wallet) - LOGIC MỚI
+  const processWalletPayment = async (orderId) => {
+    try {
+      // 1. Gọi /payment/wallet để tạo PaymentDetail
+      const walletPaymentResponse = await fetchWithAuth(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/wallet",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            orderId: orderId,
+            userId: parseInt(userId, 10),
+          }),
+        }
+      );
+      if (!walletPaymentResponse.ok) {
+        throw new Error("Không thể tạo paymentDetail cho ví.");
+      }
+      const walletPaymentData = await walletPaymentResponse.json();
+      console.log("walletPaymentData:", walletPaymentData);
+
+      // Lấy paymentId từ response
+      const paymentId = walletPaymentData?.content?.paymentId;
+      if (!paymentId) {
+        throw new Error("Không tìm thấy paymentId từ API /payment/wallet.");
+      }
+
+      // 2. Gọi /payment/wallet/result để confirm thanh toán
+      const walletResultBody = {
+        userId: parseInt(userId, 10),
+        paymentId: paymentId,
+        statusCode: 1, // Hardcode 1 = “thanh toán thành công”
+      };
+      console.log("API Request Body (wallet/result):", walletResultBody);
+
+      const walletResultResponse = await fetchWithAuth(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/wallet/result",
+        {
+          method: "POST",
+          body: JSON.stringify(walletResultBody),
+        }
+      );
+      if (!walletResultResponse.ok) {
+        throw new Error("Không thể hoàn tất thanh toán ví.");
+      }
+
+      // Thành công -> Thông báo & điều hướng
+      Alert.alert(
+        "Thanh toán thành công",
+        "Đơn hàng của bạn đã được thanh toán bằng ví thành công!",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("Order"),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Lỗi:", error.message);
+      Alert.alert("Lỗi", error.message || "Có lỗi xảy ra khi thanh toán ví.");
+    }
+  };
+
+  // Kiểm tra phương thức thanh toán (nếu null -> báo lỗi)
   useEffect(() => {
     if (!currentPayment) {
       console.error("Phương thức thanh toán không xác định!");
@@ -245,6 +315,7 @@ const PaymentScreen = ({ navigation, route }) => {
         onPress={() => navigation.goBack()}
       />
       <View style={styles.content}>
+        {/* Code cũ phần hiển thị điều khoản (rules) */}
         <View style={styles.rulesContainer}>
           <Text style={styles.rulesHeader}>Quy định thanh toán:</Text>
           {currentPayment === "QR" && (
@@ -331,7 +402,35 @@ const PaymentScreen = ({ navigation, route }) => {
             </>
           )}
 
-          {!["QR", "COD", "VnPay"].includes(currentPayment) && (
+          {currentPayment === "Wallet" && (
+            <>
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleNumber}>1</Text>
+                <Text style={styles.rulesText}>
+                  Bạn đã chọn thanh toán bằng ví của VA.
+                </Text>
+              </View>
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleNumber}>2</Text>
+                <Text style={styles.rulesText}>
+                  Sau khi xác nhận, số dư ví sẽ được trừ và không thể hoàn trả
+                  tự động (nếu có thắc mắc vui lòng liên hệ).
+                </Text>
+              </View>
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleNumber}>3</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("ContactUs")}
+                >
+                  <Text style={styles.rulesLink}>
+                    Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {!["QR", "COD", "VnPay", "Wallet"].includes(currentPayment) && (
             <Text style={styles.rulesText}>
               Không xác định được phương thức thanh toán. Vui lòng quay lại và
               thử lại.
@@ -439,12 +538,9 @@ const styles = StyleSheet.create({
 //   StyleSheet,
 //   Text,
 //   View,
-//   Image,
-//   Dimensions,
-//   Alert,
-//   ActivityIndicator,
-//   TextInput,
 //   TouchableOpacity,
+//   ActivityIndicator,
+//   Alert,
 // } from "react-native";
 // import COLORS from "../constants/color";
 // import FONTS from "../constants/font";
@@ -455,10 +551,10 @@ const styles = StyleSheet.create({
 // const PaymentScreen = ({ navigation, route }) => {
 //   const [orderDetails, setOrderDetails] = useState(null);
 //   const [loading, setLoading] = useState(false);
-//   const { currentPayment } = route.params || {}; // Lấy từ params
+//   const { currentPayment } = route.params || {};
 //   const [userId, setUserId] = useState(null);
+//   const [latestOrderId, setLatestOrderId] = useState(null);
 
-//   // Hàm gọi API có thêm token
 //   const fetchWithAuth = async (url, options = {}) => {
 //     const token = await AsyncStorage.getItem("authToken");
 //     if (!token) throw new Error("Không tìm thấy token.");
@@ -467,10 +563,10 @@ const styles = StyleSheet.create({
 //       "Content-Type": "application/json",
 //       ...options.headers,
 //     };
+//     console.log(`API Request: ${url}`); // Log API request URL
 //     return fetch(url, { ...options, headers });
 //   };
 
-//   // Lấy thông tin đơn hàng từ AsyncStorage
 //   const fetchOrderDetails = async () => {
 //     try {
 //       const storedOrder = await AsyncStorage.getItem("pendingOrder");
@@ -515,7 +611,6 @@ const styles = StyleSheet.create({
 //       if (!userId) throw new Error("Không tìm thấy User ID.");
 //       if (!orderDetails) throw new Error("Không tìm thấy thông tin đơn hàng.");
 
-//       // Step 1: Tạo Order
 //       const orderData = {
 //         userId: parseInt(userId, 10),
 //         totalPrice: orderDetails.totalPrice,
@@ -527,9 +622,10 @@ const styles = StyleSheet.create({
 //         phoneNumber: orderDetails.phoneNumber || "Không có số điện thoại",
 //         receiverName: orderDetails.receiverName || "Không có tên người nhận",
 //         orderDate: new Date().toISOString(),
-//         status: "pending_payment", // Trạng thái mặc định ban đầu
+//         status: "pending_payment",
 //       };
 
+//       // Tạo Order
 //       const createOrderResponse = await fetchWithAuth(
 //         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/createOrderByCustomer",
 //         {
@@ -541,19 +637,23 @@ const styles = StyleSheet.create({
 //       if (!createOrderResponse.ok) {
 //         throw new Error("Không thể tạo đơn hàng.");
 //       }
-
 //       // Step 2: Lấy Order ID mới nhất
 //       const getOrdersResponse = await fetchWithAuth(
 //         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
 //       );
+
+//       if (!getOrdersResponse.ok) {
+//         throw new Error("Không thể lấy thông tin đơn hàng từ server.");
+//       }
 
 //       const orders = await getOrdersResponse.json();
 //       const latestOrder = orders.reduce((maxOrder, order) =>
 //         order.orderId > maxOrder.orderId ? order : maxOrder
 //       );
 //       const latestOrderId = latestOrder.orderId;
+//       setLatestOrderId(latestOrderId);
 
-//       // Step 3: Tạo OrderDetail
+//       // Tạo OrderDetail cho từng món ăn
 //       const detailedCartItems = orderDetails.items || [];
 //       for (const item of detailedCartItems) {
 //         const orderDetailData = {
@@ -577,34 +677,31 @@ const styles = StyleSheet.create({
 //           );
 //         }
 //       }
+//       // Create PaymentDetail
+//       const paymentDetailData = {
+//         orderId: latestOrderId,
+//         paymentMethod: currentPayment, // Set Payment Method depend on current payment method
+//         paymentStatus: "pending",
+//         transactionId: "",
+//         paymentDate: new Date().toISOString(),
+//         amount: orderDetails.totalPrice,
+//         refundAmount: 0,
+//         returnUrl: "",
+//         cancelUrl: "",
+//       };
 
-//       // Step 4: Xử lý thanh toán theo phương thức
-//       if (currentPayment === "COD") {
-//         // Tạo PaymentDetail cho COD
-//         const paymentDetailData = {
-//           orderId: latestOrderId,
-//           paymentMethod: "COD",
-//           paymentStatus: "pending", // Thanh toán COD sẽ ở trạng thái pending
-//           transactionId: "",
-//           paymentDate: new Date().toISOString(),
-//           amount: orderDetails.totalPrice,
-//           refundAmount: 0,
-//           returnUrl: "",
-//           cancelUrl: "",
-//         };
-
-//         const createPaymentDetailResponse = await fetchWithAuth(
-//           "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/create",
-//           {
-//             method: "POST",
-//             body: JSON.stringify(paymentDetailData),
-//           }
-//         );
-
-//         if (!createPaymentDetailResponse.ok) {
-//           throw new Error("Không thể tạo thông tin thanh toán COD.");
+//       const createPaymentDetailResponse = await fetchWithAuth(
+//         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/create",
+//         {
+//           method: "POST",
+//           body: JSON.stringify(paymentDetailData),
 //         }
-
+//       );
+//       if (!createPaymentDetailResponse.ok) {
+//         throw new Error("Không thể tạo thông tin thanh toán");
+//       }
+//       // Xử lý thanh toán theo phương thức
+//       if (currentPayment === "COD") {
 //         // Hiển thị popup thành công
 //         Alert.alert(
 //           "Thanh toán thành công",
@@ -612,7 +709,7 @@ const styles = StyleSheet.create({
 //           [
 //             {
 //               text: "OK",
-//               onPress: () => navigation.navigate("Order"), // Quay lại CheckoutScreen
+//               onPress: () => navigation.navigate("Order"),
 //             },
 //           ]
 //         );
@@ -625,8 +722,6 @@ const styles = StyleSheet.create({
 
 //         const paymentResponse = await fetchWithAuth(
 //           "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/pay-os",
-
-//           // https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/vnpay
 //           {
 //             method: "POST",
 //             body: JSON.stringify(paymentData),
@@ -638,15 +733,11 @@ const styles = StyleSheet.create({
 //         }
 
 //         const paymentLink = await paymentResponse.text();
-
-//         // Điều hướng đến WebViewScreen để hiển thị QR Code
 //         navigation.navigate("WebViewScreen", { url: paymentLink });
-//         //VNPAY
 //       } else if (currentPayment === "VnPay") {
-//         // Tạo Payment Link cho QR
+//         // Tạo Payment Link cho VnPay
 //         const paymentData = {
 //           orderId: latestOrderId,
-//           // decryptionKey: "Sav3CtqBonMF3f41HaoxABIi8NKVUMBU1MOHBi1qmf0=",
 //         };
 
 //         const paymentResponse = await fetchWithAuth(
@@ -658,19 +749,89 @@ const styles = StyleSheet.create({
 //         );
 
 //         if (!paymentResponse.ok) {
-//           throw new Error("Không thể sang trang vnpay");
+//           throw new Error("Không thể chuyển sang trang thanh toán VnPay.");
 //         }
 
 //         const paymentLink = await paymentResponse.text();
-
-//         // Điều hướng đến WebViewScreen để hiển thị QR Code
 //         navigation.navigate("WebViewScreen", { url: paymentLink });
+//       } else if (currentPayment === "Wallet") {
+//         // Gọi API getPaymentDetailByOrderId ngay sau khi tạo đơn hàng thành công và có latestOrderId
+//         await processWalletPayment(latestOrderId);
 //       }
 //     } catch (error) {
 //       console.error("Lỗi:", error.message);
 //       Alert.alert("Lỗi", error.message || "Có lỗi xảy ra khi thanh toán.");
 //     } finally {
 //       setLoading(false);
+//     }
+//   };
+
+//   const processWalletPayment = async (orderId) => {
+//     try {
+//       // 1. Get PaymentDetailByOrderId
+//       const paymentDetailResponse = await fetchWithAuth(
+//         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${orderId}`
+//       );
+
+//       if (!paymentDetailResponse.ok) {
+//         throw new Error("Không thể lấy thông tin thanh toán.");
+//       }
+
+//       const paymentDetail = await paymentDetailResponse.json();
+//       const paymentId = paymentDetail[0]?.paymentId;
+
+//       if (!paymentId) {
+//         throw new Error("Không tìm thấy Payment ID.");
+//       }
+//       // 2. Call /payment/wallet
+//       const walletPaymentResponse = await fetchWithAuth(
+//         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/wallet",
+//         {
+//           method: "POST",
+//           body: JSON.stringify({
+//             orderId: orderId,
+//             userId: parseInt(userId, 10),
+//           }),
+//         }
+//       );
+//       if (!walletPaymentResponse.ok) {
+//         throw new Error("Không thể thực hiện thanh toán ví.");
+//       }
+//       const walletPaymentData = await walletPaymentResponse.json();
+
+//       // 3. Call /payment/wallet/result
+//       const walletResultBody = {
+//         userId: parseInt(userId, 10),
+//         paymentId: paymentId,
+//         statusCode: 1, // Hardcode status code as 1
+//       };
+//       console.log("API Request Body (wallet/result):", walletResultBody);
+
+//       const walletResultResponse = await fetchWithAuth(
+//         "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/payment/wallet/result",
+//         {
+//           method: "POST",
+//           body: JSON.stringify(walletResultBody),
+//         }
+//       );
+
+//       if (!walletResultResponse.ok) {
+//         throw new Error("Không thể hoàn tất thanh toán ví.");
+//       }
+//       // Thành công, điều hướng người dùng
+//       Alert.alert(
+//         "Thanh toán thành công",
+//         "Đơn hàng của bạn đã được thanh toán bằng ví thành công!",
+//         [
+//           {
+//             text: "OK",
+//             onPress: () => navigation.navigate("Order"),
+//           },
+//         ]
+//       );
+//     } catch (error) {
+//       console.error("Lỗi:", error.message);
+//       Alert.alert("Lỗi", error.message || "Có lỗi xảy ra khi thanh toán ví.");
 //     }
 //   };
 
@@ -681,7 +842,7 @@ const styles = StyleSheet.create({
 //         "Lỗi",
 //         "Không xác định được phương thức thanh toán. Vui lòng quay lại và thử lại."
 //       );
-//       navigation.goBack(); // Quay lại màn hình trước đó
+//       navigation.goBack();
 //     }
 //   }, [currentPayment]);
 
@@ -696,55 +857,118 @@ const styles = StyleSheet.create({
 //       <View style={styles.content}>
 //         <View style={styles.rulesContainer}>
 //           <Text style={styles.rulesHeader}>Quy định thanh toán:</Text>
-//           {currentPayment === "QR" ? (
+//           {currentPayment === "QR" && (
 //             <>
-//               <Text style={styles.rulesText}>
-//                 1/ Khi bạn chọn thanh toán QR CODE cho đơn hàng này, sau khi
-//                 thanh toán thành công nếu bạn hủy đơn hàng thì phải liên hệ cho
-//                 VA qua những phương thức ở trang "Contact Us" để VA kịp thời hỗ
-//                 trợ việc hoàn tiền.
-//               </Text>
-//               <Text style={styles.rulesText}>
-//                 2/ Nếu bạn không liên hệ cho VA thì sẽ mất vài ngày để có thể xử
-//                 lý.
-//               </Text>
-//               <TouchableOpacity
-//                 onPress={() => navigation.navigate("ContactUs")}
-//               >
-//                 <Text
-//                   style={[
-//                     styles.rulesText,
-//                     { color: COLORS.green, textDecorationLine: "underline" },
-//                   ]}
-//                 >
-//                   3/ Truy cập "Contact Us" ở đây.
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>1</Text>
+//                 <Text style={styles.rulesText}>
+//                   Khi bạn chọn thanh toán QR CODE, nếu hủy đơn hàng sau khi
+//                   thanh toán thành công, vui lòng liên hệ VA qua trang "Liên hệ"
+//                   để được hỗ trợ hoàn tiền kịp thời.
 //                 </Text>
-//               </TouchableOpacity>
+//               </View>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>2</Text>
+//                 <Text style={styles.rulesText}>
+//                   Nếu không liên hệ, việc xử lý hoàn tiền có thể mất vài ngày.
+//                 </Text>
+//               </View>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>3</Text>
+//                 <TouchableOpacity
+//                   onPress={() => navigation.navigate("ContactUs")}
+//                 >
+//                   <Text style={styles.rulesLink}>
+//                     Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+//                   </Text>
+//                 </TouchableOpacity>
+//               </View>
 //             </>
-//           ) : currentPayment === "COD" ? (
+//           )}
+
+//           {currentPayment === "COD" && (
 //             <>
-//               <Text style={styles.rulesText}>
-//                 1/ Món ăn giao tới khách hàng sẽ không thể hoàn trả.
-//               </Text>
-//               <Text style={styles.rulesText}>
-//                 2/ Shipper giao tới, khách hàng nhận món ăn xong mới thanh toán
-//                 cho shipper.
-//               </Text>
-//               <TouchableOpacity
-//                 onPress={() => navigation.navigate("ContactUs")}
-//               >
-//                 <Text
-//                   style={[
-//                     styles.rulesText,
-//                     { color: COLORS.green, textDecorationLine: "underline" },
-//                   ]}
-//                 >
-//                   3/ Nếu có vấn đề , thắc mắc về thanh hãy truy cập "Contact Us"
-//                   ở đây để liên hệ với VA.
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>1</Text>
+//                 <Text style={styles.rulesText}>
+//                   Món ăn đã giao không được hoàn trả.
 //                 </Text>
-//               </TouchableOpacity>
+//               </View>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>2</Text>
+//                 <Text style={styles.rulesText}>
+//                   Quý khách thanh toán cho shipper sau khi nhận món.
+//                 </Text>
+//               </View>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>3</Text>
+//                 <TouchableOpacity
+//                   onPress={() => navigation.navigate("ContactUs")}
+//                 >
+//                   <Text style={styles.rulesLink}>
+//                     Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+//                   </Text>
+//                 </TouchableOpacity>
+//               </View>
 //             </>
-//           ) : (
+//           )}
+
+//           {currentPayment === "VnPay" && (
+//             <>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>1</Text>
+//                 <Text style={styles.rulesText}>
+//                   Bạn sẽ được chuyển đến trang thanh toán an toàn của VnPay.
+//                 </Text>
+//               </View>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>2</Text>
+//                 <Text style={styles.rulesText}>
+//                   Vui lòng kiểm tra kỹ thông tin đơn hàng trước khi xác nhận
+//                   thanh toán trên VnPay.
+//                 </Text>
+//               </View>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>3</Text>
+//                 <TouchableOpacity
+//                   onPress={() => navigation.navigate("ContactUs")}
+//                 >
+//                   <Text style={styles.rulesLink}>
+//                     Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+//                   </Text>
+//                 </TouchableOpacity>
+//               </View>
+//             </>
+//           )}
+
+//           {currentPayment === "Wallet" && (
+//             <>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>1</Text>
+//                 <Text style={styles.rulesText}>
+//                   Bạn đã chọn thanh toán bằng ví của VA.
+//                 </Text>
+//               </View>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>2</Text>
+//                 <Text style={styles.rulesText}>
+//                   Bạn sẽ không thể hoàn trả sau khi thanh toán.
+//                 </Text>
+//               </View>
+//               <View style={styles.ruleItem}>
+//                 <Text style={styles.ruleNumber}>3</Text>
+//                 <TouchableOpacity
+//                   onPress={() => navigation.navigate("ContactUs")}
+//                 >
+//                   <Text style={styles.rulesLink}>
+//                     Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+//                   </Text>
+//                 </TouchableOpacity>
+//               </View>
+//             </>
+//           )}
+
+//           {!["QR", "COD", "VnPay", "Wallet"].includes(currentPayment) && (
 //             <Text style={styles.rulesText}>
 //               Không xác định được phương thức thanh toán. Vui lòng quay lại và
 //               thử lại.
@@ -755,12 +979,12 @@ const styles = StyleSheet.create({
 //         {loading ? (
 //           <ActivityIndicator size="large" color={COLORS.green} />
 //         ) : (
-//           <Text style={styles.loadingText}>
+//           <Text style={styles.confirmText}>
 //             Nhấn "Xác nhận thanh toán" để thực hiện thanh toán
 //           </Text>
 //         )}
 //         <Text style={styles.totalText}>
-//           Số tiền thanh toán: {orderDetails?.totalPrice?.toLocaleString()}vnđ
+//           Số tiền thanh toán: {orderDetails?.totalPrice?.toLocaleString()} đ
 //         </Text>
 //       </View>
 //       <ButtonFloatBottom
@@ -778,47 +1002,71 @@ const styles = StyleSheet.create({
 //   content: {
 //     flex: 1,
 //     alignItems: "center",
-//     padding: 16,
+//     padding: 20,
 //     backgroundColor: COLORS.white,
 //   },
-//   loadingText: {
+//   rulesContainer: {
+//     width: "100%",
+//     backgroundColor: COLORS.white,
+//     borderRadius: 12,
+//     padding: 16,
+//     marginTop: 20,
+//     shadowColor: "#000",
+//     shadowOffset: {
+//       width: 0,
+//       height: 2,
+//     },
+//     shadowOpacity: 0.1,
+//     shadowRadius: 4,
+//     elevation: 3,
+//   },
+//   rulesHeader: {
+//     fontSize: 22,
+//     fontFamily: FONTS.semiBold,
+//     color: COLORS.green,
+//     marginBottom: 15,
+//     textAlign: "center",
+//   },
+//   ruleItem: {
+//     flexDirection: "row",
+//     alignItems: "flex-start",
+//     marginBottom: 12,
+//   },
+//   ruleNumber: {
+//     fontSize: 16,
+//     fontFamily: FONTS.bold,
+//     color: COLORS.green,
+//     marginRight: 8,
+//     width: 20,
+//     textAlign: "center",
+//   },
+//   rulesText: {
+//     fontSize: 16,
+//     fontFamily: FONTS.regular,
+//     color: COLORS.black,
+//     flex: 1,
+//     lineHeight: 24,
+//     textAlign: "left",
+//   },
+//   rulesLink: {
+//     fontSize: 16,
+//     fontFamily: FONTS.medium,
+//     color: COLORS.primary,
+//     textDecorationLine: "underline",
+//     flex: 1,
+//     lineHeight: 24,
+//     textAlign: "left",
+//   },
+//   confirmText: {
 //     fontSize: 16,
 //     color: COLORS.grey,
 //     marginVertical: 20,
+//     textAlign: "center",
 //   },
 //   totalText: {
 //     fontSize: 18,
 //     fontFamily: FONTS.semiBold,
-//     color: COLORS.green,
-//     marginVertical: 10,
-//   },
-//   input: {
-//     width: "100%",
-//     padding: 10,
-//     marginTop: 20,
-//     borderWidth: 1,
-//     borderColor: COLORS.grey,
-//     borderRadius: 8,
-//     fontFamily: FONTS.regular,
-//   },
-//   rulesContainer: {
-//     marginTop: 20,
-//     paddingHorizontal: 10,
-//     borderTopWidth: 1,
-//     borderTopColor: COLORS.grey,
-//     paddingTop: 10,
-//   },
-//   rulesHeader: {
-//     fontSize: 20,
-//     fontFamily: FONTS.semiBold,
-//     color: COLORS.green,
-//     marginBottom: 5,
-//   },
-//   rulesText: {
-//     fontSize: 20,
-//     fontFamily: FONTS.regular,
-//     color: COLORS.grey,
-//     marginBottom: 10,
-//     textAlign: "justify",
+//     color: COLORS.primary,
+//     marginBottom: 30,
 //   },
 // });

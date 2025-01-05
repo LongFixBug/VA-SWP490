@@ -120,8 +120,8 @@ const CartScreen = ({ navigation }) => {
       return;
     }
 
-    if (newQuantity > 100) {
-      Alert.alert("Thông báo", "Số lượng tối đa là 100.");
+    if (newQuantity > 50) {
+      Alert.alert("Thông báo", "Số lượng tối đa là 50.");
       return;
     }
 

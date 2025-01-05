@@ -1,3 +1,4 @@
+// checkout.js
 import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
@@ -16,9 +17,10 @@ import Icon from "react-native-vector-icons/Ionicons";
 import Header from "../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Dropdown } from "react-native-element-dropdown";
+import Toast from "react-native-toast-message";
 
 const CheckoutScreen = ({ navigation, route }) => {
-  const [currentPayment, setCurrentPayment] = useState("COD");
+  const [currentPayment, setCurrentPayment] = useState(null);
   const [userId, setUserId] = useState(null);
   const [deliveryInfo, setDeliveryInfo] = useState({});
   const [detailedCartItems, setDetailedCartItems] = useState([]);
@@ -32,17 +34,17 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [discountOptions, setDiscountOptions] = useState([]);
   const [selectedDiscount, setSelectedDiscount] = useState(0);
   const [ingredientsFetched, setIngredientsFetched] = useState(false);
-  const [showInstructions, setShowInstructions] = useState({}); // State object for instruction visibility
-
-  // State for editing delivery info
+  const [showInstructions, setShowInstructions] = useState({});
   const [isEditingDelivery, setIsEditingDelivery] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [editedPhone, setEditedPhone] = useState("");
-  // New states for district and address detail
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [editedAddressDetail, setEditedAddressDetail] = useState("");
-  const fetchDeliveryFeeRef = useRef(null); // ref để kiểm soát việc gọi fetchDeliveryFee
-
+  const fetchDeliveryFeeRef = useRef(null);
+  // New state for wallet balance
+  const [walletBalance, setWalletBalance] = useState(0);
+  // Ref to store wallet balance
+  const walletBalanceRef = useRef(0);
   const districtsHCM = [
     { label: "Quận 1", value: "Quận 1" },
     { label: "Quận 2", value: "Quận 2" },
@@ -70,7 +72,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     { label: "Huyện Cần Giờ", value: "Huyện Cần Giờ" },
   ];
 
-  const { selectedItems } = route.params || { selectedItems: [] }; // Receive selected items from CartScreen
+  const { selectedItems } = route.params || { selectedItems: [] };
 
   const fetchWithAuth = async (url, options = {}) => {
     const token = await AsyncStorage.getItem("authToken");
@@ -105,7 +107,6 @@ const CheckoutScreen = ({ navigation, route }) => {
     0.3: { color: COLORS.orange, text: "Giảm giá 30%" },
   };
 
-  // Chỉnh sửa hàm generateFullAddress để trả về deliveryInfo.address
   const generateFullAddress = () => {
     return deliveryInfo.address || "";
   };
@@ -130,9 +131,10 @@ const CheckoutScreen = ({ navigation, route }) => {
   const { province, district, address } = parseAddress(deliveryInfo.address);
 
   const dataPayment = [
-    { id: "COD", name: "Thanh toán khi nhận hàng" },
-    { id: "QR", name: "Thanh toán qua QR code" },
-    { id: "VnPay", name: "Thanh toán qua VnPay" },
+    { id: "COD", name: "Thanh toán khi nhận hàng", icon: "cash-outline" },
+    { id: "QR", name: "Thanh toán qua QR code", icon: "qr-code-outline" },
+    { id: "VnPay", name: "Thanh toán qua VnPay", icon: "card-outline" },
+    { id: "Wallet", name: "Thanh toán bằng ví", icon: "wallet-outline" }, // Thêm ví vào đây
   ];
 
   useEffect(() => {
@@ -143,6 +145,7 @@ const CheckoutScreen = ({ navigation, route }) => {
           setUserId(storedUserId);
           await fetchDeliveryInfo(storedUserId);
           await fetchDiscountHistory(storedUserId);
+          await fetchWalletBalance(storedUserId); // Fetch wallet balance here
         } else {
           console.log("Không tìm thấy User ID trong AsyncStorage");
         }
@@ -160,11 +163,10 @@ const CheckoutScreen = ({ navigation, route }) => {
         selectedItems.forEach((item) => {
           total += item.price * item.quantity;
         });
-        // Thêm trường removedIngredients và ingredients vào mỗi món ăn
         const itemsWithRemovedIngredients = selectedItems.map((item) => ({
           ...item,
-          removedIngredients: [], // Khởi tạo mảng nguyên liệu bị bỏ ra
-          ingredients: [], // Khởi tạo mảng nguyên liệu
+          removedIngredients: [],
+          ingredients: [],
         }));
         setDetailedCartItems(itemsWithRemovedIngredients);
         setTotalPrice(total);
@@ -177,7 +179,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     const fetchAllIngredients = async () => {
       if (detailedCartItems.length > 0 && !ingredientsFetched) {
         await fetchIngredients(detailedCartItems);
-        setIngredientsFetched(true); // Đánh dấu đã lấy nguyên liệu
+        setIngredientsFetched(true);
       }
     };
     fetchAllIngredients();
@@ -196,7 +198,6 @@ const CheckoutScreen = ({ navigation, route }) => {
               return { ...item, ingredients: [] };
             }
 
-            // Gọi API để lấy ingredientIds dựa trên dishId
             const response1 = await fetchWithAuth(
               `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByDishId/${dishId}`
             );
@@ -205,9 +206,8 @@ const CheckoutScreen = ({ navigation, route }) => {
                 `Error fetching ingredient IDs for dish ${dishId}: ${response1.status}`
               );
             }
-            const ingredientData = await response1.json(); // Giả sử trả về mảng các đối tượng nguyên liệu
+            const ingredientData = await response1.json();
 
-            // Gọi API để lấy tên của từng ingredientId
             const ingredientNames = await Promise.all(
               ingredientData.map(async (ingredientItem) => {
                 try {
@@ -220,7 +220,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                       `Error fetching ingredient name for ID ${ingredientId}: ${response2.status}`
                     );
                   }
-                  const ingredient = await response2.json(); // Giả sử trả về đối tượng chứa tên nguyên liệu
+                  const ingredient = await response2.json();
                   return ingredient.name;
                 } catch (error) {
                   console.error(error);
@@ -246,10 +246,10 @@ const CheckoutScreen = ({ navigation, route }) => {
   const fetchDeliveryFee = async () => {
     if (fetchDeliveryFeeRef.current) {
       console.log("fetchDeliveryFee đã được gọi rồi, bỏ qua lần này.");
-      return; // nếu đã có request trước đó thì không thực hiện
+      return;
     }
 
-    fetchDeliveryFeeRef.current = true; // đánh dấu request đã thực hiện
+    fetchDeliveryFeeRef.current = true;
     try {
       console.log("fetchDeliveryFee called");
       console.log("deliveryInfo.address:", deliveryInfo.address);
@@ -260,9 +260,9 @@ const CheckoutScreen = ({ navigation, route }) => {
       const queryParams = new URLSearchParams({
         pick_province: "Hồ Chí Minh",
         pick_district: "Quận 9",
-        province: "Hồ Chí Minh", // Always HCM
+        province: "Hồ Chí Minh",
         district: parsedAddress.district || "Quận 12",
-        address: parsedAddress.address || "338/10 Đ. Lê Thị Riêng", // Fallback address
+        address: parsedAddress.address || "338/10 Đ. Lê Thị Riêng",
         weight: 1000,
         value: totalPrice,
       }).toString();
@@ -291,7 +291,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       console.error("Lỗi khi lấy phí giao hàng:", error);
       Alert.alert("Lỗi", "Không thể lấy phí giao hàng.");
     } finally {
-      fetchDeliveryFeeRef.current = false; // Cho phép gọi request tiếp theo
+      fetchDeliveryFeeRef.current = false;
     }
   };
 
@@ -330,7 +330,6 @@ const CheckoutScreen = ({ navigation, route }) => {
   }, [deliveryInfo, totalPrice, selectedDistrict, editedAddressDetail]);
 
   useEffect(() => {
-    // Tính toán tổng tiền sau khi chọn mức giảm giá
     const selectedOption = discountOptions.find(
       (option) => option.id === selectedDiscount
     );
@@ -338,13 +337,63 @@ const CheckoutScreen = ({ navigation, route }) => {
     setFinalPrice(totalPrice - totalPrice * discountRate + deliveryFee);
   }, [selectedDiscount, totalPrice, deliveryFee]);
 
+  // New function to fetch wallet balance
+  const fetchWalletBalance = async (userId) => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/wallet?userId=${userId}`
+      );
+      if (!response.ok) {
+        const errorMessage = `Failed to fetch wallet balance data: ${response.status}`;
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+      const walletData = await response.json();
+
+      // Check if the balance has changed before updating state
+      const newBalance = walletData.balance;
+      if (newBalance !== walletBalanceRef.current) {
+        setWalletBalance(newBalance);
+        walletBalanceRef.current = newBalance;
+      }
+    } catch (error) {
+      console.error("Error fetching wallet balance:", error.message);
+      Alert.alert("Lỗi", "Không thể tải số dư ví.");
+    }
+  };
+
   const handleCheckout = async () => {
+    if (!currentPayment) {
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Bạn phải chọn một phương thức thanh toán",
+      });
+      return;
+    }
     if (detailedCartItems.length === 0) {
       Alert.alert("Thông báo", "Không có món ăn nào để thanh toán.");
       return;
     }
+    if (currentPayment === "Wallet" && finalPrice > walletBalance) {
+      Alert.alert(
+        "Thông báo",
+        "Số dư trong ví không đủ để thanh toán.",
+        [
+          {
+            text: "Hủy",
+            style: "cancel",
+          },
+          {
+            text: "Nạp tiền",
+            onPress: () => navigation.navigate("WalletScreen"),
+          },
+        ],
+        { cancelable: true }
+      );
+      return;
+    }
 
-    // Sử dụng địa chỉ từ deliveryInfo.address
     const fullAddress = generateFullAddress();
 
     if (!fullAddress) {
@@ -430,11 +479,9 @@ const CheckoutScreen = ({ navigation, route }) => {
   };
 
   const handleRemoveIngredient = (dishId, ingredient) => {
-    // Tìm món ăn trước khi cập nhật
     const item = detailedCartItems.find((item) => item.dishId === dishId);
     const itemName = item ? item.name : "Món ăn";
 
-    // Cập nhật detailedCartItems
     setDetailedCartItems((prevItems) =>
       prevItems.map((item) => {
         if (item.dishId === dishId) {
@@ -448,10 +495,8 @@ const CheckoutScreen = ({ navigation, route }) => {
       })
     );
 
-    // Cập nhật phần ghi chú với nguyên liệu bị bỏ ra
     setNote((prevNote) => {
       const ingredientInfo = `(${itemName}: ${ingredient} bị bỏ ra)`;
-      // Tránh ghi đè nếu nguyên liệu đã được ghi nhận trước đó
       if (prevNote.includes(ingredientInfo)) {
         return prevNote;
       }
@@ -717,7 +762,6 @@ const CheckoutScreen = ({ navigation, route }) => {
                 <View style={styles.quantityContainer}>
                   <Text style={styles.textBold}>x{item.quantity}</Text>
                 </View>
-                {/* Hiển thị nguyên liệu với nút "X" để bỏ ra */}
                 {item.ingredients && item.ingredients.length > 0 ? (
                   <View style={styles.ingredientsContainer}>
                     <View style={styles.ingredientsHeader}>
@@ -768,7 +812,21 @@ const CheckoutScreen = ({ navigation, route }) => {
                   currentPayment === item.id ? COLORS.green : COLORS.greyPastel,
               }}
             >
-              <Text style={styles.text}>{item.name}</Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Icon
+                  name={item.icon}
+                  size={20}
+                  color={
+                    currentPayment === item.id ? COLORS.green : COLORS.grey
+                  }
+                />
+                <Text style={styles.text}>{item.name}</Text>
+              </View>
               <Icon
                 name={
                   currentPayment === item.id
@@ -780,6 +838,12 @@ const CheckoutScreen = ({ navigation, route }) => {
               />
             </TouchableOpacity>
           ))}
+          <View style={styles.walletBalanceContainer}>
+            <Text style={styles.textBold}>Số dư ví:</Text>
+            <Text style={{ ...styles.textBold, color: COLORS.green }}>
+              {walletBalance.toLocaleString()} đ
+            </Text>
+          </View>
         </View>
 
         <View style={styles.deliveryFeeContainer}>
@@ -805,6 +869,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               : "0 đ"}
           </Text>
         </View>
+
         <View style={styles.boxButtonFloatBottom}>
           <TouchableOpacity style={styles.totalButton}>
             <Text style={styles.textBold}>Tổng thanh toán:</Text>
@@ -820,6 +885,7 @@ const CheckoutScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       </View>
+      <Toast />
     </>
   );
 };
@@ -1015,6 +1081,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     marginBottom: 10,
+    alignItems: "center",
+  },
+  walletBalanceContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 10,
+    alignItems: "center",
   },
   containerButtonFloatBottom: {
     position: "absolute",
@@ -1096,7 +1169,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.grey,
     width: 200,
-    zIndex: 10, // Đảm bảo hiển thị trên các thành phần khác
+    zIndex: 10,
     backgroundColor: COLORS.white,
   },
   instructionText: {

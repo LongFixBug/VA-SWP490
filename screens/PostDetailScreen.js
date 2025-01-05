@@ -32,6 +32,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   const [commentCount, setCommentCount] = useState(0);
   const [postImages, setPostImages] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [userData, setUserData] = useState({});
   const [isCommentOptionsVisible, setIsCommentOptionsVisible] = useState(false);
   const [selectedComment, setSelectedComment] = useState(null);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] =
@@ -42,6 +43,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   const [isDeletePostConfirmationVisible, setIsDeletePostConfirmationVisible] =
     useState(false);
   const [isDeleting, setIsDeleting] = useState(false); // New state for loading
+  const [invalidWords, setInvalidWords] = useState([]);
 
   // Hàm hỗ trợ fetch với Authorization
   const fetchWithAuth = async (url, options = {}) => {
@@ -64,64 +66,89 @@ const PostDetailScreen = ({ navigation, route }) => {
     });
   };
 
-  // Tải userId từ AsyncStorage
+  // Tải userId và userData từ AsyncStorage
   useEffect(() => {
-    const loadUserId = async () => {
-      const userId = await AsyncStorage.getItem("userId");
-      setCurrentUserId(userId ? parseInt(userId, 10) : null);
-    };
-    loadUserId();
-  }, []);
-
-  // Tải bình luận và thông tin người dùng cho từng bình luận
-  useEffect(() => {
-    const fetchComments = async () => {
+    const loadUserData = async () => {
       try {
-        const response = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`
-        );
-        const commentsData = await response.json();
+        const userId = await AsyncStorage.getItem("userId");
+        setCurrentUserId(userId ? parseInt(userId, 10) : null);
 
-        const commentsWithUserDetails = await Promise.all(
-          commentsData.map(async (comment) => {
-            try {
-              const userResponse = await fetchWithAuth(
-                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${comment.userId}`
-              );
-              const userData = await userResponse.json();
-
-              return {
-                ...comment,
-                avatarUrl:
-                  userData.imageUrl || "https://via.placeholder.com/35",
-                userName: userData.username || "Ẩn danh",
-              };
-            } catch (error) {
-              console.error(
-                `Error fetching user data for userId ${comment.userId}`,
-                error
-              );
-              return {
-                ...comment,
-                avatarUrl: "https://via.placeholder.com/35",
-                userName: "Ẩn danh",
-              };
-            }
-          })
-        );
-
-        setComments(commentsWithUserDetails);
+        const storedUserData = await AsyncStorage.getItem("userData");
+        if (storedUserData) {
+          setUserData(JSON.parse(storedUserData));
+        }
       } catch (error) {
-        console.error("Error fetching comments:", error);
-      } finally {
-        setLoadingComments(false);
+        console.error("Error loading user data:", error);
       }
     };
+    loadUserData();
+  }, []);
 
+  // Tạo hàm fetchComments để tái sử dụng
+  const fetchComments = async () => {
+    setLoadingComments(true);
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`
+      );
+      const commentsData = await response.text(); // Nếu API trả về text
+
+      // Giả sử commentsData là một chuỗi JSON
+      let parsedComments;
+      try {
+        parsedComments = JSON.parse(commentsData);
+      } catch (parseError) {
+        console.error("Error parsing comments data:", parseError);
+        parsedComments = [];
+      }
+
+      const commentsWithUserDetails = await Promise.all(
+        parsedComments.map(async (comment) => {
+          try {
+            const userResponse = await fetchWithAuth(
+              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/users/getUserByID/${comment.userId}`
+            );
+            const userInfo = await userResponse.json();
+
+            return {
+              ...comment,
+              avatarUrl: userInfo.imageUrl || "https://via.placeholder.com/35",
+              userName: userInfo.username || "Ẩn danh",
+            };
+          } catch (error) {
+            console.error(
+              `Error fetching user data for userId ${comment.userId}`,
+              error
+            );
+            return {
+              ...comment,
+              avatarUrl: "https://via.placeholder.com/35",
+              userName: "Ẩn danh",
+            };
+          }
+        })
+      );
+
+      // Sắp xếp bình luận theo postDate giảm dần (mới nhất trước)
+      commentsWithUserDetails.sort(
+        (a, b) => new Date(b.postDate) - new Date(a.postDate)
+      );
+
+      setComments(commentsWithUserDetails);
+      setCommentCount(parsedComments.length);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  // Tải bình luận khi component mount hoặc khi articleId thay đổi
+  useEffect(() => {
     fetchComments();
   }, [post.articleId]);
 
-  // Tải lượt thích và số bình luận
+  // Tải lượt thích và số bình luận (nếu cần)
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -138,13 +165,9 @@ const PostDetailScreen = ({ navigation, route }) => {
         );
         setLiked(userLiked);
 
-        const commentsResponse = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${post.articleId}`
-        );
-        const commentsData = await commentsResponse.json();
-        setCommentCount(commentsData.length);
+        // Đã tải số bình luận trong fetchComments
       } catch (error) {
-        console.log("Error fetching initial data:");
+        console.log("Error fetching initial data:", error);
       }
     };
 
@@ -229,115 +252,106 @@ const PostDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  // Kiểm tra nội dung bình luận
-  const checkCommentContent = async (content) => {
-    try {
-      const words = content.split(/\s+/);
-      for (let word of words) {
-        const response = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/check-comment-content?Content=${encodeURIComponent(
-            word
-          )}`,
-          {
-            method: "GET",
-          }
-        );
-
-        if (!response.ok) {
-          return { success: false, message: "Invalid content detected." };
-        }
-
-        const result = await response.json();
-        if (!result.success) {
-          return {
-            success: false,
-            message: `Invalid content detected: "${word}"`,
-          };
-        }
+  // Tải danh sách từ cấm
+  useEffect(() => {
+    const fetchInvalidWords = async () => {
+      try {
+        const words = await getInvalidWords();
+        setInvalidWords(words);
+      } catch (error) {
+        console.error("Error fetching invalid words:", error);
       }
-      return { success: true, message: "Content is valid." };
+    };
+    fetchInvalidWords();
+  }, []);
+
+  // Hàm lấy danh sách từ cấm
+  const getInvalidWords = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      const response = await fetch(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/invalid-word/getall",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      return data; // Mảng các object {id, content}
     } catch (error) {
-      console.error("Error checking comment content:", error);
-      return { success: false, message: "Error checking content." };
+      console.error("Error fetching invalid words:", error);
+      return [];
     }
+  };
+
+  // Kiểm tra nội dung bình luận
+  const checkCommentContent = (content) => {
+    const userCommentLower = content.toLowerCase();
+
+    for (const badWord of invalidWords) {
+      const badWordLower = badWord.content.toLowerCase();
+      if (userCommentLower.includes(badWordLower)) {
+        return {
+          success: false,
+          message: `Nội dung bình luận có chứa từ cấm: "${badWord.content}"`,
+        };
+      }
+    }
+
+    return { success: true, message: "Nội dung hợp lệ" };
   };
 
   // Xử lý đăng bình luận
   const handlePostComment = async () => {
-    if (newComment.trim()) {
-      try {
-        const checkResult = await checkCommentContent(newComment);
+    if (!newComment.trim()) {
+      showToast("error", "Lỗi", "Vui lòng nhập nội dung bình luận.");
+      return;
+    }
 
-        if (!checkResult.success) {
-          let toastMessage =
-            "Bình luận của bạn không hợp lệ, hãy bình luận lại nhé!";
-          if (
-            checkResult.message ===
-            "Invalid content detected: contains adult language."
-          ) {
-            toastMessage =
-              "Bạn sử dụng ngôn từ thô tục, hãy bình luận lại nhé!";
-          } else if (
-            checkResult.message ===
-            "Invalid content detected: contains violent language."
-          ) {
-            toastMessage =
-              "Bạn sử dụng ngôn từ bạo lực, hãy bình luận lại nhé!";
-          }
+    // 1. Kiểm tra nội dung dựa trên mảng invalidWords
+    const checkResult = checkCommentContent(newComment);
+    if (!checkResult.success) {
+      showToast("error", "Lỗi bình luận", checkResult.message);
+      return;
+    }
 
-          showToast("error", "Lỗi bình luận", toastMessage);
-          return;
-        }
+    try {
+      const userId = currentUserId;
 
-        const storedUserData = await AsyncStorage.getItem("userData");
-        const parsedUserData = storedUserData ? JSON.parse(storedUserData) : {};
-
-        const userId =
-          parsedUserData.userId || (await AsyncStorage.getItem("userId"));
-        const userName = parsedUserData.username || "Ẩn danh";
-        const avatarUrl =
-          parsedUserData.imageUrl || "https://via.placeholder.com/35";
-
-        const response = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              content: newComment,
-              userId: userId,
-              articleId: post.articleId,
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const newCommentData = {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
             content: newComment,
             userId: userId,
             articleId: post.articleId,
-            userName: userName,
-            avatarUrl: avatarUrl,
-            commentId: Date.now(), // Giả định ID tạm thời, bạn nên lấy từ API nếu có
-          };
-
-          setComments((prevComments) => [newCommentData, ...prevComments]);
-          setNewComment("");
-          setCommentCount((prev) => prev + 1);
-
-          showToast("success", "Thành công", "Bình luận đã được đăng!");
-        } else {
-          showToast(
-            "error",
-            "Lỗi",
-            "Không thể gửi bình luận, vui lòng thử lại sau."
-          );
+          }),
         }
-      } catch (error) {
-        console.error("Error posting comment:", error);
-        showToast("error", "Lỗi", "Đã xảy ra lỗi, vui lòng thử lại sau.");
+      );
+
+      if (response.ok) {
+        // Tái tải danh sách bình luận sau khi đăng thành công
+        await fetchComments();
+
+        setNewComment("");
+        setCommentCount((prev) => prev + 1);
+
+        showToast("success", "Thành công", "Bình luận đã được đăng!");
+      } else {
+        showToast(
+          "error",
+          "Lỗi",
+          "Không thể gửi bình luận, vui lòng thử lại sau."
+        );
       }
-    } else {
-      showToast("error", "Lỗi", "Vui lòng nhập nội dung bình luận.");
+    } catch (error) {
+      console.error("Error posting comment:", error);
+      showToast("error", "Lỗi", "Đã xảy ra lỗi, vui lòng thử lại sau.");
     }
   };
 
@@ -419,21 +433,9 @@ const PostDetailScreen = ({ navigation, route }) => {
   // Xử lý chỉnh sửa bình luận
   const handleEditComment = async () => {
     if (editCommentText.trim()) {
-      const checkResult = await checkCommentContent(editCommentText);
+      const checkResult = checkCommentContent(editCommentText);
       if (!checkResult.success) {
-        let toastMessage = "Bình luận của bạn không hợp lệ, hãy sửa lại nhé!";
-        if (
-          checkResult.message ===
-          "Invalid content detected: contains adult language."
-        ) {
-          toastMessage = "Bạn sử dụng ngôn từ thô tục, hãy sửa lại nhé!";
-        } else if (
-          checkResult.message ===
-          "Invalid content detected: contains violent language."
-        ) {
-          toastMessage = "Bạn sử dụng ngôn từ bạo lực, hãy sửa lại nhé!";
-        }
-        showToast("error", "Lỗi bình luận", toastMessage);
+        showToast("error", "Lỗi bình luận", checkResult.message);
         return;
       }
 
@@ -490,7 +492,7 @@ const PostDetailScreen = ({ navigation, route }) => {
         const likesData = await response.json();
         return likesData;
       } else {
-        console.error("Failed to fetch likes:", await response.text());
+        console.log("Failed to fetch likes:");
         return [];
       }
     } catch (error) {
@@ -532,8 +534,17 @@ const PostDetailScreen = ({ navigation, route }) => {
         `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/Article/comment/${articleId}`
       );
       if (response.ok) {
-        const commentsData = await response.json();
-        return commentsData;
+        const commentsData = await response.text(); // Nếu API trả về text
+
+        let parsedComments;
+        try {
+          parsedComments = JSON.parse(commentsData);
+        } catch (parseError) {
+          console.error("Error parsing comments data:", parseError);
+          parsedComments = [];
+        }
+
+        return parsedComments;
       } else {
         console.error("Failed to fetch comments:", await response.text());
         return [];
@@ -690,11 +701,15 @@ const PostDetailScreen = ({ navigation, route }) => {
           {/* Thông tin tác giả và nút "..." nếu là bài viết của người dùng */}
           <View style={styles.authorRow}>
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate("UserProfileScreen", {
-                  userId: post.authorId,
-                })
-              }
+              onPress={() => {
+                if (currentUserId === post.authorId) {
+                  navigation.navigate("Profile"); // Điều hướng đến hồ sơ cá nhân
+                } else {
+                  navigation.navigate("UserProfileScreen", {
+                    userId: post.authorId,
+                  });
+                }
+              }}
               style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
             >
               <Image
@@ -739,7 +754,7 @@ const PostDetailScreen = ({ navigation, route }) => {
             <ScrollView horizontal style={styles.imageScroll}>
               {postImages.map((image, index) => (
                 <TouchableOpacity
-                  key={index}
+                  key={image.articleImageId || index}
                   onPress={() => {
                     setImageView(true);
                     setSelectedPictureOfArticle(index);
@@ -790,7 +805,10 @@ const PostDetailScreen = ({ navigation, route }) => {
 
               <TouchableOpacity
                 style={{ flexDirection: "row", alignItems: "center" }}
-                onPress={() => {}}
+                onPress={() => {
+                  // Có thể cuộn xuống phần bình luận
+                  // Bạn cần thêm ref cho ScrollView và cuộn tới cuối
+                }}
               >
                 <Icon
                   name="chatbubble-outline"
@@ -820,8 +838,8 @@ const PostDetailScreen = ({ navigation, route }) => {
           ) : comments.length === 0 ? (
             <Text style={styles.noComments}>Không có bình luận nào</Text>
           ) : (
-            comments.map((item, index) => (
-              <View key={index} style={styles.comment}>
+            comments.map((item) => (
+              <View key={item.commentId} style={styles.comment}>
                 <TouchableOpacity
                   onPress={() =>
                     navigation.navigate("UserProfileScreen", {

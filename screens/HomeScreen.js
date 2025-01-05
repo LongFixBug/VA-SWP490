@@ -652,40 +652,55 @@ const HomeScreen = () => {
             </View>
           </View>
         </TouchableOpacity>
-        <View style={{ width: "50%", marginRight: 50 }}>
+        <View style={{ width: "80%", marginRight: 50 }}>
           <Text style={styles.greetingText}>Xin chào!</Text>
           <Text style={styles.usernameText}>{userData?.username}</Text>
         </View>
       </View>
 
       {/* Feature Icons */}
-      <View style={styles.featureIcons}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate("Recommend")}
-          style={styles.featureItem}
-        >
-          <Icon name="restaurant-outline" size={30} color={COLORS.green} />
-          <Text style={styles.featureText}>Món Ăn Cho Bạn</Text>
-        </TouchableOpacity>
+      <View style={styles.featureIconsContainer}>
+        {/* Hàng trên: Món Ăn Cho Bạn và Menu Cho Bạn */}
+        <View style={styles.featureRow}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("Recommend")}
+            style={styles.featureItem}
+          >
+            <Icon name="restaurant-outline" size={30} color={COLORS.green} />
+            <Text style={styles.featureText}>Món Ăn Cho Bạn</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate("Menu")}
-          style={styles.featureItem}
-        >
-          <Icon name="book-outline" size={30} color={COLORS.green} />
-          <Text style={styles.featureText}>Menu Cho Bạn</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("Menu")}
+            style={styles.featureItem}
+          >
+            <Icon name="book-outline" size={30} color={COLORS.green} />
+            <Text style={styles.featureText}>Menu Cho Bạn</Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate("Favourite")}
-          style={styles.featureItem}
-        >
-          <Icon name="heart-outline" size={30} color={COLORS.green} />
-          <Text style={styles.featureText}>Yêu thích của bạn</Text>
-        </TouchableOpacity>
+        {/* Hàng dưới: Yêu Thích Của Bạn và Trợ Lý Của Bạn */}
+        <View style={styles.featureRow}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("Favourite")}
+            style={styles.featureItem}
+          >
+            <Icon name="heart-outline" size={30} color={COLORS.green} />
+            <Text style={styles.featureText}>Yêu thích của bạn</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("CombineScreen")}
+            style={styles.featureItem}
+          >
+            <Icon name="nutrition-outline" size={30} color={COLORS.green} />
+            <Text style={styles.featureText}>Trợ Lý Của Bạn</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search & Cart */}
@@ -757,14 +772,14 @@ const styles = StyleSheet.create({
   greetingText: {
     fontFamily: FONTS.bold,
     color: COLORS.white,
-    fontSize: 23,
-    marginLeft: 55,
+    fontSize: 21,
+    marginLeft: 50,
   },
   usernameText: {
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
-    fontSize: 18,
-    marginLeft: 100,
+    fontSize: 15,
+    marginLeft: 50,
   },
   pointsText: {
     fontFamily: FONTS.bold,
@@ -785,10 +800,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.white,
   },
-  featureIcons: {
-    flexDirection: "row",
+  featureIconsContainer: {
+    flexDirection: "column",
     justifyContent: "space-between",
     marginVertical: 20,
+    marginTop: -5,
+  },
+  featureRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 15, // Khoảng cách giữa các hàng
   },
   featureItem: {
     padding: 10,
@@ -796,13 +817,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     elevation: 10,
     alignItems: "center",
-    width: "30%",
+    width: "48%", // Chiếm khoảng 48% chiều rộng để tạo khoảng trống giữa các mục
   },
   featureText: {
     fontFamily: FONTS.semiBold,
     textAlign: "center",
     marginTop: 5,
-    fontSize: 12,
+    fontSize: 14,
     color: COLORS.black,
   },
   searchCartContainer: {
@@ -810,6 +831,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 10,
+    marginTop: -15,
   },
   searchContainer: {
     flexDirection: "row",

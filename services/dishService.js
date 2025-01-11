@@ -1,4 +1,3 @@
-// dishService.js
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const fetchWithAuth = async (url, method = "GET", body = null) => {
@@ -55,5 +54,26 @@ export const getIngredientByIngredientId = async (ingredientId) => {
   if (!ingredientId)
     throw new Error("Không có ingredientId để lấy thông tin nguyên liệu.");
   const url = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByIngredientId/${ingredientId}`;
+  return fetchWithAuth(url);
+};
+
+// Lấy thực đơn bữa sáng cho người dùng
+export const getMenuBreakfastForUser = async (userId) => {
+  if (!userId) throw new Error("Không có userId để lấy thực đơn bữa sáng.");
+  const url = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuBreakfastForUser/${userId}`;
+  return fetchWithAuth(url);
+};
+
+// Lấy thực đơn bữa trưa cho người dùng
+export const getMenuLunchForUser = async (userId) => {
+  if (!userId) throw new Error("Không có userId để lấy thực đơn bữa trưa.");
+  const url = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuLunchForUser/${userId}`;
+  return fetchWithAuth(url);
+};
+
+// Lấy thực đơn bữa tối cho người dùng
+export const getMenuDinnerForUser = async (userId) => {
+  if (!userId) throw new Error("Không có userId để lấy thực đơn bữa tối.");
+  const url = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendMenuDinnerForUser/${userId}`;
   return fetchWithAuth(url);
 };

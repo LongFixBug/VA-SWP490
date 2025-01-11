@@ -15,7 +15,9 @@ export const generateNutritionAdvice = async (userData, dishes) => {
       Trả lời dưới dạng text.
 
       **Hướng dẫn**:
-      1. Tính BMI, giải thích ý nghĩa.
+      1. Tính BMI, giải thích ý nghĩa. _Dữ liệu dinh dưỡng: ${JSON.stringify(
+        nutrition
+      )}
       2. Phân tích dữ liệu cá nhân (tuổi, giới tính, mục tiêu...).
       3. Phân tích dữ liệu dinh dưỡng (calo, chất béo, carbs, protein...).
       4. Đưa ra lời khuyên dinh dưỡng chi tiết, gợi ý món ăn chay phù hợp.
@@ -58,6 +60,13 @@ export const generateChatResponse = async (
          Ví dụ: "Bún Riêu Chay (dishId=3)". 
          Nếu nhắc đến món không có trong danh sách, hãy nói rõ là không tìm thấy.
       3. Không cung cấp ID sai hoặc bịa đặt; chỉ dùng dishId có trong dữ liệu.
+      4. Khi đề xuất hoặc nhắc đến món ăn nào , cũng phải hiển thị đầy đủ thông tin dinh dưỡng (ví dụ calories , cabs , fat, ... là bao nhiêu), nguyên liệu của món ăn đó :
+      - Thông tin món ăn: ${JSON.stringify(dishes)}
+      - ${
+        foodData
+          ? `- Thông tin món ăn chi tiết: ${JSON.stringify(foodData)}`
+          : ""
+      }
 
       **Dữ liệu cung cấp**:
       - Thông tin người dùng: ${JSON.stringify(userData)}

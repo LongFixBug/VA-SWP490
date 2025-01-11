@@ -8,9 +8,9 @@ import {
   TextInput,
   ScrollView,
   FlatList,
-  Modal, // Import Modal
+  Modal,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -20,11 +20,17 @@ const RecommedDishScreen = ({ navigation, route }) => {
   const fromSearch = route.params?.fromSearch;
   const [currentDishType, setCurrentDishType] = useState(6);
   const [filteredDishes, setFilteredDishes] = useState([]);
-  const [allDishes, setAllDishes] = useState([]); // Để lưu tất cả dữ liệu món ăn
+  const [allDishes, setAllDishes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  // State mới cho filter
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  const [selectedFilterOption, setSelectedFilterOption] = useState(null); // Giá trị null cho lần đầu
+  const [selectedFilterOption, setSelectedFilterOption] = useState(null);
+  const [dishTypeList, setDishTypeList] = useState([
+    { id: 1, name: "Món chính", dishType: "Món chính" },
+    { id: 2, name: "Món khai vị", dishType: "Khai vị" },
+    { id: 3, name: "Món tráng miệng", dishType: "Tráng miệng" },
+    { id: 4, name: "Đồ uống", dishType: "Đồ uống" },
+    { id: 5, name: "Canh", dishType: "Canh" },
+  ]);
 
   // Hàm gọi API có token
   const fetchWithAuth = async (url, options = {}) => {
@@ -38,101 +44,105 @@ const RecommedDishScreen = ({ navigation, route }) => {
     return fetch(url, { ...options, headers });
   };
 
-  // Hàm lấy dữ liệu từ API recommend và API feedback
-  const fetchRecommendedDishesWithRatings = async (userId, selectedType) => {
-    try {
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendDishes/${userId}?dishType=${
-          selectedType || ""
-        }`
-      );
+  // Hàm lấy dữ liệu từ API recommend và API feedback (useMemo)
+  const fetchRecommendedDishesWithRatings = useMemo(
+    () => async (userId, selectedType) => {
+      try {
+        let url = `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/customers/recommendDishes/${userId}`;
 
-      if (!response.ok) {
+        if (selectedType) {
+          url += `?dishType=${selectedType}`;
+        }
+
+        const response = await fetchWithAuth(url);
+
+        if (!response.ok) {
+          return [];
+        }
+
+        const recommendData = await response.json();
+
+        // Kết hợp dữ liệu feedback để lấy rating và nguyên liệu
+        const detailedDishes = await Promise.all(
+          recommendData.map(async (dish) => {
+            try {
+              // Lấy đánh giá (feedback)
+              const feedbackResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dish.dishId}`
+              );
+              const feedbackData = await feedbackResponse.json();
+              const ratings = feedbackData.map((feedback) => feedback.rating);
+              const averageRating =
+                ratings.length > 0
+                  ? (
+                      ratings.reduce((acc, rating) => acc + rating, 0) /
+                      ratings.length
+                    ).toFixed(1)
+                  : "0.0";
+
+              // Lấy danh sách ingredientId từ API getIngredientByDishId
+              const ingredientResponse = await fetchWithAuth(
+                `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByDishId/${dish.dishId}`
+              );
+
+              const ingredientIds = ingredientResponse.ok
+                ? await ingredientResponse.json()
+                : [];
+
+              // Lấy thông tin chi tiết của từng ingredientId
+              const ingredientDetails = await Promise.all(
+                ingredientIds.map(async (ingredient) => {
+                  const ingredientDetailResponse = await fetchWithAuth(
+                    `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByIngredientId/${ingredient.ingredientId}`
+                  );
+                  return ingredientDetailResponse.ok
+                    ? await ingredientDetailResponse.json()
+                    : null;
+                })
+              );
+
+              // Loại bỏ các giá trị null từ danh sách nguyên liệu
+              const validIngredients = ingredientDetails.filter((item) => item);
+
+              // Trả về thông tin món ăn bao gồm rating và nguyên liệu
+              return {
+                dishId: dish.dish.dishId,
+                imageUrl: dish.dish.imageUrl,
+                dishName: dish.dishName,
+                price: dish.dish.price,
+                dishType: dish.dish.dishType,
+                averageRating: parseFloat(averageRating),
+                ingredients: validIngredients,
+              };
+            } catch (error) {
+              console.error(
+                `Error fetching data for dishId ${dish.dishId}:`,
+                error
+              );
+              return {
+                dishId: dish.dish.dishId,
+                imageUrl: dish.dish.imageUrl,
+                dishName: dish.dishName,
+                price: dish.dish.price,
+                dishType: dish.dish.dishType,
+                averageRating: 0,
+                ingredients: [],
+              };
+            }
+          })
+        );
+        return detailedDishes;
+      } catch (error) {
+        console.error("Error fetching recommended dishes:", error);
         return [];
       }
+    },
+    []
+  );
 
-      const recommendData = await response.json();
-
-      // Kết hợp dữ liệu feedback để lấy rating và nguyên liệu
-      const detailedDishes = await Promise.all(
-        recommendData.map(async (dish) => {
-          try {
-            // Lấy đánh giá (feedback)
-            const feedbackResponse = await fetchWithAuth(
-              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/feedbacks/getFeedbackByDishID/${dish.dishId}`
-            );
-            const feedbackData = await feedbackResponse.json();
-            const ratings = feedbackData.map((feedback) => feedback.rating);
-            const averageRating =
-              ratings.length > 0
-                ? (
-                    ratings.reduce((acc, rating) => acc + rating, 0) /
-                    ratings.length
-                  ).toFixed(1)
-                : "0.0";
-
-            // Lấy danh sách ingredientId từ API getIngredientByDishId
-            const ingredientResponse = await fetchWithAuth(
-              `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByDishId/${dish.dishId}`
-            );
-
-            const ingredientIds = ingredientResponse.ok
-              ? await ingredientResponse.json()
-              : [];
-
-            // Lấy thông tin chi tiết của từng ingredientId
-            const ingredientDetails = await Promise.all(
-              ingredientIds.map(async (ingredient) => {
-                const ingredientDetailResponse = await fetchWithAuth(
-                  `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/ingredients/getIngredientByIngredientId/${ingredient.ingredientId}`
-                );
-                return ingredientDetailResponse.ok
-                  ? await ingredientDetailResponse.json()
-                  : null;
-              })
-            );
-
-            // Loại bỏ các giá trị null từ danh sách nguyên liệu
-            const validIngredients = ingredientDetails.filter((item) => item);
-
-            // Trả về thông tin món ăn bao gồm rating và nguyên liệu
-            return {
-              dishId: dish.dish.dishId,
-              imageUrl: dish.dish.imageUrl,
-              dishName: dish.dishName,
-              price: dish.dish.price,
-              dishType: dish.dish.dishType,
-              averageRating: parseFloat(averageRating),
-              ingredients: validIngredients, // Thêm nguyên liệu vào dữ liệu món ăn
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching data for dishId ${dish.dishId}:`,
-              error
-            );
-            return {
-              dishId: dish.dish.dishId,
-              imageUrl: dish.dish.imageUrl,
-              dishName: dish.dishName,
-              price: dish.dish.price,
-              dishType: dish.dish.dishType,
-              averageRating: 0,
-              ingredients: [], // Trả về danh sách nguyên liệu trống nếu lỗi
-            };
-          }
-        })
-      );
-
-      return detailedDishes;
-    } catch (error) {
-      console.error("Error fetching recommended dishes:", error);
-      return [];
-    }
-  };
-
-  // Hàm lọc món ăn theo loại
+  // Hàm lọc món ăn theo loại (keyword)
   const filterDishesByType = async (typeId) => {
-    setCurrentDishType(typeId); // Đặt trạng thái filter hiện tại
+    setCurrentDishType(typeId);
     const selectedType = dishTypeList.find(
       (type) => type.id === typeId
     )?.dishType;
@@ -147,18 +157,28 @@ const RecommedDishScreen = ({ navigation, route }) => {
 
       let dishes = [];
       if (typeId === 6) {
-        // Nếu typeId là 6 (Chế độ ăn uống)
         if (!dietaryPreferenceId)
           throw new Error("Dietary Preference ID không tồn tại");
         dishes = await fetchDishesByDietaryPreference(dietaryPreferenceId);
       } else {
-        // Hiển thị món theo loại món ăn
-        dishes = await fetchRecommendedDishesWithRatings(userId, selectedType);
+        const allDishes = await fetchRecommendedDishesWithRatings(
+          userId,
+          selectedType || null
+        );
+        if (selectedType) {
+          dishes = allDishes.filter((dish) => {
+            if (!dish.dishType) return false;
+            const dishTypeLower = dish.dishType.toLowerCase();
+            const keyword = selectedType.toLowerCase();
+            return dishTypeLower.includes(keyword);
+          });
+        } else {
+          dishes = allDishes;
+        }
       }
 
       setAllDishes(dishes);
       setFilteredDishes(dishes);
-      // console.log("Filtered Dishes:", dishes);
     } catch (error) {
       console.error("Error filtering dishes by type:", error);
     }
@@ -170,22 +190,19 @@ const RecommedDishScreen = ({ navigation, route }) => {
 
     const cleanedQuery = text.trim().toLowerCase();
 
-    // Lọc dữ liệu dựa trên tên món ăn hoặc tên nguyên liệu
     const filtered = allDishes.filter((dish) => {
-      const dishName = dish.dishName?.toLowerCase() || ""; // Lấy tên món ăn và chuyển thành chữ thường
+      const dishName = dish.dishName?.toLowerCase() || "";
       const ingredientNames =
         dish.ingredients
-          ?.map((ingredient) => ingredient.name.toLowerCase()) // Lấy tên từng nguyên liệu và chuyển thành chữ thường
-          .join(" ") || ""; // Gộp tất cả tên nguyên liệu thành một chuỗi
-
-      // Kiểm tra nếu tên món ăn hoặc tên nguyên liệu khớp với từ khóa tìm kiếm
+          ?.map((ingredient) => ingredient.name.toLowerCase())
+          .join(" ") || "";
       return (
         dishName.includes(cleanedQuery) ||
         ingredientNames.includes(cleanedQuery)
       );
     });
 
-    setFilteredDishes(filtered); // Cập nhật danh sách món ăn được lọc
+    setFilteredDishes(filtered);
   };
 
   useEffect(() => {
@@ -217,26 +234,15 @@ const RecommedDishScreen = ({ navigation, route }) => {
     };
 
     loadInitialData();
-  }, [route.params, dishTypeList]);
-
-  // Danh sách loại món ăn
-  const [dishTypeList, setDishTypeList] = useState([
-    { id: 1, name: "Món chính", dishType: "Món chính" },
-    { id: 2, name: "Món khai vị", dishType: "Khai vị" },
-    { id: 3, name: "Món tráng miệng", dishType: "Tráng miệng" },
-    { id: 4, name: "Đồ uống", dishType: "Đồ uống" },
-    { id: 5, name: "Canh", dishType: "Canh" },
-  ]);
+  }, [route.params, dishTypeList, fetchRecommendedDishesWithRatings]);
 
   useEffect(() => {
     const loadUserDietaryPreference = async () => {
       try {
-        // Lấy dietaryPreferenceId từ AsyncStorage
         const dietaryPreferenceId = await AsyncStorage.getItem(
           "dietaryPreferenceId"
         );
 
-        // Xác định tên chế độ ăn uống
         const dietaryPreferenceName =
           dietaryPreferenceId === "1"
             ? "Vegan"
@@ -250,7 +256,6 @@ const RecommedDishScreen = ({ navigation, route }) => {
             ? "Pescatarian"
             : null;
 
-        // Tạo danh sách mới với "Món chính" đứng đầu
         let updatedList = [
           { id: 1, name: "Món chính", dishType: "Món chính" },
           { id: 2, name: "Món khai vị", dishType: "Khai vị" },
@@ -259,7 +264,6 @@ const RecommedDishScreen = ({ navigation, route }) => {
           { id: 5, name: "Canh", dishType: "Canh" },
         ];
 
-        // Nếu có chế độ ăn uống, thêm vào danh sách
         if (dietaryPreferenceName) {
           updatedList = [
             ...updatedList,
@@ -271,7 +275,7 @@ const RecommedDishScreen = ({ navigation, route }) => {
           ];
         }
 
-        setDishTypeList(updatedList); // Cập nhật danh sách
+        setDishTypeList(updatedList);
       } catch (error) {
         console.error("Error loading user dietary preference:", error);
       }
@@ -280,7 +284,6 @@ const RecommedDishScreen = ({ navigation, route }) => {
     loadUserDietaryPreference();
   }, []);
 
-  // Hàm lấy danh sách món ăn theo chế độ ăn uống
   const fetchDishesByDietaryPreference = async (dietaryPreferenceId) => {
     try {
       const response = await fetchWithAuth(
@@ -306,11 +309,10 @@ const RecommedDishScreen = ({ navigation, route }) => {
     }
   };
 
-  // Hàm xử lý khi chọn filter option
   const handleFilterOptionSelect = (option) => {
     setSelectedFilterOption(option);
-    setIsFilterModalVisible(false); // Đóng modal khi chọn xong
-    sortDishes(option); // Gọi hàm sắp xếp
+    setIsFilterModalVisible(false);
+    sortDishes(option);
   };
 
   const sortDishes = (option) => {
@@ -320,14 +322,14 @@ const RecommedDishScreen = ({ navigation, route }) => {
         sortedDishes.sort((a, b) => {
           const ratingA = a.averageRating || 0;
           const ratingB = b.averageRating || 0;
-          return ratingB - ratingA; // Sắp xếp giảm dần theo rating
+          return ratingB - ratingA;
         });
         break;
       case "rating_low_to_high":
         sortedDishes.sort((a, b) => {
           const ratingA = a.averageRating || 0;
           const ratingB = b.averageRating || 0;
-          return ratingA - ratingB; // Sắp xếp tăng dần theo rating
+          return ratingA - ratingB;
         });
         break;
       case "price_low_to_high":
@@ -335,13 +337,13 @@ const RecommedDishScreen = ({ navigation, route }) => {
           const priceA = a.price || 0;
           const priceB = b.price || 0;
           return priceA - priceB;
-        }); // Sắp xếp tăng dần theo giá
+        });
         break;
       case "price_high_to_low":
         sortedDishes.sort((a, b) => {
           const priceA = a.price || 0;
           const priceB = b.price || 0;
-          return priceB - priceA; // Sắp xếp giảm dần theo giá
+          return priceB - priceA;
         });
         break;
       case "a-z":
@@ -355,7 +357,7 @@ const RecommedDishScreen = ({ navigation, route }) => {
         );
         break;
       default:
-        break; // Không sắp xếp nếu không có option nào được chọn
+        break;
     }
     setFilteredDishes(sortedDishes);
   };
@@ -412,12 +414,12 @@ const RecommedDishScreen = ({ navigation, route }) => {
               backgroundColor: COLORS.grey,
               marginRight: 10,
             }}
-            onPress={() => setIsFilterModalVisible(true)} // Mở modal
+            onPress={() => setIsFilterModalVisible(true)}
           >
             <Icon name="filter" size={24} color={COLORS.white} />
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {(dishTypeList || []).map((item) => (
+            {dishTypeList.map((item) => (
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => filterDishesByType(item.id)}
@@ -457,7 +459,6 @@ const RecommedDishScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Modal chứa các option filter */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -467,7 +468,7 @@ const RecommedDishScreen = ({ navigation, route }) => {
         <TouchableOpacity
           style={styles.modalBackground}
           activeOpacity={1}
-          onPress={() => setIsFilterModalVisible(false)} // Close modal when tap outside
+          onPress={() => setIsFilterModalVisible(false)}
         >
           <View style={styles.modalContent}>
             <TouchableOpacity
@@ -519,7 +520,10 @@ const RecommedDishScreen = ({ navigation, route }) => {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() =>
-              navigation.navigate("DishDetail", { dishId: item.dishId })
+              navigation.navigate("DishDetail", {
+                dishId: item.dishId,
+                navigatedFromRecommed: true,
+              })
             }
             style={styles.gridItem}
           >
@@ -578,11 +582,11 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderRadius: 8,
     overflow: "hidden",
-    maxWidth: "48%", // Đảm bảo các item có kích thước bằng nhau
+    maxWidth: "48%",
   },
   imageContainer: {
     width: "100%",
-    height: 120, // Đặt chiều cao cố định cho hình ảnh
+    height: 120,
     overflow: "hidden",
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
@@ -590,7 +594,7 @@ const styles = StyleSheet.create({
   dishImage: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover", // Đảm bảo hình ảnh lấp đầy không gian
+    resizeMode: "cover",
   },
   textContainer: {
     padding: 5,
@@ -601,14 +605,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
-    height: 20, // Đặt chiều cao cố định để đảm bảo nhất quán
+    height: 20,
   },
   textDishType: {
     color: COLORS.grey,
     fontSize: 12,
     fontFamily: FONTS.semiBold,
     marginBottom: 3,
-    height: 15, // Đặt chiều cao cố định
+    height: 15,
   },
   ratingAndPrice: {
     flexDirection: "row",

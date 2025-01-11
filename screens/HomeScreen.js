@@ -190,12 +190,12 @@ const HomeScreen = () => {
             })
           );
 
-          // Chỉ tạo discount và notification nếu tierId thay đổi
+          // Chỉ tạo discount và notification nếu tierId
           if (
             membershipData.tierId &&
             membershipData.tierId !== previousTierId
           ) {
-            const discountRates = { 2: 0.1, 3: 0.2, 4: 0.3 }; // Tier-to-discount mapping
+            const discountRates = { 2: 0.1, 3: 0.2, 4: 0.6 }; // Tier-to-discount mapping
             if (membershipData.tierId >= 2 && membershipData.tierId <= 4) {
               const discountRate = discountRates[membershipData.tierId];
               const currentDate = new Date();
@@ -210,7 +210,7 @@ const HomeScreen = () => {
                 status: "active",
                 expirationDate: expirationDate.toISOString(),
               };
-
+              //discount setting
               const discountResponse = await fetchWithAuth(
                 `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history`,
                 {
@@ -335,17 +335,25 @@ const HomeScreen = () => {
   };
 
   // Hàm fetch tất cả món ăn với caching
+  // Hàm fetch tất cả món ăn với caching
   const fetchDishes = async () => {
     // Kiểm tra nếu đã có dữ liệu trong cache thì sử dụng nó
     if (global.cachedDishes) {
       setDishes(global.cachedDishes);
       const grouped = global.cachedDishes.reduce((acc, dish) => {
-        if (
-          ["Món chính", "Khai vị", "Đồ uống", "Tráng miệng", "Canh"].includes(
-            dish.dishType
-          )
-        ) {
-          acc[dish.dishType] = [...(acc[dish.dishType] || []), dish];
+        if (dish.dishType) {
+          const dishTypeLower = dish.dishType.toLowerCase();
+          if (dishTypeLower.includes("món chính")) {
+            acc["Món chính"] = [...(acc["Món chính"] || []), dish];
+          } else if (dishTypeLower.includes("khai vị")) {
+            acc["Khai vị"] = [...(acc["Khai vị"] || []), dish];
+          } else if (dishTypeLower.includes("tráng miệng")) {
+            acc["Tráng miệng"] = [...(acc["Tráng miệng"] || []), dish];
+          } else if (dishTypeLower === "đồ uống") {
+            acc["Đồ uống"] = [...(acc["Đồ uống"] || []), dish];
+          } else if (dishTypeLower === "canh") {
+            acc["Canh"] = [...(acc["Canh"] || []), dish];
+          }
         }
         return acc;
       }, {});
@@ -374,12 +382,19 @@ const HomeScreen = () => {
       setDishes(dishesWithRatings);
 
       const grouped = dishesWithRatings.reduce((acc, dish) => {
-        if (
-          ["Món chính", "Khai vị", "Đồ uống", "Tráng miệng", "Canh"].includes(
-            dish.dishType
-          )
-        ) {
-          acc[dish.dishType] = [...(acc[dish.dishType] || []), dish];
+        if (dish.dishType) {
+          const dishTypeLower = dish.dishType.toLowerCase();
+          if (dishTypeLower.includes("món chính")) {
+            acc["Món chính"] = [...(acc["Món chính"] || []), dish];
+          } else if (dishTypeLower.includes("khai vị")) {
+            acc["Khai vị"] = [...(acc["Khai vị"] || []), dish];
+          } else if (dishTypeLower.includes("tráng miệng")) {
+            acc["Tráng miệng"] = [...(acc["Tráng miệng"] || []), dish];
+          } else if (dishTypeLower === "đồ uống") {
+            acc["Đồ uống"] = [...(acc["Đồ uống"] || []), dish];
+          } else if (dishTypeLower === "canh") {
+            acc["Canh"] = [...(acc["Canh"] || []), dish];
+          }
         }
         return acc;
       }, {});
@@ -819,6 +834,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "48%", // Chiếm khoảng 48% chiều rộng để tạo khoảng trống giữa các mục
   },
+  //uhdsfjkshdflskdfjhlksdjflsdkj;ldkfpsodfispodfjpsodijfvskohvldkfpsodfispodfjpsodijfvskohv
   featureText: {
     fontFamily: FONTS.semiBold,
     textAlign: "center",

@@ -323,24 +323,30 @@ const PaymentScreen = ({ navigation, route }) => {
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>1</Text>
                 <Text style={styles.rulesText}>
-                  Khi bạn chọn thanh toán QR CODE, nếu hủy đơn hàng sau khi
-                  thanh toán thành công, vui lòng liên hệ VA qua trang "Liên hệ"
-                  để được hỗ trợ hoàn tiền kịp thời.
+                  Bạn đang thanh toán qua hình thức quét mã QR
                 </Text>
               </View>
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>2</Text>
                 <Text style={styles.rulesText}>
-                  Nếu không liên hệ, việc xử lý hoàn tiền có thể mất vài ngày.
+                  Nếu hủy đơn hàng ngay sau khi đặt , số tiền sẽ được hoàn ngay
+                  về Ví
                 </Text>
               </View>
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>3</Text>
+                <Text style={styles.rulesText}>
+                  Đối với đơn hàng giao không thành công đến bạn, VA sẽ hoàn lại
+                  tiền vào Ví của bạn trong thời gian sớm nhất.
+                </Text>
+              </View>
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleNumber}>4</Text>
                 <TouchableOpacity
                   onPress={() => navigation.navigate("ContactUs")}
                 >
                   <Text style={styles.rulesLink}>
-                    Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+                    Liên hệ VA qua đường dẫn này.
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -352,22 +358,28 @@ const PaymentScreen = ({ navigation, route }) => {
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>1</Text>
                 <Text style={styles.rulesText}>
-                  Món ăn đã giao không được hoàn trả.
+                  Bạn đang thanh toán cho VA qua hình thức COD
                 </Text>
               </View>
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>2</Text>
                 <Text style={styles.rulesText}>
-                  Quý khách thanh toán cho shipper sau khi nhận món.
+                  Món ăn đã giao sẽ không được hoàn trả.
                 </Text>
               </View>
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>3</Text>
+                <Text style={styles.rulesText}>
+                  Quý khách thanh toán cho shipper sau khi nhận món.
+                </Text>
+              </View>
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleNumber}>4</Text>
                 <TouchableOpacity
                   onPress={() => navigation.navigate("ContactUs")}
                 >
                   <Text style={styles.rulesLink}>
-                    Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+                    Liên hệ với VA qua đường dẫn này.
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -385,17 +397,24 @@ const PaymentScreen = ({ navigation, route }) => {
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>2</Text>
                 <Text style={styles.rulesText}>
-                  Vui lòng kiểm tra kỹ thông tin đơn hàng trước khi xác nhận
-                  thanh toán trên VnPay.
+                  Sau khi đặt hàng thành công , nếu bạn hủy đơn hàng ngay tiền
+                  sẽ được tự động hoàn vào Ví
                 </Text>
               </View>
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>3</Text>
+                <Text style={styles.rulesText}>
+                  Đối với đơn hàng giao không thành công đến bạn, VA sẽ hoàn lại
+                  tiền vào Ví của bạn trong thời gian sớm nhất.
+                </Text>
+              </View>
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleNumber}>4</Text>
                 <TouchableOpacity
                   onPress={() => navigation.navigate("ContactUs")}
                 >
                   <Text style={styles.rulesLink}>
-                    Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+                    Liên hệ với VA qua đường dẫn này.
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -407,23 +426,30 @@ const PaymentScreen = ({ navigation, route }) => {
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>1</Text>
                 <Text style={styles.rulesText}>
-                  Bạn đã chọn thanh toán bằng ví của VA.
+                  Đơn hàng được thanh toán qua ví của hệ thống VA
                 </Text>
               </View>
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>2</Text>
                 <Text style={styles.rulesText}>
-                  Sau khi xác nhận, số dư ví sẽ được trừ và không thể hoàn trả
-                  tự động (nếu có thắc mắc vui lòng liên hệ).
+                  Sau khi thanh toán xong , nếu bạn hủy đơn hàng ngay thì tiền
+                  sẽ được hoàn lại ngay vào ví.
                 </Text>
               </View>
               <View style={styles.ruleItem}>
                 <Text style={styles.ruleNumber}>3</Text>
+                <Text style={styles.rulesText}>
+                  Đối với đơn hàng giao không thành công đến bạn, VA sẽ hoàn lại
+                  tiền vào Ví của bạn trong thời gian sớm nhất.
+                </Text>
+              </View>
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleNumber}>4</Text>
                 <TouchableOpacity
                   onPress={() => navigation.navigate("ContactUs")}
                 >
                   <Text style={styles.rulesLink}>
-                    Liên hệ VA qua đường dẫn này nếu có thắc mắc.
+                    Liên hệ với VA qua đường dẫn này.
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -472,7 +498,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 12,
     padding: 16,
-    marginTop: 20,
+    marginTop: 5,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -483,7 +509,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   rulesHeader: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: FONTS.semiBold,
     color: COLORS.green,
     marginBottom: 15,
@@ -511,7 +537,7 @@ const styles = StyleSheet.create({
     textAlign: "left",
   },
   rulesLink: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: FONTS.medium,
     color: COLORS.primary,
     textDecorationLine: "underline",
@@ -529,7 +555,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: FONTS.semiBold,
     color: COLORS.primary,
-    marginBottom: 30,
+    marginBottom: 50,
   },
 });
 

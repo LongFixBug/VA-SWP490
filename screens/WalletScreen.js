@@ -331,35 +331,6 @@ const WalletScreen = ({ navigation }) => {
           ) : (
             <Text style={styles.balanceAmount}>{balance} Đ</Text>
           )}
-
-          {!balanceLoading && (
-            <Text
-              style={[
-                styles.balanceChange,
-                {
-                  color:
-                    calculateBalanceChangePercentage() >= 0
-                      ? COLORS.green
-                      : COLORS.red,
-                },
-              ]}
-            >
-              <Icon
-                name={
-                  calculateBalanceChangePercentage() >= 0
-                    ? "arrow-up"
-                    : "arrow-down"
-                }
-                size={12}
-                color={
-                  calculateBalanceChangePercentage() >= 0
-                    ? COLORS.green
-                    : COLORS.red
-                }
-              />{" "}
-              {calculateBalanceChangePercentage()}%
-            </Text>
-          )}
         </View>
 
         <TouchableOpacity

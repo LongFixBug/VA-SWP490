@@ -453,6 +453,7 @@ const OrderScreen = ({ navigation }) => {
       if (!response.ok) {
         const errorData = await response.json();
         console.log("Error fetching orders:", errorData);
+        setOrders([]); // Đảm bảo orders là một mảng rỗng khi có lỗi
         return;
       }
       const data = await response.json();
@@ -508,6 +509,7 @@ const OrderScreen = ({ navigation }) => {
       setOrders(ordersWithDetails);
     } catch (error) {
       console.error("Error fetching orders:", error);
+      setOrders([]);
     }
   };
 
@@ -634,69 +636,75 @@ const OrderScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
       </View>
-      <FlatList
-        data={groupedOrders}
-        renderItem={({ item }) => {
-          const [monthYear, ordersInMonth] = item;
-          return (
-            <View>
-              <View style={styles.monthHeaderContainer}>
-                <View style={styles.monthHeaderLine} />
-                <Text style={styles.monthHeader}>Tháng {monthYear}</Text>
-                <View style={styles.monthHeaderLine} />
-              </View>
-              {ordersInMonth.map((order) => (
-                <TouchableOpacity
-                  key={order.orderId}
-                  onPress={() => {
-                    saveOrderToStorage(order);
-                    navigation.navigate("OrderDetail", { orderId: order });
-                  }}
-                  style={styles.orderContainer}
-                >
-                  <Image
-                    source={{ uri: order.orderDetails[0]?.dish.imageUrl }}
-                    style={styles.orderImage}
-                  />
-                  <View style={styles.orderDetails}>
-                    <Text style={styles.orderName} numberOfLines={1}>
-                      {order.orderDetails
-                        .map((detail) => detail.dish.name)
-                        .join(", ")}
-                    </Text>
-                    <Text style={styles.orderQuantity}>
-                      Số lượng:{" "}
-                      {order.orderDetails.reduce(
-                        (acc, detail) => acc + detail.quantity,
-                        0
-                      )}
-                    </Text>
-                    <Text style={styles.orderTotal}>
-                      Tổng tiền:{" "}
-                      {order.totalPrice
-                        ? `${order.totalPrice.toLocaleString()} đ`
-                        : "0.000 đ"}
-                    </Text>
+      {groupedOrders.length === 0 ? (
+        <View style={styles.noOrdersContainer}>
+          <Text style={styles.noOrdersText}>Bạn chưa có đơn hàng nào</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={groupedOrders}
+          renderItem={({ item }) => {
+            const [monthYear, ordersInMonth] = item;
+            return (
+              <View>
+                <View style={styles.monthHeaderContainer}>
+                  <View style={styles.monthHeaderLine} />
+                  <Text style={styles.monthHeader}>Tháng {monthYear}</Text>
+                  <View style={styles.monthHeaderLine} />
+                </View>
+                {ordersInMonth.map((order) => (
+                  <TouchableOpacity
+                    key={order.orderId}
+                    onPress={() => {
+                      saveOrderToStorage(order);
+                      navigation.navigate("OrderDetail", { orderId: order });
+                    }}
+                    style={styles.orderContainer}
+                  >
+                    <Image
+                      source={{ uri: order.orderDetails[0]?.dish.imageUrl }}
+                      style={styles.orderImage}
+                    />
+                    <View style={styles.orderDetails}>
+                      <Text style={styles.orderName} numberOfLines={1}>
+                        {order.orderDetails
+                          .map((detail) => detail.dish.name)
+                          .join(", ")}
+                      </Text>
+                      <Text style={styles.orderQuantity}>
+                        Số lượng:{" "}
+                        {order.orderDetails.reduce(
+                          (acc, detail) => acc + detail.quantity,
+                          0
+                        )}
+                      </Text>
+                      <Text style={styles.orderTotal}>
+                        Tổng tiền:{" "}
+                        {order.totalPrice
+                          ? `${order.totalPrice.toLocaleString()} đ`
+                          : "0.000 đ"}
+                      </Text>
 
-                    <Text
-                      style={{
-                        ...styles.orderStatus,
-                        color: orderStatus[order.status]?.color,
-                      }}
-                    >
-                      {orderStatus[order.status]?.text}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          );
-        }}
-        keyExtractor={(item) => item[0]}
-        style={styles.flatList}
-        onRefresh={handleRefresh} // Thêm hàm xử lý refresh
-        refreshing={refreshing} // Kiểm tra trạng thái refresh
-      />
+                      <Text
+                        style={{
+                          ...styles.orderStatus,
+                          color: orderStatus[order.status]?.color,
+                        }}
+                      >
+                        {orderStatus[order.status]?.text}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            );
+          }}
+          keyExtractor={(item) => item[0]}
+          style={styles.flatList}
+          onRefresh={handleRefresh} // Thêm hàm xử lý refresh
+          refreshing={refreshing} // Kiểm tra trạng thái refresh
+        />
+      )}
     </>
   );
 };
@@ -810,5 +818,15 @@ const styles = StyleSheet.create({
   flatList: {
     backgroundColor: COLORS.white,
     paddingTop: 5,
+  },
+  noOrdersContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  noOrdersText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 18,
+    color: COLORS.grey,
   },
 });

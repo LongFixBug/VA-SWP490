@@ -364,11 +364,7 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   const handleCheckout = async () => {
     if (!currentPayment) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Bạn phải chọn một phương thức thanh toán",
-      });
+      Alert.alert("Cảnh báo", "Bạn phải chọn một phương thức thanh toán");
       return;
     }
     if (detailedCartItems.length === 0) {
@@ -386,7 +382,11 @@ const CheckoutScreen = ({ navigation, route }) => {
           },
           {
             text: "Nạp tiền",
-            onPress: () => navigation.navigate("WalletScreen"),
+            onPress: () => {
+              setTimeout(() => {
+                navigation.navigate("WalletScreen");
+              }, 0);
+            },
           },
         ],
         { cancelable: true }

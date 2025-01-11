@@ -1,5 +1,3 @@
-// screens/AllDishScreen.js
-
 import {
   StyleSheet,
   View,
@@ -128,38 +126,38 @@ const AllDishScreen = ({ navigation, route }) => {
       setFilteredDishes(allDishes);
     } else {
       const selectedType = dataDishType.find((type) => type.id === typeId);
-      try {
-        const response = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/dishs/getDishByDishType/${selectedType.dishType}`
-        );
 
-        if (!response.ok) {
-          throw new Error(`Error fetching dishes by type: ${response.status}`);
-        }
+      let filteredDishesByType = [];
 
-        const jsonData = await response.json();
+      if (selectedType.dishType) {
+        filteredDishesByType = allDishes.filter((dish) => {
+          if (!dish.dishType) return false;
 
-        // Lọc các món ăn có status là "active"
-        const activeFilteredDishes = jsonData.filter(
-          (dish) => dish.status && dish.status.toLowerCase() === "active"
-        );
+          const dishTypeLower = dish.dishType.toLowerCase();
+          if (selectedType.dishType === "Món chính") {
+            return dishTypeLower.includes("món chính");
+          } else if (selectedType.dishType === "Khai vị") {
+            return dishTypeLower.includes("khai vị");
+          } else if (selectedType.dishType === "Tráng miệng") {
+            return dishTypeLower.includes("tráng miệng");
+          }
+          return dishTypeLower === selectedType.dishType.toLowerCase();
+        });
+      }
 
-        if (activeFilteredDishes.length % 2 !== 0) {
-          activeFilteredDishes.push({ dishId: "dummy" });
-        }
+      if (filteredDishesByType.length % 2 !== 0) {
+        filteredDishesByType.push({ dishId: "dummy" });
+      }
 
-        setFilteredDishes(activeFilteredDishes);
+      setFilteredDishes(filteredDishesByType);
 
-        // Lấy danh sách dishId và fetch ratings
-        const dishIds = activeFilteredDishes
-          .filter((dish) => dish.dishId !== "dummy")
-          .map((dish) => dish.dishId);
+      // Lấy danh sách dishId và fetch ratings
+      const dishIds = filteredDishesByType
+        .filter((dish) => dish.dishId !== "dummy")
+        .map((dish) => dish.dishId);
 
-        if (dishIds.length > 0) {
-          fetchAllDishRatings(dishIds);
-        }
-      } catch (error) {
-        console.error("Error fetching filtered dishes:", error);
+      if (dishIds.length > 0) {
+        fetchAllDishRatings(dishIds);
       }
     }
   };
@@ -274,6 +272,7 @@ const AllDishScreen = ({ navigation, route }) => {
     { id: 2, name: "Món chính", dishType: "Món chính" },
     { id: 3, name: "Món tráng miệng", dishType: "Tráng miệng" },
     { id: 4, name: "Đồ uống", dishType: "Đồ uống" },
+    { id: 5, name: "Canh", dishType: "Canh" },
   ];
 
   // Hàm xử lý khi chọn filter option

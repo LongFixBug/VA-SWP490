@@ -1,5 +1,3 @@
-// screens/NotificationScreen.js
-
 import React, {
   useState,
   useEffect,
@@ -42,8 +40,8 @@ const NotificationScreen = ({ navigation }) => {
   const notificationTypeMapping = {
     new_article: "Bài viết của bạn đã được xử lí",
     order_status: "Trạng thái đơn hàng của bạn",
-    new_promotion: "Bạn có khuyến mãi mới",
-    new_follower: "Bạn có người follow mới",
+    // new_promotion: "Bạn có khuyến mãi mới",
+    // new_follower: "Bạn có người follow mới",
   };
 
   // Hàm mở thông báo
@@ -121,7 +119,7 @@ const NotificationScreen = ({ navigation }) => {
               <Icon
                 name="notifications-outline"
                 size={28}
-                color={COLORS.grey}
+                color={COLORS.black}
               />
             </View>
             <View style={styles.textContainer}>
@@ -130,9 +128,7 @@ const NotificationScreen = ({ navigation }) => {
                   styles.titleText,
                   {
                     color:
-                      item.status === "unread"
-                        ? COLORS.black
-                        : COLORS.greySolid,
+                      item.status === "unread" ? COLORS.green : COLORS.black,
                   },
                 ]}
               >
@@ -255,7 +251,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     width: "75%",
     marginTop: 5,
-    color: COLORS.grey,
+    color: COLORS.black,
   },
   sentDateText: {
     fontFamily: FONTS.medium,
@@ -267,7 +263,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: FONTS.medium,
     marginTop: 5,
-    color: COLORS.grey,
+    color: COLORS.black,
   },
   bottomSheetContainer: {
     width: "100%",

@@ -238,7 +238,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             activeOpacity={0.8}
             style={styles.settingAttributeRow}
           >
@@ -259,9 +259,9 @@ const NotificationSettingScreen = ({ navigation, route }) => {
               value={isPromotionNotificationEnabled}
               style={styles.iconRight}
             />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             activeOpacity={0.8}
             style={styles.settingAttributeRow}
           >
@@ -286,7 +286,7 @@ const NotificationSettingScreen = ({ navigation, route }) => {
               value={isFollowerNotificationEnabled}
               style={styles.iconRight}
             />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
     </>

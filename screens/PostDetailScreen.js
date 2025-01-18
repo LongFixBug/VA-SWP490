@@ -63,6 +63,22 @@ const PostDetailScreen = ({ navigation, route }) => {
       type: type,
       text1: title,
       text2: message,
+      text1Style: {
+        fontSize: 18,
+        fontFamily: FONTS.semiBold,
+        color: COLORS.black,
+      },
+      text2Style: {
+        fontSize: 15,
+        fontFamily: FONTS.medium,
+        color: COLORS.grey,
+      },
+      style: {
+        borderRadius: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        marginTop: 30,
+      },
     });
   };
 
@@ -214,7 +230,7 @@ const PostDetailScreen = ({ navigation, route }) => {
         if (response.ok) {
           setLiked(true);
           setLikes((prev) => prev + 1);
-          showToast("success", "Thành công", "Bạn đã thích bài viết này!");
+          showToast("success", "Thông báo", "Bạn đã thích bài viết này!❤️");
         } else {
           showToast(
             "error",
@@ -294,7 +310,7 @@ const PostDetailScreen = ({ navigation, route }) => {
       if (userCommentLower.includes(badWordLower)) {
         return {
           success: false,
-          message: `Nội dung bình luận có chứa từ cấm: "${badWord.content}"`,
+          message: `Nội dung chứa từ cấm: "${badWord.content}"`,
         };
       }
     }
@@ -627,7 +643,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   // Hàm xử lý xóa bài viết
   const handleDeletePost = async () => {
     try {
-      setIsDeleting(true); // Bắt đầu quá trình tải
+      setIsDeleting(true);
       const userId = await AsyncStorage.getItem("userId");
       const parsedUserId = userId ? parseInt(userId, 10) : null;
 
@@ -669,8 +685,13 @@ const PostDetailScreen = ({ navigation, route }) => {
       );
 
       if (response.ok) {
+        // Hiển thị toast thành công
         showToast("success", "Thành công", "Bài viết đã được xóa!");
-        navigation.goBack();
+
+        // Thực hiện điều hướng sau khi toast hiển thị
+        setTimeout(() => {
+          navigation.goBack();
+        }, 100); // Sử dụng một độ trễ nhỏ để đảm bảo toast hiển thị trước
       } else {
         const errorData = await response.json();
         console.error("Failed to delete post", errorData);
@@ -680,7 +701,7 @@ const PostDetailScreen = ({ navigation, route }) => {
       console.error("Error deleting post:", error);
       showToast("error", "Lỗi", "Đã xảy ra lỗi, vui lòng thử lại sau.");
     } finally {
-      setIsDeleting(false); // Kết thúc quá trình tải
+      setIsDeleting(false);
       setIsDeletePostConfirmationVisible(false);
       setIsPostOptionsVisible(false);
     }

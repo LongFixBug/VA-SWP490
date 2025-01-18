@@ -23,7 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { RenderHTML } from "react-native-render-html";
 import debounce from "lodash.debounce"; // Thêm debounce
-
+import Toast from "react-native-toast-message";
 const { width } = Dimensions.get("window");
 
 const dataTabView = [
@@ -268,6 +268,7 @@ const CommunityScreen = ({ navigation }) => {
 
           if (currentTabView === 1) setCommunityPosts(updatedPosts);
           else setExpertPosts(updatedPosts);
+          showToastLike(true); // Hiển thị toast khi like
         }
       } else {
         const response = await fetchWithAuth(
@@ -291,6 +292,7 @@ const CommunityScreen = ({ navigation }) => {
 
           if (currentTabView === 1) setCommunityPosts(updatedPosts);
           else setExpertPosts(updatedPosts);
+          showToastLike(false); // Hiển thị toast khi unlike
         }
       }
     } catch (error) {
@@ -433,6 +435,14 @@ const CommunityScreen = ({ navigation }) => {
     }, 300),
     []
   );
+  //toast
+  const showToastLike = (liked) => {
+    Toast.show({
+      type: "success",
+      text1: "Thông báo",
+      text2: liked ? "Đã thích bài viết! 👍" : "Đã bỏ thích bài viết!",
+    });
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.white }}>

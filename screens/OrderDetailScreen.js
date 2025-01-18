@@ -26,6 +26,7 @@ import BottomSheet, {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
+import { toastStyles } from "../components/toastStyles";
 
 const OrderDetailScreen = ({ navigation }) => {
   // State variables
@@ -38,8 +39,10 @@ const OrderDetailScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [isNotificationVisible, setNotificationVisible] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState(null);
+  const [membershipTiers, setMembershipTiers] = useState([]); // new state
   const bottomSheetRef = useRef();
   const snapPoints = useMemo(() => ["65%"], []);
+  const [invalidWords, setInvalidWords] = useState([]);
 
   // Callback for BottomSheet backdrop
   const renderBackdrop = useCallback(
@@ -62,6 +65,15 @@ const OrderDetailScreen = ({ navigation }) => {
     delivered: { color: COLORS.green, text: "Đã giao" },
     cancel: { color: COLORS.red, text: "Đã hủy" },
     failed: { color: COLORS.black, text: "Giao hàng thất bại" },
+  };
+
+  // Hàm hiển thị toast
+  const showToast = (type, title, message) => {
+    Toast.show({
+      ...toastStyles[type],
+      text1: title,
+      text2: message,
+    });
   };
 
   // Function for fetching data with authentication
@@ -91,6 +103,24 @@ const OrderDetailScreen = ({ navigation }) => {
     }
   };
 
+  // new function to fetch membership tiers
+  const fetchMembershipTiers = async () => {
+    try {
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/membershipTiers/allMembershipTier`
+      );
+      if (!response.ok) {
+        const message = `Failed to fetch membership tiers data: ${response.status}`;
+        console.error(message);
+        throw new Error(message);
+      }
+      const data = await response.json();
+      setMembershipTiers(data);
+    } catch (error) {
+      console.error("Error fetching membership tiers:", error.message);
+    }
+  };
+
   // Fetch order data on component mount
   useEffect(() => {
     const getOrderFromStorage = async () => {
@@ -101,6 +131,7 @@ const OrderDetailScreen = ({ navigation }) => {
           setOrder(parsedOrder);
           fetchOrderDetails(parsedOrder.orderId);
           fetchPaymentDetails(parsedOrder.orderId);
+          fetchMembershipTiers();
         }
       } catch (error) {
         console.error("Error fetching order from AsyncStorage:", error);
@@ -133,7 +164,54 @@ const OrderDetailScreen = ({ navigation }) => {
       console.error("Error fetching order details:", error);
     }
   };
+  // Tải danh sách từ cấm
+  useEffect(() => {
+    const fetchInvalidWords = async () => {
+      try {
+        const words = await getInvalidWords();
+        setInvalidWords(words);
+      } catch (error) {
+        console.error("Error fetching invalid words:", error);
+      }
+    };
+    fetchInvalidWords();
+  }, []);
 
+  // Hàm lấy danh sách từ cấm
+  const getInvalidWords = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      const response = await fetch(
+        "https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/invalid-word/getall",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      return data; // Mảng các object {id, content}
+    } catch (error) {
+      console.error("Error fetching invalid words:", error);
+      return [];
+    }
+  };
+  // Kiểm tra nội dung bình luận
+  const checkCommentContent = (content) => {
+    const userCommentLower = content.toLowerCase();
+
+    for (const badWord of invalidWords) {
+      const badWordLower = badWord.content.toLowerCase();
+      if (userCommentLower.includes(badWordLower)) {
+        return {
+          success: false,
+          message: `Nội dung chứa từ cấm: "${badWord.content}"`,
+        };
+      }
+    }
+
+    return { success: true, message: "Nội dung hợp lệ" };
+  };
   // Handle cancel order
   const handleCancelOrder = async () => {
     try {
@@ -166,7 +244,8 @@ const OrderDetailScreen = ({ navigation }) => {
                     }
                   );
                   if (refundResponse.ok) {
-                    Alert.alert(
+                    showToast(
+                      "success",
                       "Thông báo",
                       "Đơn hàng đã được hủy và hoàn tiền thành công."
                     );
@@ -175,17 +254,33 @@ const OrderDetailScreen = ({ navigation }) => {
                   }
                   const refundErrorText = await refundResponse.text();
                   console.error("Lỗi khi hoàn tiền:", refundErrorText);
-                  Alert.alert("Lỗi", "Không thể hoàn tiền. Vui lòng thử lại.");
+                  showToast(
+                    "error",
+                    "Lỗi",
+                    "Không thể hoàn tiền. Vui lòng thử lại."
+                  );
                 } catch (error) {
                   console.error("Lỗi khi hoàn tiền:", error);
-                  Alert.alert("Lỗi", "Không thể hoàn tiền. Vui lòng thử lại.");
+                  showToast(
+                    "error",
+                    "Lỗi",
+                    "Không thể hoàn tiền. Vui lòng thử lại."
+                  );
                 }
-                Alert.alert("Thông báo", "Đơn hàng đã được hủy thành công.");
+                showToast(
+                  "success",
+                  "Thông báo",
+                  "Đơn hàng đã được hủy thành công."
+                );
                 navigation.goBack(); // Quay lại màn hình trước đó
               } else {
                 const errorText = await response.text();
                 console.error("Lỗi khi hủy đơn hàng:", errorText);
-                Alert.alert("Lỗi", "Không thể hủy đơn hàng. Vui lòng thử lại.");
+                showToast(
+                  "error",
+                  "Lỗi",
+                  "Không thể hủy đơn hàng. Vui lòng thử lại."
+                );
               }
             },
           },
@@ -194,43 +289,34 @@ const OrderDetailScreen = ({ navigation }) => {
       );
     } catch (error) {
       console.error("Lỗi khi hủy đơn hàng:", error.message);
-      Alert.alert("Lỗi", "Không thể hủy đơn hàng. Vui lòng thử lại.");
+      showToast("error", "Lỗi", "Không thể hủy đơn hàng. Vui lòng thử lại.");
     }
   };
 
   // Handle submit feedback
+  // Handle submit feedback
   const handleSubmitFeedback = async () => {
     try {
       if (!feedback.trim() || rating === 0) {
-        Alert.alert("Thông báo", "Vui lòng nhập nội dung và đánh giá sao.");
+        showToast(
+          "error",
+          "Thông báo",
+          "Vui lòng nhập nội dung và đánh giá sao."
+        );
         return;
       }
-
       if (!selectedDish) {
-        Alert.alert("Lỗi", "Không tìm thấy món ăn để đánh giá.");
+        showToast("error", "Lỗi", "Không tìm thấy món ăn để đánh giá.");
         return;
       }
+      // 1. Kiểm tra nội dung dựa trên mảng invalidWords
+      const checkResult = checkCommentContent(feedback);
 
-      // Call API to check feedback content
-      const checkResult = await checkCommentContent(feedback);
-
-      if (checkResult && checkResult.success === false) {
+      if (!checkResult.success) {
         // Close form before displaying Toast
         handleClosePress();
-
-        let message =
-          "Nội dung đánh giá của bạn không hợp lệ. Vui lòng nhập lại!";
-        if (checkResult.message.includes("violent language")) {
-          message = "Bạn sử dụng ngôn từ bạo lực, hãy đánh giá lại nhé!";
-        }
-
-        Toast.show({
-          type: "error",
-          text1: "Cảnh báo",
-          text2: message,
-        });
-
-        return; // Stop if the content is invalid
+        showToast("error", "Lỗi bình luận", checkResult.message);
+        return;
       }
 
       // If the content is valid, send feedback
@@ -258,74 +344,64 @@ const OrderDetailScreen = ({ navigation }) => {
             method: "PUT",
           }
         );
-
         // Close feedback form before showing toast
         handleClosePress();
-
         // Reset feedback form
         setFeedback("");
         setRating(0);
 
         // Show success toast
-        Toast.show({
-          type: "success",
-          text1: "Thông báo",
-          text2: "Đánh giá đã được gửi thành công! Bạn đã được cộng điểm.",
-        });
+        showToast(
+          "success",
+          "Thông báo",
+          "Đánh giá đã được gửi thành công! Bạn đã được cộng điểm."
+        );
         // Reload list of reviewed dishes
         await fetchReviewedDishes();
       } else {
         const errorData = await response.json();
         console.error("Error submitting feedback:", errorData);
-        Alert.alert("Lỗi", "Không thể gửi đánh giá. Vui lòng thử lại.");
+        showToast("error", "Lỗi", "Không thể gửi đánh giá. Vui lòng thử lại.");
       }
     } catch (error) {
       console.error("Error submitting feedback:", error);
-      Alert.alert("Lỗi", "Có lỗi xảy ra khi gửi đánh giá.");
+      showToast("error", "Lỗi", "Có lỗi xảy ra khi gửi đánh giá.");
     }
   };
 
-  // Check comment content
-  const checkCommentContent = async (content) => {
+  // Fetch payment details
+  const fetchPaymentDetails = async (orderId) => {
     try {
-      // Split content into words
-      const words = content.split(/\s+/); // Split by whitespace
+      console.log(`Fetching payment details for orderId: ${orderId}`);
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${orderId}`
+      );
 
-      for (let word of words) {
-        // Call API to check each word
-        const response = await fetchWithAuth(
-          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/articles/check-comment-content?Content=${encodeURIComponent(
-            word
-          )}`,
-          {
-            method: "GET", // GET method
-          }
+      if (!response.ok) {
+        console.error(
+          `Failed to fetch payment details. Status: ${response.status}`
         );
-
-        if (!response.ok) {
-          return { success: false, message: "Invalid content detected." };
-        }
-
-        const result = await response.json();
-
-        // If API returns success as false, stop checking and return error
-        if (!result.success) {
-          return {
-            success: false,
-            message: `Invalid content detected: "${word}"`,
-          };
-        }
+        return;
       }
 
-      // If all words are valid
-      return { success: true, message: "Content is valid." };
+      const data = await response.json();
+      console.log("Payment details fetched:", data);
+      setPaymentDetails(data); // Store payment information
     } catch (error) {
-      console.error("Error checking comment content:", error);
-      return { success: false, message: "Error checking content." };
+      console.error("Error fetching payment details:", error);
     }
   };
-
+  const getTierNameByRate = (discountRate) => {
+    const tier = membershipTiers.find(
+      (tier) => tier.discountRate === discountRate
+    );
+    if (tier) {
+      return tier.tierName;
+    }
+    return null;
+  };
   // Handle opening the feedback form
+
   const handleOpenPress = (dish) => {
     setSelectedDish(dish);
     bottomSheetRef.current?.expand();
@@ -336,7 +412,6 @@ const OrderDetailScreen = ({ navigation }) => {
     setSelectedDish(null);
     bottomSheetRef.current?.close();
   };
-
   // Fetch reviewed dishes
   const fetchReviewedDishes = async () => {
     const reviewed = [];
@@ -365,36 +440,12 @@ const OrderDetailScreen = ({ navigation }) => {
     }
   };
 
-  // Fetch payment details
-  const fetchPaymentDetails = async (orderId) => {
-    try {
-      console.log(`Fetching payment details for orderId: ${orderId}`);
-      const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${orderId}`
-      );
-
-      if (!response.ok) {
-        console.error(
-          `Failed to fetch payment details. Status: ${response.status}`
-        );
-        return;
-      }
-
-      const data = await response.json();
-      console.log("Payment details fetched:", data);
-      setPaymentDetails(data); // Store payment information
-    } catch (error) {
-      console.error("Error fetching payment details:", error);
-    }
-  };
-
   // Fetch reviewed dishes on mount or when order/orderDetails updates
   useEffect(() => {
     if (order && orderDetails.length > 0) {
       fetchReviewedDishes();
     }
   }, [order, orderDetails]);
-
   return (
     <>
       {/* Header */}
@@ -452,27 +503,21 @@ const OrderDetailScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Ghi chú</Text>
           <Text style={styles.notesText}>{order?.note || "Không"}</Text>
         </View>
-
         {/* Discount Section */}
         <View style={styles.discountContainer}>
           <Text style={styles.sectionTitle}>Giảm giá</Text>
-          {order?.discountRate === 0.1 && (
+          {order?.discountRate > 0 ? (
             <Text style={styles.discountText}>
-              Thành viên Silver - Giảm 10%
+              {getTierNameByRate(order?.discountRate) ||
+                `Giảm giá ${order.discountRate * 100}%`}
+              {getTierNameByRate(order?.discountRate) &&
+                ` - Giảm giá ${order.discountRate * 100}%`}
             </Text>
-          )}
-          {order?.discountRate === 0.2 && (
-            <Text style={styles.discountText}>Thành viên Gold - Giảm 20%</Text>
-          )}
-          {order?.discountRate === 0.3 && (
-            <Text style={styles.discountText}>
-              Thành viên Platinum - Giảm 30%
-            </Text>
-          )}
-          {!order?.discountRate && (
+          ) : (
             <Text style={styles.discountText}>Không áp dụng giảm giá</Text>
           )}
         </View>
+
         {/* Notes Section */}
         <View style={styles.notesContainer}>
           <Text style={styles.sectionTitle}>Tiền được giảm</Text>
@@ -817,17 +862,18 @@ const styles = StyleSheet.create({
   },
   feedbackForm: {
     borderWidth: 1,
-    borderColor: COLORS.lightGrey,
-    borderRadius: 10,
+    borderColor: COLORS.lightGrey, // Use a subtle border color for visibility
+    borderRadius: 10, // Rounded corners
     padding: 10,
     backgroundColor: COLORS.white,
     marginBottom: 15,
-    shadowColor: "#000",
+    shadowColor: "#000", // Optional: Add a slight shadow for elevation
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: 1, // Shadow effect for Android
   },
+
   input: {
     fontSize: 16,
     fontFamily: FONTS.medium,

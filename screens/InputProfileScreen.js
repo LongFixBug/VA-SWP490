@@ -19,7 +19,7 @@ import moment from "moment";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FlatList } from "react-native";
-
+import messaging from "@react-native-firebase/messaging";
 const InputProfileScreen = ({ navigation, route }) => {
   // Nhận phoneNumber và password từ route params
   const { phone: initialPhoneNumber } = route.params || {};
@@ -28,6 +28,7 @@ const InputProfileScreen = ({ navigation, route }) => {
   const [error, setError] = useState("");
   const [selectedPreferencesId, setSelectedPreferencesId] = useState("1");
   const [selectedSexId, setSelectedSexId] = useState("1");
+  const [deviceToken, setDeviceToken] = useState(null);
 
   const [dob, setDob] = useState(new Date());
   const age = moment().diff(dob, "years");
@@ -92,6 +93,37 @@ const InputProfileScreen = ({ navigation, route }) => {
     "Huyện Nhà Bè",
     "Thành phố Thủ Đức",
   ];
+  useEffect(() => {
+    const fetchDeviceToken = async () => {
+      try {
+        const token = await requestUserPermission();
+        if (token) {
+          setDeviceToken(token);
+        } else {
+          const token = await AsyncStorage.getItem("deviceToken");
+          if (token) {
+            setDeviceToken(token);
+            console.log("Device token retrieved:", token);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching device token:", error);
+      }
+    };
+    fetchDeviceToken();
+  }, []);
+  useEffect(() => {
+    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
+      console.log("FCM Message Received in Foreground", remoteMessage);
+      // Show a notification or handle the message accordingly
+      Toast.show({
+        type: "success",
+        text1: remoteMessage.notification.title,
+        text2: remoteMessage.notification.body,
+      });
+    });
+    return unsubscribe;
+  }, []);
 
   const handleRegister = async () => {
     // Kiểm tra chiều cao và cân nặng
@@ -165,6 +197,7 @@ const InputProfileScreen = ({ navigation, route }) => {
       goal,
       isPhoneVerified: true,
       imageUrl: defaultImageUrl,
+      deviceToken: deviceToken,
     };
 
     console.log("Dữ liệu gửi lên API đăng ký:", requestData);
@@ -359,6 +392,26 @@ const InputProfileScreen = ({ navigation, route }) => {
       Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại.");
     }
   };
+  const requestUserPermission = async () => {
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+    if (enabled) {
+      try {
+        const fcmToken = await messaging().getToken();
+        if (fcmToken) {
+          console.log("Device Token: ", fcmToken);
+          await AsyncStorage.setItem("deviceToken", fcmToken);
+          return fcmToken;
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy device token:", error);
+      }
+    }
+    return null;
+  };
 
   const validateDOB = (input) => {
     const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
@@ -486,7 +539,7 @@ const InputProfileScreen = ({ navigation, route }) => {
   const radioButtonsPreferences = [
     {
       id: "1",
-      label: "Thuần chay",
+      label: "Thuần chay (Vegan)",
       value: "option1",
       color: COLORS.green,
       size: 20,
@@ -494,7 +547,7 @@ const InputProfileScreen = ({ navigation, route }) => {
     },
     {
       id: "2",
-      label: "Chay không trứng, có thể có sữa, phô mai",
+      label: "Chay không trứng, có thể có sữa, phô mai (Lacto)",
       value: "option2",
       color: COLORS.green,
       size: 20,
@@ -502,7 +555,7 @@ const InputProfileScreen = ({ navigation, route }) => {
     },
     {
       id: "3",
-      label: "Chay không sữa, có thể có trứng",
+      label: "Chay không sữa, có thể có trứng (Ovo)",
       value: "option3",
       color: COLORS.green,
       size: 20,
@@ -510,7 +563,7 @@ const InputProfileScreen = ({ navigation, route }) => {
     },
     {
       id: "4",
-      label: "Hỗn hợp, có thể sử dụng cả trứng, sữa",
+      label: "Hỗn hợp, có thể sử dụng cả trứng, sữa (Lacto-Ovo)",
       value: "option4",
       color: COLORS.green,
       size: 20,
@@ -518,7 +571,7 @@ const InputProfileScreen = ({ navigation, route }) => {
     },
     {
       id: "5",
-      label: "Chay bán phần (không thịt, có thể ăn cá)",
+      label: "Chay bán phần không thịt, có thể ăn cá (Pescatarian)",
       value: "option5",
       color: COLORS.green,
       size: 20,

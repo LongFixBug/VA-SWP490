@@ -1,5 +1,4 @@
-// checkout.js
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -11,6 +10,7 @@ import {
   Alert,
   TouchableWithoutFeedback,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -100,11 +100,34 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
   };
 
+  // const getRandomColor = () => {
+  //   const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+  //   // Ensure it's not transparent
+  //   if (randomColor == "#ffffff" || randomColor == "#000000") {
+  //     return "#0000ff";
+  //   }
+  //   return randomColor;
+  // };
+
   const discountColors = {
-    0: { color: COLORS.grey, text: "Không sử dụng giảm giá" },
+    0: { color: COLORS.green, text: "Không sử dụng giảm giá" },
     0.1: { color: COLORS.green, text: "Giảm giá 10%" },
     0.2: { color: COLORS.star, text: "Giảm giá 20%" },
     0.3: { color: COLORS.orange, text: "Giảm giá 30%" },
+  };
+
+  // const getDiscountColor = (discountRate) => {
+  //   if (discountColors[discountRate]) {
+  //     return discountColors[discountRate];
+  //   }
+  //   return { color: getRandomColor(), text: `Giảm giá ${discountRate * 100}%` };
+  // };
+
+  const getDiscountColor = (discountRate) => {
+    if (discountColors[discountRate]) {
+      return discountColors[discountRate];
+    }
+    return { color: COLORS.green, text: `Giảm giá ${discountRate * 100}%` };
   };
 
   const generateFullAddress = () => {
@@ -143,6 +166,7 @@ const CheckoutScreen = ({ navigation, route }) => {
         const storedUserId = await AsyncStorage.getItem("userId");
         if (storedUserId) {
           setUserId(storedUserId);
+          //fetch all data here
           await fetchDeliveryInfo(storedUserId);
           await fetchDiscountHistory(storedUserId);
           await fetchWalletBalance(storedUserId); // Fetch wallet balance here
@@ -254,36 +278,27 @@ const CheckoutScreen = ({ navigation, route }) => {
       console.log("fetchDeliveryFee called");
       console.log("deliveryInfo.address:", deliveryInfo.address);
       const fullAddress = generateFullAddress();
-      const parsedAddress = parseAddress(fullAddress);
-      console.log("Parsed address for API:", parsedAddress);
 
-      const queryParams = new URLSearchParams({
-        pick_province: "Hồ Chí Minh",
-        pick_district: "Quận 9",
-        province: "Hồ Chí Minh",
-        district: parsedAddress.district || "Quận 12",
-        address: parsedAddress.address || "338/10 Đ. Lê Thị Riêng",
-        weight: 1000,
-        value: totalPrice,
-      }).toString();
-
-      const response = await fetch(
-        `https://services.giaohangtietkiem.vn/services/shipment/fee?${queryParams}`,
+      const response = await fetchWithAuth(
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/calculate-fee`,
         {
-          method: "GET",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
-            token: "35j4uHBQNjODAEOrWBlA23Sscp3TicIQ0k4mN2",
           },
+          body: JSON.stringify({
+            destinationAddress: fullAddress,
+          }),
         }
       );
 
       const data = await response.json();
       console.log("Dữ liệu phí giao hàng:", data);
-
-      if (data && data.fee) {
-        setDeliveryFee(data.fee.fee);
-        setFinalPrice(totalPrice - totalPrice * discountRate + data.fee.fee);
+      if (data && data.shippingFee) {
+        setDeliveryFee(data.shippingFee);
+        setFinalPrice(
+          totalPrice - totalPrice * discountRate + data.shippingFee
+        );
       } else {
         Alert.alert("Lỗi", "Không thể lấy phí giao hàng.");
       }
@@ -362,6 +377,17 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      const fetchBalance = async () => {
+        if (userId) {
+          await fetchWalletBalance(userId);
+        }
+      };
+      fetchBalance();
+      // No cleanup needed in this case, as the fetch is not ongoing
+    }, [userId])
+  );
   const handleCheckout = async () => {
     if (!currentPayment) {
       Alert.alert("Cảnh báo", "Bạn phải chọn một phương thức thanh toán");
@@ -697,23 +723,22 @@ const CheckoutScreen = ({ navigation, route }) => {
             placeholder="Chọn mức giảm giá"
             style={styles.dropdown}
           />
-
           <View
             style={[
               styles.discountDisplay,
               {
                 backgroundColor:
-                  discountColors[
+                  getDiscountColor(
                     discountOptions.find((opt) => opt.id === selectedDiscount)
                       ?.rate
-                  ]?.color || COLORS.white,
+                  )?.color || COLORS.white,
               },
             ]}
           >
             <Text style={[styles.textBold, { color: COLORS.white }]}>
-              {discountColors[
+              {getDiscountColor(
                 discountOptions.find((opt) => opt.id === selectedDiscount)?.rate
-              ]?.text || "Không có mức giảm giá"}
+              )?.text || "Không có mức giảm giá"}
             </Text>
           </View>
         </View>
@@ -747,16 +772,26 @@ const CheckoutScreen = ({ navigation, route }) => {
                   {item.dishType || "Món ăn"}
                 </Text>
                 <Text style={styles.textDishPrice}>
-                  {item.price.toLocaleString()} đ
-                  {discountRate > 0 && (
-                    <Text
-                      style={{
-                        color: COLORS.grey,
-                        textDecorationLine: "line-through",
-                      }}
-                    >
-                      - {(item.price * discountRate).toLocaleString()} đ
-                    </Text>
+                  {discountRate > 0 ? (
+                    <>
+                      {(item.price * item.quantity).toLocaleString()} đ{" "}
+                      <Text
+                        style={{
+                          color: COLORS.grey,
+                          textDecorationLine: "line-through",
+                        }}
+                      >
+                        -{" "}
+                        {(
+                          item.price *
+                          item.quantity *
+                          discountRate
+                        ).toLocaleString()}{" "}
+                        đ
+                      </Text>
+                    </>
+                  ) : (
+                    <>{(item.price * item.quantity).toLocaleString()} đ</>
                   )}
                 </Text>
                 <View style={styles.quantityContainer}>

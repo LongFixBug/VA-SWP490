@@ -203,6 +203,11 @@ const HomeStackScreen = () => (
       component={WalletScreen}
       options={{ unmountOnBlur: true }}
     />
+    <HomeStack.Screen
+      name="WebViewsScreen"
+      component={WebViewsScreen}
+      options={{ unmountOnBlur: true }}
+    />
   </HomeStack.Navigator>
 );
 
@@ -657,7 +662,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
-
 // import React, { useEffect, useState, useContext } from "react";
 // import {
 //   StatusBar,

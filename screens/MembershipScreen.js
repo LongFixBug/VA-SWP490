@@ -7,7 +7,7 @@ import {
   ScrollView,
   Dimensions,
   ImageBackground,
-  Modal, // Thêm Modal
+  Modal,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -17,28 +17,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../components/Header";
 
 const rankColors = {
-  Bronze: "#CD7F32", // Bronze color
-  Silver: "#C0C0C0", // Silver color
-  Gold: "#f5d114", // Gold color
-  Platinum: "#1b93e3", // Platinum color
+  Bronze: "#CD7F32",
+  Silver: "#C0C0C0",
+  Gold: "#f5d114",
+  Platinum: "#1b93e3",
 };
-
-const memberTier = [
-  {
-    id: "Bronze",
-    name: "Bronze",
-    point: 0,
-    description: "Thành viên mặc định",
-  },
-  { id: "Silver", name: "Silver", point: 500, description: "Giảm giá 10%" },
-  { id: "Gold", name: "Gold", point: 1000, description: "Giảm giá 20%" },
-  {
-    id: "Platinum",
-    name: "Platinum",
-    point: 2000,
-    description: "Giảm giá 30%",
-  },
-];
 
 const fetchWithAuth = async (url, options = {}) => {
   const token = await AsyncStorage.getItem("authToken");
@@ -62,8 +45,11 @@ const MembershipScreen = ({ navigation }) => {
   const [membership, setMembership] = useState(null);
   const [tierName, setTierName] = useState("");
   const [nextTier, setNextTier] = useState(null);
-  const [isModalVisible, setModalVisible] = useState(false); // Modal trạng thái
+  const [isModalVisible, setModalVisible] = useState(false);
   const [isDiscount, setIsDiscount] = useState(false);
+  const [memberTier, setMemberTier] = useState([]);
+  const [discountEndDate, setDiscountEndDate] = useState(7);
+  const [newCreationDate, setNewCreationDate] = useState(30);
 
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
@@ -76,6 +62,30 @@ const MembershipScreen = ({ navigation }) => {
         if (!storedUserId) {
           console.error("Không tìm thấy userId trong AsyncStorage.");
           return;
+        }
+
+        const allTiersResponse = await fetchWithAuth(
+          `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/membershipTiers/allMembershipTier`
+        );
+        if (!allTiersResponse.ok) {
+          const message = `Error fetching all tiers: ${allTiersResponse.status}`;
+          console.error(message);
+          throw new Error(message);
+        }
+        const allTiersJson = await allTiersResponse.json();
+        const formattedTiers = allTiersJson.map((tier) => ({
+          id: tier.tierId,
+          name: tier.tierName,
+          point: tier.requiredPoints,
+          description: `Giảm giá ${tier.discountRate * 100}%`,
+          discountRate: tier.discountRate,
+          discountEndDate: tier.discountEndDate,
+          newCreationDate: tier.newCreationDate,
+        }));
+        setMemberTier(formattedTiers);
+        if (formattedTiers && formattedTiers.length > 0) {
+          setDiscountEndDate(formattedTiers[0].discountEndDate);
+          setNewCreationDate(formattedTiers[0].newCreationDate);
         }
 
         const userResponse = await fetchWithAuth(
@@ -97,7 +107,7 @@ const MembershipScreen = ({ navigation }) => {
         setTierName(tierJson.tierName);
 
         const currentPoints = membershipJson.accumulatedPoints;
-        const nextTierData = memberTier.find(
+        const nextTierData = formattedTiers.find(
           (tier) => tier.point > currentPoints
         );
         if (nextTierData) {
@@ -297,7 +307,7 @@ const MembershipScreen = ({ navigation }) => {
         })}
       </View>
 
-      {/* Nội dung Modal */}
+      {/* Modal Content */}
       <Modal
         visible={isModalVisible}
         transparent={true}
@@ -343,7 +353,8 @@ const MembershipScreen = ({ navigation }) => {
                     marginTop: 5,
                   }}
                 >
-                  2. Discount không được dùng trong 7 ngày sẽ tự động hết hạn
+                  2. Discount không được dùng trong {discountEndDate} ngày sẽ tự
+                  động hết hạn
                 </Text>
                 <Text
                   style={{
@@ -352,8 +363,8 @@ const MembershipScreen = ({ navigation }) => {
                     marginTop: 5,
                   }}
                 >
-                  3. Discount sẽ được làm mới sau 30 ngày từ ngày sử dụng hoặc
-                  hết hạn
+                  3. Discount sẽ được làm mới sau {newCreationDate} ngày từ ngày
+                  sử dụng hoặc hết hạn
                 </Text>
               </>
             ) : (

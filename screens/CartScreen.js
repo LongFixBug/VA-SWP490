@@ -252,7 +252,7 @@ const CartScreen = ({ navigation }) => {
       });
 
       await Promise.all(promises);
-      Alert.alert("Thông báo", "Cập nhật giỏ hàng thành công.");
+      // Alert.alert("Thông báo", "Cập nhật giỏ hàng thành công.");
       navigation.navigate("Checkout", { selectedItems: selectedCartItems });
     } catch (error) {
       console.error("Lỗi khi cập nhật giỏ hàng:", error);

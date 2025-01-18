@@ -117,7 +117,7 @@ const SettingScreen = ({ navigation }) => {
               color={COLORS.grey}
             />
           </TouchableOpacity>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             activeOpacity={0.8}
             style={styles.settingAttributeRow}
             onPress={() => navigation.navigate("Nutrition")}
@@ -131,7 +131,7 @@ const SettingScreen = ({ navigation }) => {
               size={24}
               color={COLORS.grey}
             />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity
             activeOpacity={0.8}
             style={styles.settingAttributeRow}

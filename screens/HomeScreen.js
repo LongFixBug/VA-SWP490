@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,16 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
+  Animated,
+  Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import COLORS from "../constants/color";
 import FONTS from "../constants/font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import ChatBubbleComponent from "../components/ChatBubbleComponent";
 
 // Sử dụng global để lưu trữ cache
 if (!global.cachedDishes) {
@@ -40,12 +44,17 @@ const HomeScreen = () => {
     "Tráng miệng": [],
     Canh: [],
   });
+  const [isChatModalVisible, setIsChatModalVisible] = useState(false);
+
+  const handleToggleChatModal = () => {
+    setIsChatModalVisible(!isChatModalVisible);
+  };
 
   const rankColors = {
-    Bronze: "#333300", // Bronze color
-    Silver: "#C0C0C0", // Silver color
-    Gold: "#f5d114", // Gold color
-    Platinum: "#1b93e3", // Platinum color
+    Bronze: "#333300",
+    Silver: "#C0C0C0",
+    Gold: "#f5d114",
+    Platinum: "#1b93e3",
   };
 
   // Hàm fetch với Auth
@@ -86,7 +95,7 @@ const HomeScreen = () => {
   const sendNotification = async (userId, content) => {
     try {
       const response = await fetchWithAuth(
-        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/sendNotification?userId=${userId}&notificationType=new_promotion&content=${content}`,
+        `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/notifications/sendNotification?userId=${userId}¬ificationType=new_promotion&content=${content}`,
         {
           method: "POST",
         }
@@ -190,23 +199,21 @@ const HomeScreen = () => {
             })
           );
 
-          // Chỉ tạo discount và notification nếu tierId
+          // Chỉ tạo discount và notification nếu tierId thay đổi
           if (
             membershipData.tierId &&
             membershipData.tierId !== previousTierId
           ) {
             const discountRates = { 2: 0.1, 3: 0.2, 4: 0.6 }; // Tier-to-discount mapping
             if (membershipData.tierId >= 2 && membershipData.tierId <= 4) {
-              const discountRate = discountRates[membershipData.tierId];
+              // const discountRate = discountRates[membershipData.tierId];
               const currentDate = new Date();
               const expirationDate = new Date();
               expirationDate.setDate(currentDate.getDate() + 7);
-
               const discountPayload = {
                 userId: id,
                 tierId: membershipData.tierId,
                 grantedDate: currentDate.toISOString(),
-                discountRate: discountRate,
                 status: "active",
                 expirationDate: expirationDate.toISOString(),
               };
@@ -227,11 +234,11 @@ const HomeScreen = () => {
                 );
               } else {
                 console.log("Discount history created successfully!");
-                const discountPercentage = discountRate * 100;
-                sendNotification(
-                  id,
-                  `Bạn đã nhận được discount ${discountPercentage}%!`
-                );
+                // const discountPercentage = discountRate * 100;
+                // sendNotification(
+                //   id,
+                //   `Bạn đã nhận được discount ${discountPercentage}%!`
+                // );
               }
             }
             // Lưu lại previousTierId mới
@@ -509,39 +516,40 @@ const HomeScreen = () => {
     }
   };
 
-  useEffect(() => {
-    const checkAndCreateDeviceToken = async () => {
-      const storedUserId = await AsyncStorage.getItem("userId");
-      const deviceToken = await AsyncStorage.getItem("deviceToken");
+  // Hàm kiểm tra và tạo device token
+  const checkAndCreateDeviceToken = async () => {
+    const deviceToken = await AsyncStorage.getItem("deviceToken");
 
-      if (storedUserId && deviceToken) {
-        try {
-          const existingTokens = await getAllDeviceTokensByUserId(
-            parseInt(storedUserId)
+    if (userId && deviceToken) {
+      try {
+        const existingTokens = await getAllDeviceTokensByUserId(
+          parseInt(userId)
+        );
+        const tokenExists =
+          existingTokens &&
+          existingTokens.some((item) => item.deviceToken === deviceToken);
+
+        console.log("Token exists:", tokenExists);
+        if (!tokenExists) {
+          const createSuccess = await createDeviceToken(
+            parseInt(userId),
+            deviceToken
           );
-          const tokenExists =
-            existingTokens &&
-            existingTokens.some((item) => item.deviceToken === deviceToken);
-
-          console.log("Token exists:", tokenExists);
-          if (!tokenExists) {
-            const createSuccess = await createDeviceToken(
-              parseInt(storedUserId),
-              deviceToken
-            );
-            console.log("Create token success", createSuccess);
-            if (createSuccess) {
-              console.log("Device token created successfully in the db");
-            }
+          console.log("Create token success", createSuccess);
+          if (createSuccess) {
+            console.log("Device token created successfully in the db");
           }
-        } catch (error) {
-          console.error("Error checking or creating device token:", error);
         }
+      } catch (error) {
+        console.error("Error checking or creating device token:", error);
       }
-    };
+    }
+  };
 
+  // Gọi hàm kiểm tra device token khi userId thay đổi
+  useEffect(() => {
     checkAndCreateDeviceToken();
-  }, []);
+  }, [userId]);
 
   // Hàm render từng món ăn
   const renderDishItem = ({ item }) => (
@@ -709,11 +717,11 @@ const HomeScreen = () => {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.navigate("CombineScreen")}
+            onPress={() => navigation.navigate("NutritionMatching")}
             style={styles.featureItem}
           >
             <Icon name="nutrition-outline" size={30} color={COLORS.green} />
-            <Text style={styles.featureText}>Trợ Lý Của Bạn</Text>
+            <Text style={styles.featureText}>Dinh dưỡng cho bạn</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -757,6 +765,35 @@ const HomeScreen = () => {
           )}
         </ScrollView>
       )}
+      {/* Floating chat bubble button */}
+      <TouchableOpacity
+        style={styles.floatingButton}
+        onPress={handleToggleChatModal}
+      >
+        <Icon name="chatbubble-ellipses" size={30} color={COLORS.white} />
+      </TouchableOpacity>
+
+      {/* Chat Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isChatModalVisible}
+        onRequestClose={handleToggleChatModal}
+      >
+        <TouchableWithoutFeedback onPress={handleToggleChatModal}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              justifyContent: "flex-end",
+            }}
+          >
+            <View style={{ backgroundColor: "#fff", height: "90%" }}>
+              <ChatBubbleComponent />
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 };
@@ -979,10 +1016,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  floatingButton: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    backgroundColor: COLORS.green,
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    zIndex: 10,
+  },
 });
-
 export default HomeScreen;
-
 // import React, { useEffect, useState, useRef } from "react";
 // import {
 //   Animated,

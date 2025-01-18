@@ -19,7 +19,7 @@ const fetchWithAuth = async (url, options = {}) => {
     return response;
   } catch (error) {
     console.error("Error fetching with auth:", error);
-    throw error;
+    return null; // Return null when any errors occur
   }
 };
 
@@ -30,20 +30,28 @@ export const fetchLatestOrderId = async (userId) => {
       `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getOrderByUserId/${userId}`
     );
 
+    if (!response) {
+      // Check if response is null due to error in fetchWithAuth
+      return null;
+    }
+
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error("Không thể lấy danh sách đơn hàng: " + errorText);
+      return null; // Return null instead of throwing error
     }
 
     const orders = await response.json();
+
+    if (!orders || orders.length === 0) {
+      return null; // Return null if no orders
+    }
+
     const latestOrder = orders.reduce((maxOrder, order) =>
       order.orderId > maxOrder.orderId ? order : maxOrder
     );
 
-    return latestOrder.orderId;
+    return latestOrder?.orderId || null; // Return null if latestOrder is null
   } catch (error) {
-    console.error("Lỗi khi lấy orderId mới nhất:", error.message);
-    throw error;
+    return null; // Return null for any errors during the process
   }
 };
 
@@ -54,9 +62,12 @@ export const fetchOrderDetailsAndUpdateStatus = async (latestOrderId) => {
       `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/orders/getPaymentDetailByOrderId/${latestOrderId}`
     );
 
+    if (!paymentDetailResponse) {
+      return null; // Return null if response is null from fetchWithAuth
+    }
+
     if (!paymentDetailResponse.ok) {
-      const errorText = await paymentDetailResponse.text();
-      throw new Error("Không thể kiểm tra trạng thái thanh toán: " + errorText);
+      return null; // Return null instead of throwing error
     }
 
     const paymentDetails = await paymentDetailResponse.json();
@@ -69,9 +80,9 @@ export const fetchOrderDetailsAndUpdateStatus = async (latestOrderId) => {
         { method: "PUT" }
       );
     }
+    return null;
   } catch (error) {
-    console.error("Lỗi khi cập nhật trạng thái thanh toán:", error.message);
-    throw error;
+    return null;
   }
 };
 
@@ -81,9 +92,12 @@ export const fetchAndUpdateDiscountHistory = async (userId) => {
     const response = await fetchWithAuth(
       `https://vegetariansassistant-behjaxfhfkeqhbhk.southeastasia-01.azurewebsites.net/api/v1/discount-history/${userId}`
     );
+    if (!response) {
+      return null; // Return null if response is null from fetchWithAuth
+    }
 
     if (!response.ok) {
-      throw new Error("Không thể lấy lịch sử giảm giá.");
+      return null; // Return null instead of throwing error
     }
 
     const data = await response.json();
@@ -97,8 +111,8 @@ export const fetchAndUpdateDiscountHistory = async (userId) => {
         { method: "PUT" }
       );
     }
+    return null;
   } catch (error) {
-    console.error("Lỗi khi cập nhật trạng thái giảm giá:", error.message);
-    throw error;
+    return null;
   }
 };

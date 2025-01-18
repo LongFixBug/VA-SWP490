@@ -16,7 +16,7 @@ import Header from "../components/Header";
 
 function NutritionMatchingScreen({ navigation }) {
   const [nutritionData, setNutritionData] = useState(null);
-  const [userName, setUserName] = useState(""); // Thêm state cho tên người dùng
+  const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
 
   // Hàm gọi API với token
@@ -58,8 +58,8 @@ function NutritionMatchingScreen({ navigation }) {
   const fetchNutritionData = async () => {
     try {
       const userId = await AsyncStorage.getItem("userId");
-      const name = await AsyncStorage.getItem("username"); // Lấy tên từ AsyncStorage
-      setUserName(name || ""); // Cập nhật state tên người dùng
+      const name = await AsyncStorage.getItem("username");
+      setUserName(name || "");
 
       if (!userId) {
         throw new Error("Không tìm thấy User ID.");
@@ -76,7 +76,7 @@ function NutritionMatchingScreen({ navigation }) {
       }
 
       const data = await response.json();
-      const filteredData = data[0]; // Chỉ lấy object đầu tiên
+      const filteredData = data[0];
 
       // Loại bỏ các field liên quan đến id
       const displayData = Object.fromEntries(
@@ -86,7 +86,15 @@ function NutritionMatchingScreen({ navigation }) {
         )
       );
 
-      setNutritionData(displayData);
+      // Add units to the data
+      const dataWithUnits = Object.fromEntries(
+        Object.entries(displayData).map(([key, value]) => [
+          translateKey(key),
+          `${value} ${getUnit(key)}`,
+        ])
+      );
+
+      setNutritionData(dataWithUnits);
     } catch (error) {
       console.error("Lỗi khi lấy thông tin dinh dưỡng:", error.message);
       Alert.alert("Lỗi", error.message || "Không thể tải dữ liệu dinh dưỡng.");
@@ -98,8 +106,8 @@ function NutritionMatchingScreen({ navigation }) {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      await updateMatchingCriteria(); // Gọi API cập nhật tiêu chí
-      await fetchNutritionData(); // Gọi API lấy dữ liệu dinh dưỡng
+      await updateMatchingCriteria();
+      await fetchNutritionData();
     };
     fetchData();
   }, []);
@@ -151,7 +159,7 @@ function NutritionMatchingScreen({ navigation }) {
           </Text>
           {Object.entries(nutritionData).map(([key, value]) => (
             <View style={styles.nutritionRow} key={key}>
-              <Text style={styles.nutritionKey}>{formatKey(key)}</Text>
+              <Text style={styles.nutritionKey}>{key}</Text>
               <Text style={styles.nutritionValue}>{value}</Text>
             </View>
           ))}
@@ -164,8 +172,84 @@ function NutritionMatchingScreen({ navigation }) {
 // Hàm định dạng lại key (ví dụ: calories -> Calories)
 const formatKey = (key) => {
   return key
-    .replace(/([A-Z])/g, " $1") // Thêm khoảng trắng trước chữ in hoa
-    .replace(/^./, (str) => str.toUpperCase()); // Viết hoa chữ cái đầu
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase());
+};
+
+// Hàm dịch các key sang tiếng Việt
+const translateKey = (key) => {
+  switch (key) {
+    case "calories":
+      return "Lượng calo cần";
+    case "protein":
+      return "Lượng protein cần";
+    case "carbs":
+      return "Lượng carbs cần";
+    case "fat":
+      return "Lượng chất béo cần";
+    case "fiber":
+      return "Lượng chất xơ cần";
+    case "water":
+      return "Lượng nước cần";
+    case "sodium":
+      return "Lượng natri cần";
+    case "sugar":
+      return "Lượng đường cần";
+    case "calcium":
+      return "Lượng canxi cần";
+    case "iron":
+      return "Lượng sắt cần";
+    case "magnesium":
+      return "Lượng magie cần";
+    case "omega3":
+      return "Lượng omage 3 cần";
+    case "sugars":
+      return "Lượng đường cần";
+    case "cholesterol":
+      return "Lượng cholesterol cần";
+    case "vitaminA":
+      return "Lượng Vitamin A cần";
+    case "vitaminB":
+      return "Lượng Vitamin B cần";
+    case "vitaminC":
+      return "Lượng Vitamin C cần";
+    case "vitaminD":
+      return "Lượng Vitamin D cần";
+    case "vitaminE":
+      return "Lượng Vitamin E cần";
+    default:
+      return formatKey(key);
+  }
+};
+
+const getUnit = (key) => {
+  switch (key) {
+    case "calories":
+      return "kcal";
+    case "protein":
+    case "carbs":
+    case "fat":
+    case "fiber":
+    case "water":
+    case "sugars":
+      return "g";
+    case "sodium":
+    case "calcium":
+    case "iron":
+    case "magnesium":
+    case "cholesterol":
+    case "omega3":
+      return "mg";
+    case "vitaminA":
+      return "mcg";
+    case "vitaminB":
+    case "vitaminC":
+    case "vitaminD":
+    case "vitaminE":
+      return "mg";
+    default:
+      return "";
+  }
 };
 
 export default NutritionMatchingScreen;

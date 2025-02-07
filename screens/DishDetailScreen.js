@@ -896,6 +896,10 @@ const DishDetailScreen = ({ navigation, route }) => {
               {Object.keys(nutrition).length > 0 ? (
                 <>
                   <Text style={styles.textAttribute}>
+                    Trọng lượng món ăn: {nutrition?.totalWeights || "Không rõ"}{" "}
+                    g
+                  </Text>
+                  <Text style={styles.textAttribute}>
                     {translateKey("calories")}: {nutrition?.totalCalories || 0}{" "}
                     kcal
                   </Text>
@@ -909,7 +913,46 @@ const DishDetailScreen = ({ navigation, route }) => {
                     {translateKey("protein")}: {nutrition?.totalProtein || 0} g
                   </Text>
                   <Text style={styles.textAttribute}>
-                    Khối lượng: {nutrition?.totalWeights || "Không rõ"} g
+                    {translateKey("fiber")}: {nutrition?.totalFiber || 0} g
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("calcium")}: {nutrition?.totalCalcium || 0} mg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("iron")}: {nutrition?.totalIron || 0} mg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("magnesium")}:{" "}
+                    {nutrition?.totalMagnesium || 0} mg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("omega3")}: {nutrition?.totalOmega3 || 0} mg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("sugars")}: {nutrition?.totalSugars || 0} g
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("sodium")}: {nutrition?.totalSodium || 0} mg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("vitaminA")}: {nutrition?.totalVitaminA || 0}{" "}
+                    mcg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("vitaminB")}: {nutrition?.totalVitaminB || 0}{" "}
+                    mg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("vitaminC")}: {nutrition?.totalVitaminC || 0}{" "}
+                    mg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("vitaminD")}: {nutrition?.totalVitaminD || 0}{" "}
+                    mg
+                  </Text>
+                  <Text style={styles.textAttribute}>
+                    {translateKey("vitaminE")}: {nutrition?.totalVitaminE || 0}{" "}
+                    mg
                   </Text>
                 </>
               ) : (

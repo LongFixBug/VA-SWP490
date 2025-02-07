@@ -1,8 +1,8 @@
 import axios from "axios";
 
-const INFOPBIP_BASE_URL = "https://2mr2mz.api.infobip.com";
+const INFOPBIP_BASE_URL = "https://8kxwk3.api.infobip.com";
 const API_KEY =
-  "17a3ba35aea8822433dda1d06e6ea773-8b9cdcc8-f7fd-460e-83df-02b3a42c00ec";
+  "ee236ebadeb4b05bef5173c3b4862c0d-06cc4a4c-3f3b-4c1f-8cbf-f42f13b33879";
 //tri: 17a3ba35aea8822433dda1d06e6ea773-8b9cdcc8-f7fd-460e-83df-02b3a42c00ec          2mr2mz.api.infobip.com
 //thien: fc2a2bb86a54cdeea1741abb971a8171-410a8e2a-601f-4e28-bf01-e08ce49b736e         m3wj36.api.infobip.com
 //Minh:  ee236ebadeb4b05bef5173c3b4862c0d-06cc4a4c-3f3b-4c1f-8cbf-f42f13b33879        8kxwk3.api.infobip.com

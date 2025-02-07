@@ -363,8 +363,8 @@ const MembershipScreen = ({ navigation }) => {
                     marginTop: 5,
                   }}
                 >
-                  3. Discount sẽ được làm mới sau {newCreationDate} ngày từ ngày
-                  sử dụng hoặc hết hạn
+                  3. Discount sẽ được làm mới sau {newCreationDate} tính từ ngày
+                  được cấp
                 </Text>
               </>
             ) : (

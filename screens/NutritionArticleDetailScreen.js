@@ -60,6 +60,22 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
       type: type,
       text1: title,
       text2: message,
+      text1Style: {
+        fontSize: 18,
+        fontFamily: FONTS.semiBold,
+        color: COLORS.black,
+      },
+      text2Style: {
+        fontSize: 15,
+        fontFamily: FONTS.medium,
+        color: COLORS.grey,
+      },
+      style: {
+        borderRadius: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        marginTop: 30,
+      },
     });
   };
 
@@ -208,7 +224,9 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
         showToast(
           "success",
           "Thành công",
-          liked ? "Bạn đã bỏ thích bài viết này!" : "Bạn đã thích bài viết này!"
+          liked
+            ? "Bạn đã bỏ thích bài viết này!"
+            : "Bạn đã thích bài viết này!❤️"
         );
       } else {
         showToast(
@@ -232,7 +250,7 @@ const NutritionArticleDetailScreen = ({ route, navigation }) => {
       if (userCommentLower.includes(badWordLower)) {
         return {
           success: false,
-          message: `Nội dung bình luận có chứa từ cấm: "${badWord.content}"`,
+          message: `Nội dung chứa từ cấm: "${badWord.content}"`,
         };
       }
     }
